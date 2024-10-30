@@ -1,0 +1,50 @@
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"           // Latest build tools for Android 14
+        minSdkVersion = 23                     // Set the minimum SDK version
+        compileSdkVersion = 34                 // Compile with Android 14 (API level 34)
+        targetSdkVersion = 34                  // Target Android 14
+        ndkVersion = "26.1.10909125"           // Update the NDK version if necessary
+        kotlinVersion = "1.9.22"               // Latest Kotlin version
+        googlePlayServicesAuthVersion = "17.0.0" // Google Play Services Auth version
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // Android Gradle Plugin for API 34 (Android 14)
+        classpath 'com.android.tools.build:gradle:8.1.1'
+
+        // React Native Gradle plugin
+        classpath "com.facebook.react:react-native-gradle-plugin"
+
+        // Kotlin Gradle Plugin
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+
+        // Other dependencies as needed
+    }
+
+    subprojects { subproject ->
+        if (project.name == 'react-native-reanimated') {
+            project.configurations { compile {} }
+        }
+    }
+}
+
+// Apply the React Native plugin
+apply plugin: "com.facebook.react.rootproject"
+
+// Additional configurations for all projects
+allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
