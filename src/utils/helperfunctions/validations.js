@@ -9,18 +9,24 @@ export const ValueEmpty = value => {
 export const ValidateMobile = mobile => {
   const reg = new RegExp('^\\d+$');
 
-  if (ValueEmpty(mobile)) {
-    return 'success';
-    // return '*Required';
-  } else 
-  if
-   (!reg.test(mobile)) {
-    return 'Invalid mobile number';
-  } 
+  // if (ValueEmpty(mobile)) {
+  //   return 'success';
+  //   // return '*Required';
+  // }
+  // else if (!reg.test(mobile)) {
+  //   return 'Invalid mobile number';
+  // } 
   // else if (mobile.length < 10) {
   //   return 'Please enter 10 digit mobile number';
   // } 
-  else return 'success';
+  if (ValueEmpty(mobile)) {
+    return 'Mobile Number is required ';
+  } else if (mobile.length < 10) {
+    return 'Please enter 10 digit mobile number';
+  } else if (!reg.test(mobile)) {
+    return 'Invalid mobile number';
+  }
+  return 'success';
 };
 export const ValidateGHIN = mobile => {
   const reg = new RegExp('^\\d+$');
@@ -150,6 +156,20 @@ export const AlternativeValidateMail = email => {
 };
 
 
+
+export const ValidateTempleName = password => {
+  var reg =  /^[A-Za-z]+$/;
+
+  if (ValueEmpty(password)) {
+    return 'Temple name is Required';
+  } else if (password.length < 3|| password.length > 25) {
+    return 'Name should be 3-25 characters long';
+  } else if (!reg.test(password)) {
+    return 'Name should be alphanumeric';
+  }
+
+  return 'success';
+};
 
 
 

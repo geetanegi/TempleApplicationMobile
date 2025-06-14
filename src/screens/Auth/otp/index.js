@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   accountCreate: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.black,
     textAlign: 'justify',
     fontWeight: 400,
@@ -474,6 +474,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 10,
     justifyContent: 'center',
   },
   resetPassword: {

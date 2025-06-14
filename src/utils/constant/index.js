@@ -9,5 +9,5 @@
 //   baseUrl: 'http://10.0.2.2:8080/aceCam/',
 // };
 export const environment = {
-  baseUrl: 'http://139.144.0.213:8080/aceCam/',
+  baseUrl: 'http://13.203.150.178:8080/jain-app/api/',
 };

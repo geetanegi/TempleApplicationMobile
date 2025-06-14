@@ -8,8 +8,8 @@ import {
   Keyboard,
   BackHandler,
 } from 'react-native';
-import React, {useState} from 'react';
-import {colors, images, APP_TEXT, NAVIGATION} from '../../../global/theme';
+import React, { useState } from 'react';
+import { colors, images, APP_TEXT, NAVIGATION } from '../../../global/theme';
 import st from '../../../global/styles';
 import LoginImg from '../../../components/loginImage';
 import AdminInput from '../../../components/adminInput';
@@ -28,15 +28,16 @@ import {
   ValidateGHIN,
   ValidateCardNumber,
   ValidateCVV,
+  ValidateTempleName,
 } from '../../../utils/helperfunctions/validations';
 import Toast from 'react-native-simple-toast';
 import MydatePicker from '../../../components/datePicker';
-import {API} from '../../../utils/endpoints';
-import {postNoAuth} from '../../../utils/apicalls/postApi';
+import { API } from '../../../utils/endpoints';
+import { postNoAuth } from '../../../utils/apicalls/postApi';
 import Loader from '../../../components/loader';
 import PopUpMessage from '../../../components/popup';
 import useNetworkStatus from '../../../hooks/networkStatus';
-import {useFocusEffect} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { historyDownload } from '../../../utils/helperfunctions/functions';
 const Instagram = require('../../../images/Instagram.png');
 const Facebook = require('../../../images/Facebook.png');
@@ -44,10 +45,10 @@ const TikTok = require('../../../images/TikTok.png');
 const Google = require('../../../images/Google.png');
 
 const dataSocialIcons = [
-  {id: '1', name: Instagram, button: 'instagramLogIn'},
-  {id: '2', name: Facebook, button: 'facebookLogIn'},
-  {id: '3', name: TikTok, button: 'tikTokLogIn'},
-  {id: '4', name: Google, button: 'googleLogIn'},
+  { id: '1', name: Instagram, button: 'instagramLogIn' },
+  { id: '2', name: Facebook, button: 'facebookLogIn' },
+  { id: '3', name: TikTok, button: 'tikTokLogIn' },
+  { id: '4', name: Google, button: 'googleLogIn' },
 ];
 
 const INITIALINPUT = {
@@ -66,13 +67,15 @@ const INITIALINPUT = {
   CVV: '',
   nameOnCard: '',
   Terms: '',
+  templeName: ''
 };
 
-const Signup = ({navigation}) => {
+const Signup = ({ navigation }) => {
   const [errors, setErrors] = useState(INITIALINPUT);
   const [inputs, setInputs] = useState(INITIALINPUT);
   const [loading, setLoading] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [isCheckedTemple, setIsCheckedTemple] = useState(false);
   const [disabled, setDisable] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState();
@@ -85,31 +88,32 @@ const Signup = ({navigation}) => {
     const url = API.REGISTER_USER;
     const params = {
       dateOfBirth: inputs?.DOB,
-      emailId: inputs?.emailId,
+      email: inputs?.emailId,
       firstName: inputs?.firstName,
       lastName: inputs?.lastName,
-      mobile: inputs?.mobile,
+      phone: inputs?.mobile,
       password: inputs?.password,
       username: inputs?.username,
-      countryCode:inputs?.countryCode
+      isTempleMember: isCheckedTemple
     };
     setIsLoading(true);
     postNoAuth(url, params)
       .then(result => {
         if (!result?.error) {
           setIsLoading(false);
+          console.log('--------result,,,,',result)
           const data = {
             emailId: inputs?.emailId,
-            message: result?.data?.message,
+          //  message: result?.data?.message,
             token: result?.data?.token,
           };
-          Toast.show(result?.data?.message);
+     //    Toast.show(result?.data?.message);
 
           // setTitle('OTP sent successfully!');
           // setWarning(false);
           // setSubtitle(result?.data?.message);
           // setPopupMessageVisibility(true);
-          navigation.navigate(NAVIGATION.TO_OTP_SCREEN, {item: data});
+          navigation.navigate(NAVIGATION.TO_OTP_SCREEN, { item: data });
         } else {
           setIsLoading(false);
           setTitle('Oops!');
@@ -142,14 +146,12 @@ const Signup = ({navigation}) => {
 
   const validation = () => {
     Keyboard.dismiss();
-
     if (!isChecked) {
       handleError(
         'You must agree to the Terms and Conditions to proceed',
         'Terms',
       );
     }
-
     if (isEmpty(inputs.username)) {
       const validNumber = ValidateUserName(null);
       handleError(validNumber, 'username');
@@ -174,10 +176,14 @@ const Signup = ({navigation}) => {
       const validNumber = ValidateMail(null);
       handleError(validNumber, 'emailId');
     }
-    // if (inputs.GHIN) {
-    //   const validNumber = ValidateGHIN(null);
-    //   handleError(validNumber, 'GHIN');
-    // }
+    if (isEmpty(inputs.mobile)) {
+      const validNumber = ValidateMobile(null);
+      handleError(validNumber, 'mobile');
+    }
+    if (isEmpty(inputs.templeName) && isCheckedTemple) {
+      const validNumber = ValidateTempleName(null);
+      handleError(validNumber, 'templeName');
+    }
 
     if (
       isEmpty(errors.username) &&
@@ -196,8 +202,8 @@ const Signup = ({navigation}) => {
       isEmpty(errors.nameOnCard) &&
       isChecked == true
     ) {
-    //  console.log('LOGIN_AUTH finally');
-       handleSubmitPress();
+      //  console.log('LOGIN_AUTH finally');
+      handleSubmitPress();
     }
   };
 
@@ -217,6 +223,7 @@ const Signup = ({navigation}) => {
   };
 
   const handleOnchange = (text, input) => {
+    console.log('-------inputtt--',input)
     if (input == 'username') {
       const validNumber = ValidateUserName(text);
       let isValid = true;
@@ -282,24 +289,14 @@ const Signup = ({navigation}) => {
         handleError(validPassword, 'mobile');
         isValid = false;
       }
-    } 
-    else if (input == 'GHIN') {
-      let isValid = true;
-      const validPassword = ValidateGHIN(text);
-      if (validPassword == 'success') {
-        handleError('', 'GHIN');
-      } else {
-        handleError(validPassword, 'GHIN');
-        isValid = false;
-      }
     }
-    else if (input == 'cardNumber') {
+    else if (input == 'templeName') {
       let isValid = true;
-      const validPassword = ValidateCardNumber(text);
+      const validPassword = ValidateTempleName(text);
       if (validPassword == 'success') {
-        handleError('', 'cardNumber');
+        handleError('', 'templeName');
       } else {
-        handleError(validPassword, 'cardNumber');
+        handleError(validPassword, 'templeName');
         isValid = false;
       }
     }
@@ -313,22 +310,19 @@ const Signup = ({navigation}) => {
         isValid = false;
       }
     }
-
-    
-
-    setInputs(prevState => ({...prevState, [input]: text}));
+    setInputs(prevState => ({ ...prevState, [input]: text }));
   };
 
   const handlechange = (text, input) => {
-    setInputs(prevState => ({...prevState, ['DOB']: text.toISOString()}));
+    setInputs(prevState => ({ ...prevState, ['DOB']: text.toISOString() }));
   };
 
   const handleExpirychange = (text, input) => {
-    setInputs(prevState => ({...prevState, ['expiryDate']: text.toISOString()}));
+    setInputs(prevState => ({ ...prevState, ['expiryDate']: text.toISOString() }));
   };
 
   const handleError = (error, input) => {
-    setErrors(prevState => ({...prevState, [input]: error}));
+    setErrors(prevState => ({ ...prevState, [input]: error }));
   };
 
   const onSocialLogin = VAL => {
@@ -370,36 +364,36 @@ const Signup = ({navigation}) => {
         'Please check your Wi-Fi or mobile network connection and try again.',
       );
     } else {
-       // setSessionPopup(false);
-        try {
-          setIsLoading(true);
-          const result = await historyDownload(title, url);
-          if (result) {
-            setIsLoading(false);
-            Toast.show('Terms and Condition has been downloaded successfully');
-            // onPopupMessageModalClick(true);
-            // setTitle('Congratulations');
-            // setSubtitle('Pdf has been downloaded successfully');
-          } else {
-            setIsLoading(false);
-          }
-        } catch (e) {
+      // setSessionPopup(false);
+      try {
+        setIsLoading(true);
+        const result = await historyDownload(title, url);
+        if (result) {
+          setIsLoading(false);
+          Toast.show('Terms and Condition has been downloaded successfully');
+          // onPopupMessageModalClick(true);
+          // setTitle('Congratulations');
+          // setSubtitle('Pdf has been downloaded successfully');
+        } else {
           setIsLoading(false);
         }
-      
+      } catch (e) {
+        setIsLoading(false);
       }
+
+    }
   };
 
   const minDate = new Date();
   const maxDate = new Date();
   return (
-    <ImageBackground style={{flex: 1}} source={images.loginBG}>
+    <ImageBackground style={{ flex: 1 }} source={images.loginBG}>
       {loading && <FullScreenLoader visible={loading} />}
 
       <ScrollView keyboardShouldPersistTaps={'handled'}>
         <TransparentHeader />
         <View style={[st.card, st.mt_t60, styles.container]}>
-       
+
           <View style={[st.cardsty, st.shadowProp]}>
             <View>
               <AdminInput
@@ -512,12 +506,45 @@ const Signup = ({navigation}) => {
               />
             </View>
 
+            <View style={[st.row, st.align_C, st.mt_t20]}>
+              <Checkbox
+                isChecked={isCheckedTemple}
+                error={errors?.Terms}
+                onClick={() => setIsCheckedTemple(!isCheckedTemple)}
+                checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
+              />
+              <Text
+                style={[
+                  st.temsCondition,
+                  { color: colors.PRIMARY_DARK, left: 5 },
+                ]}>
+                {APP_TEXT.REGISTER_AS_TEMPLE}
+              </Text>
 
-            {/* <TermsAndCondition/> */}
-
+            </View>
+            {isCheckedTemple ? (
+              <>
+                <View style={[st.mt_t20]}>
+                  <AdminInput
+                    isRequired
+                    holderName={APP_TEXT.TEMPLE_NAME}
+                    onChangeText={text => {
+                      handleOnchange(text, 'templeName');
+                    }}
+                    //  onFocus={() => handleError(null, 'GHIN')}
+                    error={errors?.templeName}
+                    value={inputs?.templeName}
+                    iconName={''}
+                    label={''}
+                    keyboardType={'numeric'}
+                  />
+                </View>
+              </>
+            ) : null
+            }
             <View style={[st.mt_v]}>
               <Pressable
-               onPress={() => getpdfFile("terms and condition", "https://morth.nic.in/sites/default/files/dd12-13_0.pdf")}
+                onPress={() => getpdfFile("terms and condition", "https://morth.nic.in/sites/default/files/dd12-13_0.pdf")}
               >
                 <View style={[st.row, st.align_C]}>
                   <Checkbox
@@ -529,14 +556,14 @@ const Signup = ({navigation}) => {
                   <Text
                     style={[
                       st.temsCondition,
-                      {color: colors.PRIMARY_DARK, left: 5},
+                      { color: colors.PRIMARY_DARK, left: 5 },
                     ]}>
                     {APP_TEXT.AGREEING_TO}
 
                     <Text
                       style={[
                         styles.txtForgotPwd,
-                        {fontSize: 12, textDecorationLine: 'underline'},
+                        { fontSize: 12, textDecorationLine: 'underline' },
                       ]}>
                       {APP_TEXT.TERMS_AND_CONDITION}
                     </Text>
@@ -544,7 +571,7 @@ const Signup = ({navigation}) => {
                 </View>
               </Pressable>
               {!isChecked && (
-                <Text style={[{color: colors.danger, fontSize: 12}]}>
+                <Text style={[{ color: colors.danger, fontSize: 12 }]}>
                   {errors?.Terms}
                 </Text>
               )}
@@ -564,10 +591,10 @@ const Signup = ({navigation}) => {
                 }}
                 style={styles.alreadyAcc}>
                 <Text
-                  style={[styles.accountCreate, {color: colors.PRIMARY_DARK}]}>
+                  style={[styles.accountCreate, { color: colors.PRIMARY_DARK }]}>
                   {APP_TEXT.ALREADY_HAVE_ACCOUNT}
                 </Text>
-                <Text style={[styles.txtForgotPwd, {left: 5}]}>
+                <Text style={[styles.txtForgotPwd, { left: 5 }]}>
                   {APP_TEXT.LOGIN_LOGIN}
                 </Text>
               </Pressable>

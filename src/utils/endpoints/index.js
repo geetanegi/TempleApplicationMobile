@@ -2,8 +2,8 @@ import {environment} from '../constant';
 
 class Endpoints {
   baseUrl = environment.baseUrl;
-  LOGIN_AUTH = this.baseUrl + 'identity/auth/login';
-  REGISTER_USER = this.baseUrl + 'identity/auth/register-new-user';
+  LOGIN_AUTH = this.baseUrl + 'auth/login';
+  REGISTER_USER = this.baseUrl + 'auth/register';
   VERIFY_LOGIN_OTP=this.baseUrl + 'identity/auth/verify-password-otp';
   VERIFY_OTP= this.baseUrl + 'identity/auth/verify-login-otp';
   FORGET_PASSWORD=this.baseUrl + 'identity/auth/forgot-password';

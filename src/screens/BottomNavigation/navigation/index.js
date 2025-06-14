@@ -25,6 +25,7 @@ import LeaderBoard from '../../dashboard/LeaderBoard/LeaderBoard';
 import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio';
 import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
 import Home from '../../dashboard/qr';
+import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 
 
 const BetCentral = () => {
@@ -316,7 +317,7 @@ export default function BottomNavigation() {
       />
       <Tab.Screen
         name="BetCentral"
-        component={BetCentral}
+        component={ViewPdf}
         options={{
           tabBarIcon: ({focused}) => (
             <View style={[st.icon]}>
