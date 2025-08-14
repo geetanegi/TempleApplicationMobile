@@ -6,7 +6,7 @@ class Endpoints {
   REGISTER_USER = this.baseUrl + 'auth/register';
   VERIFY_LOGIN_OTP=this.baseUrl + 'identity/auth/verify-password-otp';
   VERIFY_OTP= this.baseUrl + 'identity/auth/verify-login-otp';
-  FORGET_PASSWORD=this.baseUrl + 'identity/auth/forgot-password';
+  FORGET_PASSWORD=this.baseUrl + 'api/auth/forgot-password';
   RESET_PASSWORD=this.baseUrl + 'identity/auth/reset-password';
   FORGET_REGISTER_USER_PASSWORD=this.baseUrl + 'identity/auth/forgot-register-user-password';
   GET_ALL_PROFILE=this.baseUrl + 'core/user/all-active-players';
