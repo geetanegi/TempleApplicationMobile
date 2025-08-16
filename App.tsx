@@ -1,45 +1,36 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { StyleSheet, Text, useColorScheme } from 'react-native'
+import React from 'react'
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Login from './src/screens/Auth/Login';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
+const App = () => {
+  // useColorScheme is a hook that returns the current color scheme of the device
+  // It can return 'light', 'dark', or 'no-preference'
+  // If the theme is 'dark', we will use a dark background and light text color
+  // If the theme is 'light', we will use a light background and dark text color
+  const theme = useColorScheme();
+  console.log('Current theme:', theme);
+  const isDark = theme === 'dark';
+  const backgroundColor = isDark ? '#000' : '#fff';
+  const textColor = isDark ? '#fff' : '#000';
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
-  );
+    <SafeAreaView style={[styles.container,{ backgroundColor }]}>
+      <Login/>
+    </SafeAreaView>
+  )
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
+export default App
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontFamily:'Rubik'
   },
-});
-
-export default App;
+  text: {
+    fontSize: 20,
+    color: '#333',
+  },
+})
