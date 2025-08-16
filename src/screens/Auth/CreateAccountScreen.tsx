@@ -74,8 +74,8 @@ const CreateAccountScreen = () => {
             </View>
 
             {/* Login Button */}
-            <Pressable style={styles.loginButton}>
-              <Text style={styles.loginText}>Get Started</Text>
+            <Pressable style={styles.Button}>
+              <Text style={styles.btnText}>Get Started</Text>
               <Icon name='send' size={16} color={colors.background} />
             </Pressable>
 
@@ -150,8 +150,9 @@ const styles = StyleSheet.create({
     borderColor: colors.secondary,
     fontSize: 15,
     color: colors.text,
+    fontFamily: 'Rubik-Regular',
   },
-  loginButton: {
+  Button: {
     backgroundColor: colors.secondary,
     paddingVertical: 20,
     width: '100%',
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     marginTop: 10
 
   },
-  loginText: {
+  btnText: {
     color: '#fff',
     fontSize: 16,
     textTransform: 'uppercase',
@@ -174,11 +175,12 @@ const styles = StyleSheet.create({
   recoverAcc: {
     flexDirection: 'row',
     alignItems: 'center',
+    fontFamily: 'Rubik-Regular',
   },
   accountCreate: {
     fontSize: 16,
     color: 'white',
-
+    fontFamily: 'Rubik-Regular',
   },
   linkText: {
     fontSize: 16,
@@ -186,7 +188,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Medium',
   },
   lightText: {
-    fontFamily: 'Rubik',
+    fontFamily: 'Rubik-Regular',
     opacity: 0.8,
     fontSize: 12,
     textTransform: "uppercase"
@@ -202,5 +204,6 @@ const styles = StyleSheet.create({
     height: 110,
     borderTopRightRadius: 50,
     paddingHorizontal: 36,
+    fontFamily: 'Rubik-Regular',
   },
 });

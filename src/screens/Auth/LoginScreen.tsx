@@ -59,7 +59,7 @@ const LoginScreen = () => {
                             />
                         </View>
                         <View style={styles.recoverAcc}>
-                            <Pressable style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Pressable onPress={() => navigation.navigate("ResetPassword")} style={{ flex: 1, alignItems: 'flex-end' }}>
                                 <Text style={styles.lightText}>Recover Password?</Text>
                             </Pressable>
                         </View>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
         borderColor: colors.secondary,
         fontSize: 15,
         color: colors.text,
-
+        fontFamily: 'Rubik-Regular',
     },
     loginButton: {
         backgroundColor: colors.secondary,
@@ -163,11 +163,12 @@ const styles = StyleSheet.create({
     recoverAcc: {
         flexDirection: 'row',
         alignItems: 'center',
+        fontFamily: 'Rubik-Regular',
     },
     accountCreate: {
         fontSize: 16,
         color: 'white',
-
+        fontFamily: 'Rubik-Regular',
     },
     linkText: {
         fontSize: 16,
@@ -176,9 +177,8 @@ const styles = StyleSheet.create({
     },
     lightText: {
         fontSize: 14,
-        fontFamily: 'Rubik',
         opacity: 0.8,
-
+        fontFamily: 'Rubik-Regular',
     },
     alreadyAcc: {
         alignItems: 'center',
@@ -191,5 +191,6 @@ const styles = StyleSheet.create({
         height: 110,
         borderTopRightRadius: 50,
         paddingHorizontal: 36,
+        fontFamily: 'Rubik-Regular',
     },
 });
