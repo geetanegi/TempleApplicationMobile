@@ -1,11 +1,28 @@
-import { Pressable, StyleSheet, Text, View, TextInput, Image, ImageBackground } from 'react-native';
+import { Pressable, StyleSheet, Text, View, TextInput, Image, ImageBackground, } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../assets/theme';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import LinearGradient from 'react-native-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AuthStackParamList } from './Auth';
+import { runOnJS } from 'react-native-reanimated';
 
-const Login = () => {
+type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
+
+const LoginScreen = () => {
+    const navigation = useNavigation<AuthNavigationProp>();
+    const handleSwipeUp = () => {
+        navigation.navigate('Signup');
+    };
+    const panGesture = Gesture.Pan()
+        .onUpdate((event) => {
+            if (event.translationY < -50) {
+                runOnJS(handleSwipeUp)();
+            }
+        });
     return (
         <SafeAreaView style={styles.container}>
             <LinearGradient
@@ -56,22 +73,26 @@ const Login = () => {
                     {/* Sign Up Link */}
 
                 </View>
+                <GestureDetector gesture={panGesture}>
+                    <View collapsable={false} style={styles.alreadyAcc}>
 
-                <ImageBackground resizeMode="contain" source={require('../../images/objects.png')}
-                    style={styles.alreadyAcc}>
-                    <Icon name='chevron-circle-up' size={26} color={colors.background} />
+                        <ImageBackground resizeMode="contain" source={require('../../images/objects.png')}
+                            style={styles.alreadyAcc}>
+                            <Icon name='chevron-circle-up' size={26} color={colors.background} />
 
-                    <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.accountCreate}>Existing User? </Text>
-                        <Text style={styles.linkText}>Swipe Up</Text>
-                    </Pressable>
-                </ImageBackground>
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={styles.accountCreate}>New User? </Text>
+                                <Text style={styles.linkText}>Swipe Up</Text>
+                            </Pressable>
+                        </ImageBackground>
+                    </View>
+                </GestureDetector>
             </LinearGradient>
         </SafeAreaView >
     );
 };
 
-export default Login;
+export default LoginScreen;
 
 const styles = StyleSheet.create({
     bg: {
@@ -118,6 +139,8 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderColor: colors.secondary,
         fontSize: 15,
+        color: colors.text,
+
     },
     loginButton: {
         backgroundColor: colors.secondary,
