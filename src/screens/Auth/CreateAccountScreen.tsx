@@ -1,14 +1,17 @@
-import { Pressable, StyleSheet, Text, View, TextInput, Image, ImageBackground, } from 'react-native';
+import { StyleSheet, View, Image, ImageBackground, } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../assets/theme';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { AuthStackParamList } from './Auth';
 import { runOnJS } from 'react-native-reanimated';
+import AuthInput from './components/AuthInput';
+import AuthButton from './components/AuthButton';
+import AuthHeader from './components/AuthHeader';
+import SwipeUpFooter from './components/SwipeUpFooter';
+import GradientBackground from './components/GradientBackground';
 
 type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -24,80 +27,37 @@ const CreateAccountScreen = () => {
       }
     });
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        style={styles.container}
-        colors={[colors.linearGradient[0], colors.linearGradient[1]]} // Using the colors from the theme
-        start={{ x: 0, y: 0 }} // Top-left
-        end={{ x: 1, y: 1 }} // Bottom-right (creates a diagonal gradient)
-      >
+    <SafeAreaView edges={["bottom", "right", "left"]} style={styles.container}>
+      <GradientBackground>
         {/* Logo */}
-        <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} />
+        <View style={styles.imageContainer}>
+          <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} />
+        </View>
         <View style={styles.bg}>
           {/* Heading */}
-          <View >
-            <Text style={styles.header}>Create your Account</Text>
-          </View>
+          <AuthHeader title='Create your Account' />
 
-          <View style={{ gap: 12 }}>
-
+          <View>
             {/* Inputs */}
-            <View>
-              <Text style={[styles.lightText]}>Full name</Text>
-              <TextInput
-                style={styles.inputBox}
-                keyboardType="default"
-              />
-            </View>
-            <View>
-              <Text style={[styles.lightText]}>Email</Text>
-              <TextInput
-                style={styles.inputBox}
-                keyboardType="email-address"
-              />
-            </View>
-            <View>
-              <Text style={[styles.lightText]}>Date of Birth</Text>
-              <TextInput
-                style={styles.inputBox}
-                keyboardType="email-address"
-              />
-            </View>
-            <View>
-              <Text style={[styles.lightText]}>Contact Number</Text>
-              <TextInput
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={styles.inputBox}
-              />
-            </View>
+            <AuthInput label='Full name' />
+            <AuthInput label='Email' />
+            <AuthInput label='Date of Birth' />
+            <AuthInput label='Contact Number' />
 
-            {/* Login Button */}
-            <Pressable style={styles.Button}>
-              <Text style={styles.btnText}>Get Started</Text>
-              <Icon name='send' size={16} color={colors.background} />
-            </Pressable>
+            {/* Create Button */}
+            <AuthButton label='Get Started' icon='send' onPress={() => { }} />
 
           </View>
-          {/* Sign Up Link */}
-
         </View>
         <GestureDetector gesture={panGesture}>
           <View collapsable={false} style={styles.alreadyAcc}>
-
             <ImageBackground resizeMode="contain" source={require('../../images/objects.png')}
               style={styles.alreadyAcc}>
-              <Icon name='chevron-circle-up' size={26} color={colors.background} />
-
-              <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.accountCreate}>Existing User? </Text>
-                <Text style={styles.linkText}>Swipe Up</Text>
-              </Pressable>
+              <SwipeUpFooter text='Existing User?' link='Swipe Up' />
             </ImageBackground>
           </View>
         </GestureDetector>
-      </LinearGradient>
+      </GradientBackground>
     </SafeAreaView >
   );
 };
@@ -121,77 +81,17 @@ const styles = StyleSheet.create({
     position: 'relative',
 
   },
+  imageContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   imageLogo: {
     width: 152,
     alignSelf: 'center',
-    margin: "auto"
-  },
-  header: {
-    textAlign: 'center',
-    fontSize: 24,
-    paddingVertical: 28,
-    color: colors.title,
-    fontFamily: 'Rubik-Bold',
-  },
-  brandName: {
-    textAlign: 'center',
-    fontSize: 28,
-    color: 'purple',
-    fontWeight: 'bold',
-    fontFamily: 'Rubik-Bold'
-
-  },
-  inputBox: {
-    height: 60,
-    width: '100%',
-    borderWidth: 1,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    borderColor: colors.secondary,
-    fontSize: 15,
-    color: colors.text,
-    fontFamily: 'Rubik-Regular',
-  },
-  Button: {
-    backgroundColor: colors.secondary,
-    paddingVertical: 20,
-    width: '100%',
-    alignItems: 'center',
-    borderRadius: 12,
-    flexDirection: 'row',
     justifyContent: 'center',
-    paddingHorizontal: 50,
-    marginTop: 10
-
-  },
-  btnText: {
-    color: '#fff',
-    fontSize: 16,
-    textTransform: 'uppercase',
-    fontFamily: 'Rubik-Medium',
-    textAlign: 'center',
-    width: '100%',
-  },
-  recoverAcc: {
-    flexDirection: 'row',
     alignItems: 'center',
-    fontFamily: 'Rubik-Regular',
-  },
-  accountCreate: {
-    fontSize: 16,
-    color: 'white',
-    fontFamily: 'Rubik-Regular',
-  },
-  linkText: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Rubik-Medium',
-  },
-  lightText: {
-    fontFamily: 'Rubik-Regular',
-    opacity: 0.8,
-    fontSize: 12,
-    textTransform: "uppercase"
   },
   alreadyAcc: {
     alignItems: 'center',

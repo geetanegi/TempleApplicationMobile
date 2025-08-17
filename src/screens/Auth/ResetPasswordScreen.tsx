@@ -3,11 +3,12 @@ import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, customStyles } from '../../assets/theme';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { AuthStackParamList } from './Auth';
+import GradientBackground from './components/GradientBackground';
+import AuthHeader from './components/AuthHeader';
+import AuthButton from './components/AuthButton';
 
 
 type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
@@ -17,61 +18,45 @@ const ResetPasswordScreen = () => {
 
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                style={styles.container}
-                colors={[colors.linearGradient[0], colors.linearGradient[1]]} // Using the colors from the theme
-                start={{ x: 0, y: 0 }} // Top-left
-                end={{ x: 1, y: 1 }} // Bottom-right (creates a diagonal gradient)
-            >
-                {/* Logo */}
-                {/* <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} /> */}
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.container}>
+            <GradientBackground>
                 <View style={styles.bg}>
                     {/* Heading */}
-                    <View style={styles.headingContainer}>
-                        <Text style={styles.header}>Reset Password</Text>
-                        <Text style={styles.subText}>
-                            Don’t Worry, you can use the two methods
-                            Below to get your account back.
-                        </Text>
-                    </View>
+                    <AuthHeader title='Reset Password' subtitle='  Don’t Worry, you can use the two methods Below to get your account back.' />
 
                     <View style={styles.formContainer}>
                         {/* Inputs */}
                         <Pressable style={styles.optionCard}>
-                            <View style={styles.cardImage}></View>
-                            <View style={{ flex: 1, justifyContent: "center" }}>
+                            <View style={styles.cardImage} />
+                            <View style={styles.cardtxtContainer}>
                                 <Text style={[styles.lightText, customStyles.fontMedium]}>Via Email</Text>
                                 <Text style={[styles.lightText, customStyles.fontLight]}>**********1415</Text>
                             </View>
-                            <Pressable style={{ padding: 10 }}>
+                            <View style={customStyles.padding10}>
                                 <Icon name="circle-thin" size={18} />
-                            </Pressable>
+                            </View>
                         </Pressable>
                         <View>
                             <Text style={styles.separatorTxt}>Or</Text>
                         </View>
                         <Pressable style={styles.optionCard}>
-                            <View style={styles.cardImage}></View>
-                            <View style={{ flex: 1, justifyContent: "center" }}>
+                            <View style={styles.cardImage} />
+                            <View style={styles.cardtxtContainer}>
                                 <Text style={[styles.lightText, customStyles.fontMedium]}>Via Email</Text>
                                 <Text style={[styles.lightText, customStyles.fontLight]}>**********1415</Text>
                             </View>
-                            <Pressable style={{ padding: 10 }}>
+                            <View style={customStyles.padding10}>
                                 <Icon name="circle-thin" size={18} />
-                            </Pressable>
+                            </View>
                         </Pressable>
-
-                        {/* Login Button */}
-
                     </View>
-                    <Pressable style={styles.Button} onPress={() => navigation.navigate('VerifyPassword')}>
-                        <Text style={styles.btnText}>Continue</Text>
-                        <Icon name="send" size={18} color={colors.background} />
-                    </Pressable>
+                        {/* Login Button */}
+                    <View style={styles.btnContainer}>
+                        <AuthButton label='Continue' icon='send' onPress={() => { navigation.navigate("VerifyPassword") }} />
+                    </View>
                 </View>
 
-            </LinearGradient>
+            </GradientBackground>
         </SafeAreaView >
     );
 };
@@ -127,31 +112,13 @@ const styles = StyleSheet.create({
 
     },
 
-    Button: {
-        backgroundColor: colors.secondary,
-        paddingVertical: 20,
+    btnContainer: {
         width: '100%',
         alignItems: 'center',
-        borderRadius: 12,
-        flexDirection: 'row',
         justifyContent: 'center',
-        paddingHorizontal: 50,
-        marginTop: "auto",
-        marginBottom: 20,
-    },
-    btnText: {
-        color: '#fff',
-        fontSize: 17,
-        textTransform: 'uppercase',
-        fontFamily: 'Rubik-Medium',
-        textAlign: 'center',
-        width: '100%',
-    },
-
-    linkText: {
-        fontSize: 16,
-        color: '#fff',
-        fontFamily: 'Rubik-Medium',
+        position: "absolute",
+        alignSelf: "center",
+        bottom: 20,
     },
     lightText: {
         fontSize: 14,
@@ -183,5 +150,9 @@ const styles = StyleSheet.create({
         color: colors.text,
         fontFamily: 'Rubik-Bold',
         textTransform: 'uppercase',
+    },
+    cardtxtContainer: {
+        flex: 1,
+        justifyContent: "center"
     }
 });

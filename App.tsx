@@ -1,4 +1,3 @@
-import { StatusBar } from 'react-native'
 import React from 'react'
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -11,12 +10,7 @@ const App = () => {
 
   return (
     <NavigationContainer >
-      <StatusBar
-        backgroundColor="transparent" // Android
-        barStyle="dark-content"       // Android + iOS (dark icons)
-        translucent={true}
-        hidden={true}           // Allows content to render under the status bar
-      />
+
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isLoggedIn ? (
           <RootStack.Screen name="MainApp" component={AuthNavigator} />

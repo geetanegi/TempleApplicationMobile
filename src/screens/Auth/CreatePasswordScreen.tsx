@@ -1,76 +1,40 @@
-import { Pressable, StyleSheet, Text, TextInput, View, } from 'react-native';
+import { StyleSheet, View, } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../assets/theme';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import LinearGradient from 'react-native-linear-gradient';
-// import { useNavigation } from '@react-navigation/native';
-// import type { StackNavigationProp } from '@react-navigation/stack';
-// import type { AuthStackParamList } from './Auth';
+import GradientBackground from './components/GradientBackground';
+import AuthInput from './components/AuthInput';
+import AuthHeader from './components/AuthHeader';
+import AuthButton from './components/AuthButton';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AuthStackParamList } from './Auth';
 
 
-// type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
-
+type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 const CreatePassScreen = () => {
-    // const navigation = useNavigation<AuthNavigationProp>();
+    const navigation = useNavigation<AuthNavigationProp>();
 
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                style={styles.container}
-                colors={[colors.linearGradient[0], colors.linearGradient[1]]} // Using the colors from the theme
-                start={{ x: 0, y: 0 }} // Top-left
-                end={{ x: 1, y: 1 }} // Bottom-right (creates a diagonal gradient)
-            >
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.container}>
+            <GradientBackground>
                 {/* Logo */}
                 {/* <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} /> */}
                 <View style={styles.bg}>
                     {/* Heading */}
-                    <View style={styles.headingContainer}>
-                        <Text style={styles.header}>Create New Password</Text>
-                        <Text style={styles.subText}>
-                            Your new password must be different from
-                            previous used password.
-                        </Text>
+                    <AuthHeader title='Create New Password' subtitle=' Your new password must be different from previous used password.' />
+                    <View>
+                        <AuthInput label='New Password' placeholder='********' />
+                        <AuthInput label='Confirm Password' placeholder='********' />
                     </View>
-
-                    <View style={styles.formContainer}>
-                        <View>
-                            <Text style={[styles.lightText, { fontSize: 12, }]}>New Password</Text>
-                            <TextInput
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                style={styles.inputBox}
-                                placeholder='**********'
-                            />
-                            <Icon name="eye-slash" size={16} style={{ position: 'absolute', right: 15, top: 45 }} />
-                        </View>
-                        <View>
-                            <Text style={[styles.lightText, { fontSize: 12, }]}>Confirm Password</Text>
-                            <TextInput
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                style={styles.inputBox}
-                                placeholder='**********'
-
-                            />
-                            <Icon name="eye-slash" size={16} style={{ position: 'absolute', right: 15, top: 45 }} />
-
-                        </View>
-
-
-                        {/* Login Button */}
-
+                    {/* Login Button */}
+                    <View style={styles.btnContainer}>
+                        <AuthButton label='Verify' onPress={() => { navigation.navigate("CreatePassword") }} />
                     </View>
-                    <Pressable style={styles.Button} >
-                        <Text style={styles.btnText}>Verify</Text>
-                    </Pressable>
                 </View>
 
-            </LinearGradient>
+            </GradientBackground>
         </SafeAreaView >
     );
 };
@@ -146,7 +110,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 50,
         marginHorizontal: "auto",
-        marginBottom: 20,
         position: 'absolute',
         bottom: 20,
         alignSelf: 'center',
@@ -197,5 +160,18 @@ const styles = StyleSheet.create({
         fontFamily: 'Rubik-Bold',
         textTransform: 'uppercase',
     },
-    otpContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 }
+    otpContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10
+    },
+
+    btnContainer: {
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: "absolute",
+        alignSelf: "center",
+        bottom: 20,
+    },
 });

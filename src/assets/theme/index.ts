@@ -8,7 +8,7 @@ const colors = {
   background: '#FFFFFF',
 };
 
- const customStyles= {
+const customStyles = {
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -79,7 +79,7 @@ const colors = {
     color: colors.accent,
   },
   linearGradient: {
-    background: `linear-gradient(45deg, ${colors.linearGradient[0]}, ${colors.linearGradient[1]})`,
+    backgroundColor: `linear-gradient(45deg, ${colors.linearGradient[0]}, ${colors.linearGradient[1]})`,
   },
   buttonText: {
     color: '#fff',
@@ -90,9 +90,28 @@ const colors = {
     width: '100%',
   },
   flexRow: {
-    flexDirection: 'row',}
+    flexDirection: 'row',
+  },
+  Button: {
+    backgroundColor: colors.secondary,
+    paddingVertical: 20,
+    width: '100%',
+    alignItems: 'center',
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 50,
+    marginHorizontal: "auto",
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center',
+    padding: 15,
+  },
+  padding10:{
+    padding:10
+  }
 
 }
 
-export { colors,customStyles };
+export { colors, customStyles };
 

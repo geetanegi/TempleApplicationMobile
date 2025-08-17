@@ -1,14 +1,17 @@
-import { Pressable, StyleSheet, Text, View, TextInput, Image, ImageBackground, } from 'react-native';
+import { Pressable, StyleSheet, Text, View, Image, ImageBackground, StatusBar, } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../assets/theme';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { AuthStackParamList } from './Auth';
 import { runOnJS } from 'react-native-reanimated';
+import AuthHeader from './components/AuthHeader';
+import AuthButton from './components/AuthButton';
+import AuthInput from './components/AuthInput';
+import GradientBackground from './components/GradientBackground';
+import SwipeUpFooter from './components/SwipeUpFooter';
 
 type AuthNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -24,51 +27,33 @@ const LoginScreen = () => {
             }
         });
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                style={styles.container}
-                colors={[colors.linearGradient[0], colors.linearGradient[1]]} // Using the colors from the theme
-                start={{ x: 0, y: 0 }} // Top-left
-                end={{ x: 1, y: 1 }} // Bottom-right (creates a diagonal gradient)
-            >
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.container}>            <StatusBar
+            backgroundColor="#b92222ff" // Android
+            barStyle="dark-content"       // Android + iOS (dark icons)
+            translucent={false}
+            hidden
+        />
+            <GradientBackground>
                 {/* Logo */}
-                <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} />
+                <View style={styles.imageContainer}>
+                    <Image style={styles.imageLogo} source={require('../../images/logoSample.png')} />
+                </View>
                 <View style={styles.bg}>
                     {/* Heading */}
-                    <View >
-                        <Text style={styles.header}>Log In to your Account</Text>
-                    </View>
+                    <AuthHeader title='Log In to your Account' />
 
-                    <View style={{ gap: 16 }}>
-
+                    <View>
                         {/* Inputs */}
-                        <View>
-                            <Text style={[styles.lightText, { fontSize: 12, textTransform: "uppercase" }]}>Email or Username</Text>
-                            <TextInput
-                                style={styles.inputBox}
-                                keyboardType="email-address"
-                            />
-                        </View>
-                        <View>
-                            <Text style={[styles.lightText, { fontSize: 12, textTransform: "uppercase" }]}>Password</Text>
-                            <TextInput
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                style={styles.inputBox}
-                            />
-                        </View>
+                        <AuthInput label='Email or Username' />
+                        <AuthInput label='Password' secure={true} />
+
                         <View style={styles.recoverAcc}>
-                            <Pressable onPress={() => navigation.navigate("ResetPassword")} style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Pressable onPress={() => navigation.navigate("ResetPassword")} style={styles.linkBtn}>
                                 <Text style={styles.lightText}>Recover Password?</Text>
                             </Pressable>
                         </View>
                         {/* Login Button */}
-                        <Pressable style={styles.loginButton}>
-                            <Text style={styles.loginText}>Proceed</Text>
-                            <Icon name='send' size={18} color={colors.background} />
-                        </Pressable>
-
+                        <AuthButton label='Proceed' icon='send' onPress={() => { }} />
                     </View>
                     {/* Sign Up Link */}
 
@@ -78,16 +63,11 @@ const LoginScreen = () => {
 
                         <ImageBackground resizeMode="contain" source={require('../../images/objects.png')}
                             style={styles.alreadyAcc}>
-                            <Icon name='chevron-circle-up' size={26} color={colors.background} />
-
-                            <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.accountCreate}>New User? </Text>
-                                <Text style={styles.linkText}>Swipe Up</Text>
-                            </Pressable>
+                            <SwipeUpFooter text='New user?' link='Swipe Up' />
                         </ImageBackground>
                     </View>
                 </GestureDetector>
-            </LinearGradient>
+            </GradientBackground>
         </SafeAreaView >
     );
 };
@@ -111,69 +91,19 @@ const styles = StyleSheet.create({
         position: 'relative',
 
     },
+    imageContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+    },
     imageLogo: {
         width: 152,
         alignSelf: 'center',
-        margin: "auto"
-    },
-    header: {
-        textAlign: 'center',
-        fontSize: 24,
-        paddingVertical: 28,
-        color: colors.title,
-        fontFamily: 'Rubik-Bold',
-    },
-    brandName: {
-        textAlign: 'center',
-        fontSize: 28,
-        color: 'purple',
-        fontWeight: 'bold',
-        fontFamily: 'Rubik-Bold'
-
-    },
-    inputBox: {
-        height: 70,
-        width: '100%',
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        borderRadius: 10,
-        borderColor: colors.secondary,
-        fontSize: 15,
-        color: colors.text,
-        fontFamily: 'Rubik-Regular',
-    },
-    loginButton: {
-        backgroundColor: colors.secondary,
-        paddingVertical: 20,
-        width: '100%',
-        alignItems: 'center',
-        borderRadius: 12,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        paddingHorizontal: 50,
-    },
-    loginText: {
-        color: '#fff',
-        fontSize: 17,
-        textTransform: 'uppercase',
-        fontFamily: 'Rubik-Medium',
-        textAlign: 'center',
-        width: '100%',
     },
     recoverAcc: {
         flexDirection: 'row',
         alignItems: 'center',
-        fontFamily: 'Rubik-Regular',
-    },
-    accountCreate: {
-        fontSize: 16,
-        color: 'white',
-        fontFamily: 'Rubik-Regular',
-    },
-    linkText: {
-        fontSize: 16,
-        color: '#fff',
-        fontFamily: 'Rubik-Medium',
     },
     lightText: {
         fontSize: 14,
@@ -191,6 +121,9 @@ const styles = StyleSheet.create({
         height: 110,
         borderTopRightRadius: 50,
         paddingHorizontal: 36,
-        fontFamily: 'Rubik-Regular',
     },
+    linkBtn: {
+        flex: 1,
+        alignItems: 'flex-end'
+    }
 });
