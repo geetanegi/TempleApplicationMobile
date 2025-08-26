@@ -47,8 +47,7 @@ const Header = ({
   const logout = () => {
     dispatch(clearLogin());
     dispatch(cleanLogindata());
-   }
-  
+  };
 
   return (
     <SafeAreaView>
@@ -68,19 +67,17 @@ const Header = ({
               />
             </TouchableOpacity>
           )}
-          
           {backIcon && (
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Image source={images.backIconHeader} style={styles.leftImage} />
             </TouchableOpacity>
           )}
-          <View style={{marginLeft:10}}></View>
+          <View style={{marginLeft: 10}} />
           {!backIcon && leftImg == 'cart' && (
             <AntDesign
               name="shoppingcart"
               size={SIZES.SIZES_24}
               color={colors.grey}
-              
             />
           )}
           {!backIcon && <Image source={leftImg} style={styles.leftImage} />}

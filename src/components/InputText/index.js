@@ -4,7 +4,7 @@ import st from '../../global/styles';
 import {colors, images} from '../../global/theme';
 import Icon from 'react-native-vector-icons/Feather';
 // import Icon1 from 'react-native-vector-icons/Fontisto';
-import { size, family } from '../../global/fonts';
+import {size, family} from '../../global/fonts';
 const InputText = ({
   label,
   iconName,
@@ -27,7 +27,12 @@ const InputText = ({
           {label}
         </Text>
       )}
-      <View style={[style.inputContainer, inputsty,{paddingLeft: iconName?40:15 }]}>
+      <View
+        style={[
+          style.inputContainer,
+          inputsty,
+          {paddingLeft: iconName ? 40 : 15},
+        ]}>
         {iconName && (
           <Icon
             name={iconName}
@@ -44,7 +49,6 @@ const InputText = ({
           />
         )}
         <TextInput
-        
           autoCorrect={false}
           onFocus={() => {
             onFocus();
@@ -83,20 +87,20 @@ const style = StyleSheet.create({
     // backgroundColor: colors.white,
     flexDirection: 'row',
     paddingLeft: 40,
-    paddingRight:15,
+    paddingRight: 15,
     borderRadius: 7,
     alignItems: 'center',
     marginTop: 10,
-    borderWidth:1.5, 
-    borderColor:colors.grey,
-    height:50,
+    borderWidth: 1.5,
+    borderColor: colors.grey,
+    height: 50,
   },
-  inputtxt:{
+  inputtxt: {
     fontSize: size.subtitle,
     color: colors.black,
     fontFamily: family.regular,
-    flex:1
-  }
+    flex: 1,
+  },
 });
 
 export default InputText;

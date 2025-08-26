@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   StyleSheet,
   Text,
@@ -167,9 +168,9 @@ export default function Otp({navigation, route}) {
   };
   const validation = async () => {
     Keyboard.dismiss();
-  //  console.log('----',route?.params?.item?.username)
+    //  console.log('----',route?.params?.item?.username)
     if (route?.params?.item?.username == undefined) {
-    //  console.log('------------')
+      //  console.log('------------')
       const url = API.VERIFY_OTP;
       const params = {
         otp: value,
@@ -206,11 +207,11 @@ export default function Otp({navigation, route}) {
           setIsLoading(false);
         });
     } else {
-   //   console.log('-----url--------------------',route?.params?.item?.message);
+      //   console.log('-----url--------------------',route?.params?.item?.message);
       const url = API.VERIFY_LOGIN_OTP;
       const params = {
         otp: value,
-        username:route?.params?.item?.username ,
+        username: route?.params?.item?.username,
       };
 
       postNoAuth(url, params)
@@ -308,34 +309,34 @@ export default function Otp({navigation, route}) {
 
           <View style={[st.fcardsty, st.shadowProp]}>
             <View style={st.center}>
-            <View style={styles.txtInput}>
-              <CodeField
-                ref={ref}
-                {...props}
-                caretHidden={false}
-                value={value}
-                onChangeText={text => {
-                  setValue(text.replace(/[^0-9]/g, ''));
-                }}
-                cellCount={CELL_COUNT}
-                autoFocus={true}
-                rootStyle={styles.CodeFieldRoot}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                renderCell={({index, symbol, isFocused}) => (
-                  <Text
-                    key={index}
-                    style={
-                      otpErrorMsg
-                        ? styles.otpNumberBoxError
-                        : styles.otpNumberBox
-                    }
-                    onLayout={getCellOnLayoutHandler(index)}>
-                    {symbol || (isFocused ? <Cursor /> : null)}
-                  </Text>
-                )}
-              />
-            </View>
+              <View style={styles.txtInput}>
+                <CodeField
+                  ref={ref}
+                  {...props}
+                  caretHidden={false}
+                  value={value}
+                  onChangeText={text => {
+                    setValue(text.replace(/[^0-9]/g, ''));
+                  }}
+                  cellCount={CELL_COUNT}
+                  autoFocus={true}
+                  rootStyle={styles.CodeFieldRoot}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  renderCell={({index, symbol, isFocused}) => (
+                    <Text
+                      key={index}
+                      style={
+                        otpErrorMsg
+                          ? styles.otpNumberBoxError
+                          : styles.otpNumberBox
+                      }
+                      onLayout={getCellOnLayoutHandler(index)}>
+                      {symbol || (isFocused ? <Cursor /> : null)}
+                    </Text>
+                  )}
+                />
+              </View>
             </View>
             <View style={styles.otpValid}>
               <Text
@@ -478,7 +479,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resetPassword: {
-    color: colors.PRIMARY_DARK,
     lineHeight: 19.1,
     padding: 5,
     fontSize: 24,

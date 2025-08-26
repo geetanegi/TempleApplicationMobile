@@ -67,14 +67,13 @@
 //     } else {
 //       setProfileData(playerListData?.data);
 //        setIsLoading(false);
-//       } 
+//       }
 //     } catch (error) {
-//       console.error("Error in handleLoginUserProfile:", error); 
+//       console.error("Error in handleLoginUserProfile:", error);
 //       setIsLoading(false);
-//       return null; 
+//       return null;
 //     }
 //   };
-
 
 //   const handleCourseList = async () => {
 //     try {
@@ -84,14 +83,13 @@
 //     } else {
 //        setCourse(courseListData?.data);
 //        setIsLoading(false);
-//       } 
+//       }
 //     } catch (error) {
-//       console.error("Error in handleCourseList:", error); 
+//       console.error("Error in handleCourseList:", error);
 //       setIsLoading(false);
-//       return null; 
+//       return null;
 //     }
 //   };
-
 
 //   useEffect(() => {
 //     startSync();
@@ -109,7 +107,7 @@
 //       return () => backHandler.remove();
 //     }, []),
 //   );
-  
+
 //   const handleBackPress = () => {
 //     if(backIconVisibility==true){
 //       navigation.navigate('Community');
@@ -292,17 +290,25 @@
 // };
 // export default ProfileScreen;
 
-
 import React from 'react';
-import { View, Text, Image, FlatList, StyleSheet, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  Image,
+  FlatList,
+  StyleSheet,
+  Dimensions,
+} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import st from '../../../global/styles';
 import Header from '../../../components/Header';
 const profileData = {
   username: 'john_doe',
   bio: 'Lover of code, coffee and cats 8888888lppkp-------------------------- 🐾',
   avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-  photos: Array.from({ length: 12 }).map((_, i) => `https://picsum.photos/id/${i + 10}/300/300`)
+  photos: Array.from({length: 12}).map(
+    (_, i) => `https://picsum.photos/id/${i + 10}/300/300`,
+  ),
 };
 
 const numColumns = 3;
@@ -312,37 +318,37 @@ const ProfileScreen = ({navigation, route}) => {
   const backIconVisibility = route?.params?.backIconVisibility || false;
   return (
     <View style={[st.flex]}>
-          <Header
+      <Header
         drawerIcon={backIconVisibility ? false : true}
         navigation={navigation}
         backIcon={backIconVisibility ? true : false}
         title={'Profile'}
       />
-    <SafeAreaView style={styles.container}>
-      {/* Centered Profile Image */}
-      <View style={styles.profileSection}>
-        <Image source={{ uri: profileData.avatar }} style={styles.avatar} />
-        <Text style={styles.username}>{profileData.username}</Text>
-        <Text style={styles.bio}>{profileData.bio}</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        {/* Centered Profile Image */}
+        <View style={styles.profileSection}>
+          <Image source={{uri: profileData.avatar}} style={styles.avatar} />
+          <Text style={styles.username}>{profileData.username}</Text>
+          <Text style={styles.bio}>{profileData.bio}</Text>
+        </View>
 
-      {/* Grid of Posts */}
-      <FlatList
-        data={profileData.photos}
-        numColumns={numColumns}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={styles.gridImage} />
-        )}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+        {/* Grid of Posts */}
+        <FlatList
+          data={profileData.photos}
+          numColumns={numColumns}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({item}) => (
+            <Image source={{uri: item}} style={styles.gridImage} />
+          )}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {flex: 1, backgroundColor: '#fff'},
   profileSection: {
     alignItems: 'center',
     paddingVertical: 20,

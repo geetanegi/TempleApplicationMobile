@@ -16,7 +16,7 @@ const colors = {
   purple: '#AEAFF7',
   lightBlue: '#1A1881',
   blurlightblue: '#7EC8E3',
-  orange: '#F09E54',
+  orange: '#fd7c20ff', //previous  #F09E54
   footer_bg: '#020074',
   link: '#1F90A5',
   card_border: '#4FE3FE',
@@ -86,8 +86,6 @@ const images = {
   // golfTrophy: require('../../images/trophy.png'),
 
   trophy: require('../../images/trophy.png'),
-
-  golfVedio: require('../../images/golfVedio.png'),
   closeIcon: require('../../images/close.png'),
   // video: '../../images/video.mp4',
   chalisa: require('../../images/chalisa.png'),
@@ -134,7 +132,7 @@ const images = {
 
   Button_cancel: require('../../images/Button_cancel.png'),
   button_Request: require('../../images/button_Request.png'),
-  
+
   icon_delete: require('../../images/icon_delete.png'),
   Button_No: require('../../images/Button_No.png'),
   logoBuddha: require('../../images/b10.png'),
@@ -193,16 +191,13 @@ const APP_TEXT = {
   SECONDS: 'seconds',
   HOME: 'Home',
   COMMUNITIES: 'Communities',
-  USER:'Temples',
+  USER: 'Temples',
   CONTESTS: 'Contests',
   BET_CENTRAL: 'Central',
   COURSE: 'Course',
   COMMUNITY: 'Community',
   PROFILE: 'Profile',
   PLAY: 'Play',
-  SPLASH_TEXT: 'Capturing Golf’s Greatest Shots',
-  SPLASH_APP_NAME: 'AceCam',
-
   // LOGIN SCREEN - login.js
   LOGIN_OR: '- OR -',
   LOGIN_USERNAME: 'Username',
@@ -231,10 +226,10 @@ const APP_TEXT = {
   DATE_OF_BIRTH: 'Date of Birth',
   EMAIL: 'Email',
   PHONE: 'Phone',
-  TEMPLE_NAME:'Temple Name',
-  TEMPLE_ADDRESS:'Temple Address',
-  TEMPLE_CONTACT:'Contact Number',
-  TEMPLE_ALTERNATIVE_CONTACT:'Alternative Contact Number',
+  TEMPLE_NAME: 'Temple Name',
+  TEMPLE_ADDRESS: 'Temple Address',
+  TEMPLE_CONTACT: 'Contact Number',
+  TEMPLE_ALTERNATIVE_CONTACT: 'Alternative Contact Number',
   GHIN: 'GHIN',
   CARD_INFORMATION: 'Card Information',
   CARD_NUMBER: 'Card Number',
@@ -242,7 +237,7 @@ const APP_TEXT = {
   CVV: 'CVV',
   NAME_ON_CARD: 'Full Name On Card',
   AGREEING_TO: 'Agreeing to',
-  REGISTER_AS_TEMPLE:'Do You Wants to Register as Temple?',
+  REGISTER_AS_TEMPLE: 'Do You Wants to Register as Temple?',
   TERMS_AND_CONDITION: ' Terms and Conditions',
   OF_THE_CONTEST: ' of the contest',
   CREATE_ACCOUNT: 'Create Account',
@@ -251,7 +246,7 @@ const APP_TEXT = {
   TEES: 'Tees',
   HOLES: 'Holes',
   ACTIVE: 'Active',
-  SEARCH: 'search',
+  SEARCH: 'Search',
   CHECKOUT: 'Checkout',
   REGISTER: 'Register',
   REGISTER_ON_ONE_TEE_AT_A_TIME:
@@ -269,7 +264,6 @@ const APP_TEXT = {
 
   VIEW_PROFILE: 'ViewProfile',
   NO_PLAYER_FOUND: 'No Temple Found',
-  COMMUNITIES: 'Communities',
   PLAYER_SEARCH: 'Temple Search',
 
   //MODAL SCREEN 6
@@ -277,7 +271,6 @@ const APP_TEXT = {
   CLOSE: 'Close',
 
   //MODAL SCREEN 5
-  ACHIEVEMENT_UNCLOCK: 'You’ve unlocked new \n      Achievements!',
   NEXT: 'Next',
   HIGHLIGHT_HUB: 'Highlight hub',
   ACCESS_VEDIO:
@@ -309,7 +302,6 @@ const APP_TEXT = {
   BTN_RECORD_RESULTS: 'Record your results',
   BTN_HIT_THE_GREEN: 'Hit the Green',
   //MODAL SCREEN 1
-  BTN_MISSED_GREEN: 'Missed the Green',
 
   //MODAL
   NOTE: 'If it is unclear whether or not you hit the green, don’t worry, you can always go back and edit your results.',

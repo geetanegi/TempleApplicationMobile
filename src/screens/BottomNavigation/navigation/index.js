@@ -26,7 +26,7 @@ import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio
 import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
 import Home from '../../dashboard/qr';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
-
+import MainDashboard from '../../dashboard/Main/dashboard';
 
 const BetCentral = () => {
   return (
@@ -81,12 +81,13 @@ const ProfileStack = () => {
       <HomeStack.Screen name="Community" component={Community} />
       <HomeStack.Screen name="EditProfile" component={ProfileCard} />
       <HomeStack.Screen name="LeaderBoard" component={LeaderBoard} />
-      <HomeStack.Screen name="AllLeaderBoardVedio" component={AllLeaderBoardVedio} />
-      
+      <HomeStack.Screen
+        name="AllLeaderBoardVedio"
+        component={AllLeaderBoardVedio}
+      />
     </HomeStack.Navigator>
   );
 };
-
 
 const QueStack = () => {
   return (
@@ -104,7 +105,6 @@ const QueStack = () => {
       <HomeStack.Screen name="TeeBoxResults" component={TeeBoxResults} />
       <HomeStack.Screen name="HitTheGreen" component={HitTheGreen} />
       <HomeStack.Screen name="VedioHighlights" component={VedioHighlights} />
-      
     </HomeStack.Navigator>
   );
 };
@@ -142,12 +142,11 @@ const CustomTabBarButton = ({children, onPress}) => (
   </TouchableOpacity>
 );
 
-
 function ScanScanner() {
   // const dispatch = useDispatch();
   return (
     <View style={styles.screen}>
-      <Text>Home Screen</Text>
+      <Text>Home Screen 1</Text>
       {/* <VideoPlayer/> */}
 
       {/* <ApplicationButton
@@ -218,8 +217,7 @@ export default function BottomNavigation() {
         // component={Home}
         // component={QueStack}
         // component={LeaderBoard}
-        component={ScanScanner}
-        
+        component={MainDashboard}
         options={{
           tabBarIcon: ({focused}) => (
             <View style={[st.icon]}>
@@ -289,20 +287,20 @@ export default function BottomNavigation() {
           ),
         }}
       /> */}
-         <Tab.Screen
+      <Tab.Screen
         name="Scan"
         component={Home}
         options={{
           tabBarIcon: ({focused}) => (
             <Image
-            source={images.logoBuddha}
-            style={{
-              width: 50,
-              height: 50,
-              alignSelf: 'center',
-              marginTop: -10,
-            }}
-          />
+              source={images.logoBuddha}
+              style={{
+                width: 50,
+                height: 50,
+                alignSelf: 'center',
+                marginTop: -10,
+              }}
+            />
             // <Plus
             //   strokeWidth={1}
             //   style={{

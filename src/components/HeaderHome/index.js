@@ -147,6 +147,6 @@ const styles = StyleSheet.create({
     width: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight:5,
+    marginRight: 5,
   },
 });
