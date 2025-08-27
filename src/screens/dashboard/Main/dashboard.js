@@ -156,7 +156,7 @@ const MainDashboard = () => {
             />
           </View>
         }
-        contentContainerStyle={{paddingBottom: 28}} // ✅ prevents last card being cut
+        contentContainerStyle={[st.pdB20]} // ✅ prevents last card being cut
       />
     </SafeAreaView>
   );

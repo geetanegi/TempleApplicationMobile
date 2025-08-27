@@ -27,6 +27,9 @@ export default StyleSheet.create({
   flex: {
     flex: 1,
   },
+  justify_Row: {
+    flexDirection: 'row',
+  },
   icon: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -56,6 +59,7 @@ export default StyleSheet.create({
   pd6: {padding: 6},
   pd_H10: {paddingHorizontal: 10},
   pdT0: {paddingTop: 0},
+  pdB20: {paddingBottom: 20},
   pd_H20: {paddingHorizontal: 20},
   pd_H40: {paddingHorizontal: 40},
   mt_v: {marginVertical: 10},

@@ -302,44 +302,77 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import st from '../../../global/styles';
 import Header from '../../../components/Header';
+import ProfileHeader from './ProfileHeader';
+import BioSection from './BioSection';
+import ProfileActions from './ProfileActions';
+import TabBar from './TabBar';
 const profileData = {
   username: 'john_doe',
+  name: 'John Doe',
   bio: 'Lover of code, coffee and cats 8888888lppkp-------------------------- 🐾',
   avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-  photos: Array.from({length: 12}).map(
+  photos: Array.from({length: 16}).map(
     (_, i) => `https://picsum.photos/id/${i + 10}/300/300`,
   ),
 };
+const TABS = ['Photo', 'Text', 'Video'];
 
 const numColumns = 3;
 const imageSize = Dimensions.get('window').width / numColumns;
 
 const ProfileScreen = ({navigation, route}) => {
+  const [activeTab, setActiveTab] = React.useState('Photo');
   const backIconVisibility = route?.params?.backIconVisibility || false;
+
   return (
-    <View style={[st.flex]}>
+    <View style={st.flex}>
       <Header
-        drawerIcon={backIconVisibility ? false : true}
+        drawerIcon={!backIconVisibility}
         navigation={navigation}
-        backIcon={backIconVisibility ? true : false}
-        title={'Profile'}
+        backIcon={backIconVisibility}
+        title={'@' + profileData.username}
       />
       <SafeAreaView style={styles.container}>
-        {/* Centered Profile Image */}
-        <View style={styles.profileSection}>
-          <Image source={{uri: profileData.avatar}} style={styles.avatar} />
-          <Text style={styles.username}>{profileData.username}</Text>
-          <Text style={styles.bio}>{profileData.bio}</Text>
-        </View>
-
-        {/* Grid of Posts */}
         <FlatList
+          key={activeTab === 'Photo' ? 'photo-grid' : 'list-view'}
           data={profileData.photos}
-          numColumns={numColumns}
+          numColumns={activeTab == 'Photo' ? numColumns : 1}
           keyExtractor={(item, index) => index.toString()}
-          renderItem={({item}) => (
-            <Image source={{uri: item}} style={styles.gridImage} />
-          )}
+          renderItem={({item}) => {
+            if (activeTab === 'Photo') {
+              return <Image source={{uri: item}} style={styles.gridImage} />;
+            }
+            if (activeTab === 'Text') {
+              return <Text style={styles.contentText}>{item}</Text>;
+            }
+            if (activeTab === 'Video') {
+              return (
+                <Text style={styles.contentText}>
+                  🎥 Video placeholder: {item}
+                </Text>
+              );
+            }
+            return null;
+          }}
+          ListHeaderComponent={
+            <>
+              <ProfileHeader
+                avatar={profileData.avatar}
+                name={profileData.name}
+                posts={profileData.photos.length}
+                followers={'10k'}
+                following={'120'}
+              />
+              <BioSection bio={profileData.bio} />
+              <ProfileActions navigation={navigation} />
+              <TabBar
+                tabs={TABS}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
+              {/* <GridView data={profileData.photos} activeTab={activeTab} /> */}
+            </>
+          }
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
@@ -348,32 +381,11 @@ const ProfileScreen = ({navigation, route}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
-  profileSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  username: {
-    marginTop: 10,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  bio: {
-    fontSize: 14,
-    color: '#444',
-    textAlign: 'center',
-    paddingHorizontal: 30,
-    marginTop: 5,
-  },
-  gridImage: {
-    width: imageSize,
-    height: imageSize,
-    margin: 1,
+  container: {flex: 1, backgroundColor: '#fff', paddingTop: -10},
+  gridImage: {width: imageSize, height: imageSize, margin: 1},
+  contentText: {
+    fontSize: 16,
+    margin: 10,
   },
 });
 
