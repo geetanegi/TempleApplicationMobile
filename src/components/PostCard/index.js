@@ -1,9 +1,9 @@
 import React from 'react';
-import {View, Text, StyleSheet, Image, Pressable} from 'react-native';
+import {View, Text, StyleSheet, Image, Pressable, FlatList} from 'react-native';
 import {Heart, MessageCircle, Send, MoreHorizontal} from 'lucide-react-native';
 import {colors} from '../../global/theme';
 import st from '../../global/styles';
-
+import Drawer from '../CustomDrawer';
 const PostCard = ({
   userName,
   location,
@@ -14,6 +14,13 @@ const PostCard = ({
   avatar,
   contentText,
 }) => {
+  const [visible, setVisible] = React.useState(false);
+  const comment = [
+    {user: 'ravi_the_beardman', text: '🔥🔥🔥'},
+    {user: 'thakursingh9290', text: '❤️🔥🔥'},
+    {user: 'sourabh.tamrakar', text: '🔥🔥'},
+    {user: 'aniketnamdev', text: 'Hero Honda 🔥'},
+  ];
   return (
     <View style={[styles.card]}>
       {/* Header */}
@@ -44,10 +51,31 @@ const PostCard = ({
             <Heart size={20} color={colors.orange} />
             <Text style={styles.actionText}>{likes}</Text>
           </View>
-          <View style={styles.actionRow}>
+          <Pressable onPress={() => setVisible(true)} style={styles.actionRow}>
+            {/* Comment Drawer */}
+            <Drawer
+              visible={visible}
+              title={'Comments'}
+              onClose={() => setVisible(false)}>
+              <FlatList
+                data={comment}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({item}) => (
+                  <View style={styles.comment}>
+                    <Text style={{fontWeight: 'bold'}}>{item.user}</Text>
+                    <Text>{item.text}</Text>
+                  </View>
+                )}
+                ListHeaderComponent={
+                  <View style={[st.justify_C, st.mt_B20]}>
+                    <Text style={[styles.title]}>{'Comments'}</Text>
+                  </View>
+                }
+              />
+            </Drawer>
             <MessageCircle size={20} color={colors.orange} />
             <Text style={styles.actionText}>{comments}</Text>
-          </View>
+          </Pressable>
           <Pressable style={styles.actionRow}>
             <Send size={20} color={colors.orange} />
             <Text style={styles.actionText}>{shares}</Text>
@@ -124,5 +152,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#333',
+  },
+  comment: {
+    marginBottom: 12,
+  },
+  title: {
+    textAlign: 'center',
+    marginHorizontal: 'auto',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'black',
   },
 });

@@ -137,6 +137,12 @@ const images = {
   Button_No: require('../../images/Button_No.png'),
   logoBuddha: require('../../images/b10.png'),
   Button_Yes: require('../../images/Button_Yes.png'),
+
+  // Home Icons
+  home: require('../../images/home.png'),
+  jainism: require('../../images/jainism.png'),
+  location: require('../../images/location.png'),
+  notification: require('../../images/notification.png'),
 };
 
 const NAVIGATION = {

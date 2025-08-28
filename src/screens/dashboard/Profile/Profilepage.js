@@ -310,7 +310,7 @@ const profileData = {
   username: 'john_doe',
   name: 'John Doe',
   bio: 'Lover of code, coffee and cats 8888888lppkp-------------------------- 🐾',
-  avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+  avatar: 'https://randomuser.me/api/portraits/men/31.jpg',
   photos: Array.from({length: 16}).map(
     (_, i) => `https://picsum.photos/id/${i + 10}/300/300`,
   ),
@@ -336,7 +336,7 @@ const ProfileScreen = ({navigation, route}) => {
         <FlatList
           key={activeTab === 'Photo' ? 'photo-grid' : 'list-view'}
           data={profileData.photos}
-          numColumns={activeTab == 'Photo' ? numColumns : 1}
+          numColumns={activeTab === 'Photo' ? numColumns : 1}
           keyExtractor={(item, index) => index.toString()}
           renderItem={({item}) => {
             if (activeTab === 'Photo') {
@@ -364,7 +364,7 @@ const ProfileScreen = ({navigation, route}) => {
                 following={'120'}
               />
               <BioSection bio={profileData.bio} />
-              <ProfileActions navigation={navigation} />
+              <ProfileActions navigation={navigation} profile={profileData} />
               <TabBar
                 tabs={TABS}
                 activeTab={activeTab}

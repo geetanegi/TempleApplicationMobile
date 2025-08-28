@@ -1,22 +1,43 @@
 import React from 'react';
-import {View, Text, Pressable, StyleSheet} from 'react-native';
+import {View, Text, Pressable, StyleSheet, Share, Alert} from 'react-native';
 import {colors} from '../../../global/theme';
 import st from '../../../global/styles';
 
-const ProfileActions = ({navigation}) => (
-  <View style={[styles.btnContainer, st.justify_Row, st.justify_S]}>
-    <Pressable
-      style={styles.button}
-      onPress={() => navigation.navigate('EditProfileScreen')}>
-      <Text style={[st.tx12]}>Edit Profile</Text>
-    </Pressable>
-    <Pressable
-      style={styles.button}
-      onPress={() => navigation.navigate('EditProfileScreen')}>
-      <Text style={[st.tx12]}>Share Profile</Text>
-    </Pressable>
-  </View>
-);
+const ProfileActions = ({navigation, profile}) => {
+  const onShare = async () => {
+    try {
+      const result = await Share.share({
+        title: `${profile.name}'s Profile`,
+        message: `Check out ${profile.name}'s profile on JainSansaar!\n\nUsername: ${profile.username}\njainsansaar:profile/${profile.username}`,
+        url: `jainsansaar://profile/${profile.username}`, // useful if you have a deep link or web profile
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with specific app
+        } else {
+          // shared successfully
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+      }
+    } catch (error) {
+      Alert.alert(error.message);
+    }
+  };
+  return (
+    <View style={[styles.btnContainer, st.justify_Row, st.justify_S]}>
+      <Pressable
+        style={styles.button}
+        onPress={() => navigation.navigate('EditProfileScreen')}>
+        <Text style={[st.tx12]}>Edit Profile</Text>
+      </Pressable>
+      <Pressable style={styles.button} onPress={onShare}>
+        <Text style={[st.tx12]}>Share Profile</Text>
+      </Pressable>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   btnContainer: {
