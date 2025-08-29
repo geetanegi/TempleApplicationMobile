@@ -290,7 +290,7 @@
 // };
 // export default ProfileScreen;
 
-import React from 'react';
+import React, {act} from 'react';
 import {
   View,
   Text,
@@ -306,11 +306,39 @@ import ProfileHeader from './ProfileHeader';
 import BioSection from './BioSection';
 import ProfileActions from './ProfileActions';
 import TabBar from './TabBar';
+import {Eye} from 'lucide-react-native'; // or use react-native-vector-icons
+
 const profileData = {
   username: 'john_doe',
   name: 'John Doe',
   bio: 'Lover of code, coffee and cats 8888888lppkp-------------------------- 🐾',
   avatar: 'https://randomuser.me/api/portraits/men/31.jpg',
+  videoData: [
+    {
+      id: '1',
+      thumbnail:
+        'https://images.pexels.com/photos/33639142/pexels-photo-33639142.jpeg',
+      views: '3.5 M',
+    },
+    {
+      id: '2',
+      thumbnail:
+        'https://images.pexels.com/photos/33639137/pexels-photo-33639137.jpeg',
+      views: '64 M',
+    },
+    {
+      id: '3',
+      thumbnail:
+        'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg',
+      views: '15.2 M',
+    },
+    {
+      id: '4',
+      thumbnail:
+        'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg',
+      views: '11.2 M',
+    },
+  ],
   photos: Array.from({length: 16}).map(
     (_, i) => `https://picsum.photos/id/${i + 10}/300/300`,
   ),
@@ -319,6 +347,7 @@ const TABS = ['Photo', 'Text', 'Video'];
 
 const numColumns = 3;
 const imageSize = Dimensions.get('window').width / numColumns;
+const {width} = Dimensions.get('window');
 
 const ProfileScreen = ({navigation, route}) => {
   const [activeTab, setActiveTab] = React.useState('Photo');
@@ -332,11 +361,25 @@ const ProfileScreen = ({navigation, route}) => {
         backIcon={backIconVisibility}
         title={'@' + profileData.username}
       />
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container]}>
         <FlatList
-          key={activeTab === 'Photo' ? 'photo-grid' : 'list-view'}
-          data={profileData.photos}
-          numColumns={activeTab === 'Photo' ? numColumns : 1}
+          key={
+            activeTab === 'Photo'
+              ? 'photo-grid'
+              : activeTab === 'Video'
+              ? 'video-grid'
+              : 'text-list'
+          }
+          data={
+            activeTab === 'Photo'
+              ? profileData.photos
+              : activeTab === 'Video'
+              ? profileData.videoData
+              : profileData.photos
+          }
+          numColumns={
+            activeTab === 'Photo' ? numColumns : activeTab === 'Video' ? 3 : 1
+          }
           keyExtractor={(item, index) => index.toString()}
           renderItem={({item}) => {
             if (activeTab === 'Photo') {
@@ -347,11 +390,19 @@ const ProfileScreen = ({navigation, route}) => {
             }
             if (activeTab === 'Video') {
               return (
-                <Text style={styles.contentText}>
-                  🎥 Video placeholder: {item}
-                </Text>
+                <View style={styles.videoItem}>
+                  <Image
+                    source={{uri: item.thumbnail}}
+                    style={styles.thumbnail}
+                  />
+                  <View style={styles.overlay}>
+                    <Eye color="white" size={16} />
+                    <Text style={styles.viewText}>{item.views}</Text>
+                  </View>
+                </View>
               );
             }
+
             return null;
           }}
           ListHeaderComponent={
@@ -383,9 +434,38 @@ const ProfileScreen = ({navigation, route}) => {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff', paddingTop: -10},
   gridImage: {width: imageSize, height: imageSize, margin: 1},
+
+  // Video grid
+  videoItem: {
+    width: Dimensions.get('window').width / 3, // 2 columns
+    height: (Dimensions.get('window').width / 2) * 1.3, // keep aspect ratio
+    margin: 1,
+    position: 'relative',
+  },
   contentText: {
     fontSize: 16,
     margin: 10,
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  viewText: {
+    color: 'white',
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

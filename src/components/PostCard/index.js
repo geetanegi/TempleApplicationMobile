@@ -4,6 +4,7 @@ import {Heart, MessageCircle, Send, MoreHorizontal} from 'lucide-react-native';
 import {colors} from '../../global/theme';
 import st from '../../global/styles';
 import Drawer from '../CustomDrawer';
+import CommentScreen from '../../screens/dashboard/comment';
 const PostCard = ({
   userName,
   location,
@@ -53,26 +54,11 @@ const PostCard = ({
           </View>
           <Pressable onPress={() => setVisible(true)} style={styles.actionRow}>
             {/* Comment Drawer */}
-            <Drawer
+            <CommentScreen
               visible={visible}
-              title={'Comments'}
-              onClose={() => setVisible(false)}>
-              <FlatList
-                data={comment}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({item}) => (
-                  <View style={styles.comment}>
-                    <Text style={{fontWeight: 'bold'}}>{item.user}</Text>
-                    <Text>{item.text}</Text>
-                  </View>
-                )}
-                ListHeaderComponent={
-                  <View style={[st.justify_C, st.mt_B20]}>
-                    <Text style={[styles.title]}>{'Comments'}</Text>
-                  </View>
-                }
-              />
-            </Drawer>
+              setVisible={setVisible}
+              comment={comment}
+            />
             <MessageCircle size={20} color={colors.orange} />
             <Text style={styles.actionText}>{comments}</Text>
           </Pressable>
@@ -154,7 +140,8 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   comment: {
-    marginBottom: 12,
+    marginBottom: 14,
+    gap: 8,
   },
   title: {
     textAlign: 'center',

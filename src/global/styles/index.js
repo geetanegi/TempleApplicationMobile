@@ -89,6 +89,15 @@ export default StyleSheet.create({
   mr_10: {marginRight: 15},
   mt_50: {marginTop: '50%'},
 
+  gap2: {gap: 2},
+  gap4: {gap: 4},
+  gap6: {gap: 6},
+  gap8: {gap: 8},
+  gap10: {gap: 10},
+  gap12: {gap: 12},
+  gap15: {gap: 15},
+  gap20: {gap: 20},
+
   wdh60: {width: '60%'},
   wdh40: {width: '40%'},
   wdh20: {width: '20%'},
@@ -132,6 +141,10 @@ export default StyleSheet.create({
   txDecor: {textDecorationLine: 'underline'},
   txColor: {
     color: colors.black,
+  },
+  txtlight: {
+    color: '#605f5f',
+    fontWeight: '200',
   },
   tx10: {
     fontSize: 10,

@@ -31,10 +31,7 @@ const PlayerVideo = () => {
 
   const renderItem = ({item}) => (
     <View style={styles.imageContainer}>
-      <Image 
-        source={images.golfVedio}
-        style={styles.image}
-      />
+      <Image source={images.golfVedio} style={styles.image} />
     </View>
   );
   return (
@@ -72,9 +69,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   metricBox: {
-    justifyContent:'space-between',
-    flexDirection:'row',
-    paddingHorizontal:15
+    justifyContent: 'space-between',
+    flexDirection: 'row',
+    paddingHorizontal: 15,
   },
   overviewTitle: {
     color: '#1D1A0C',
@@ -83,18 +80,18 @@ const styles = StyleSheet.create({
   },
   overviewValue: {
     fontWeight: '500',
-    fontSize:11,
+    fontSize: 11,
     color: '#95C11E',
   },
   imageContainer: {
     flex: 1,
     alignItems: 'center',
-    marginVertical:10,
+    marginVertical: 10,
   },
   image: {
     width: 154,
     height: 84,
-    marginLeft:10,
+    marginLeft: 10,
     resizeMode: 'cover',
   },
 });
