@@ -2,7 +2,6 @@ import React from 'react';
 import {View, TouchableOpacity, Text, StyleSheet, Image} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {APP_TEXT, colors, images} from '../../../global/theme';
-import {House, Users, User, CircleDollarSign, Hand} from 'lucide-react-native';
 import st from '../../../global/styles';
 import Community from '../../dashboard/community/CommunityList';
 import CourceDetails from '../../dashboard/betCentral/HoleScreen';
@@ -10,7 +9,6 @@ import CourceCart from '../../dashboard/betCentral/TeeScreen';
 import PayingCart from '../../dashboard/betCentral/CheckoutCart';
 import ProfileCard from '../../dashboard/Profile/Profilepage';
 import {createStackNavigator} from '@react-navigation/stack';
-import QRCodeScanner from '../../dashboard/QrScanner/scan';
 import EnterQueueHome from '../../dashboard/EnterQueue/EnterQueueHome';
 import RecordResult from '../../dashboard/EnterQueue/RecordYourResult';
 import AchievementScreen from '../../dashboard/EnterQueue/AchievmentScreen';
@@ -19,15 +17,12 @@ import CountdownBox from '../../dashboard/EnterQueue/CountdownBox';
 import TeeBoxResults from '../../dashboard/EnterQueue/TeeBoxResult';
 import HitTheGreen from '../../dashboard/EnterQueue/HitTheGreen';
 import CourseScreen from '../../dashboard/betCentral/CourseScreen';
-import Dashboard from '../../dashboard/HomeScreen/HomeDashBoard';
 import VedioHighlights from '../../dashboard/HighlightHub/VedioHighlights';
 import LeaderBoard from '../../dashboard/LeaderBoard/LeaderBoard';
 import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio';
 import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
 import Home from '../../dashboard/qr';
-import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import MainDashboard from '../../dashboard/Main/dashboard';
-import Foundation from 'react-native-vector-icons/Foundation';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome from 'react-native-vector-icons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -36,6 +31,7 @@ import TvMinimalPlay from 'react-native-vector-icons/MaterialCommunityIcons';
 import Plus from 'react-native-vector-icons/AntDesign';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import JeevaniScreen from '../../dashboard/jeevani';
+import SongsPage from '../../dashboard/songs';
 
 const BetCentral = () => {
   return (
@@ -176,6 +172,7 @@ function HomeScanner() {
   );
 }
 
+// Resuable Component to render tab icon
 const renderTabIcon =
   (IconComponent, name) =>
   ({focused}) =>
@@ -209,6 +206,16 @@ const renderTabImage =
         />
       </View>
     );
+
+// Category Stack Screens
+function HomeStackScreens() {
+  return (
+    <HomeStack.Navigator screenOptions={{headerShown: false}}>
+      <HomeStack.Screen name="MainDashboard" component={MainDashboard} />
+      <HomeStack.Screen name="SongScreen" component={SongsPage} />
+    </HomeStack.Navigator>
+  );
+}
 
 export default function BottomNavigation() {
   return (
@@ -256,7 +263,7 @@ export default function BottomNavigation() {
         // component={Home}
         // component={QueStack}
         // component={LeaderBoard}
-        component={MainDashboard}
+        component={HomeStackScreens}
         options={{
           tabBarIcon: renderTabImage(images.home, 'home'),
         }}
