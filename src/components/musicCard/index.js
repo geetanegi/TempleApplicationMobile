@@ -8,7 +8,7 @@ export default function MusicCard({item, isActive}) {
       <Image source={{uri: item.image}} style={styles.avatar} />
       <View style={styles.textContainer}>
         <Text style={[styles.name, isActive && styles.activeName]}>
-          {item.name}
+          {item.title}
         </Text>
         <Text style={styles.musicBy}>Music By : {item.musicBy}</Text>
       </View>

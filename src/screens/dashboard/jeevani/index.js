@@ -1,10 +1,11 @@
 import {StyleSheet, Text, View} from 'react-native';
 import React from 'react';
+import MusicPlayer from '../musicPlayer';
 
 const JeevaniScreen = () => {
   return (
     <View style={styles.container}>
-      <Text>JeevaniScrenn</Text>
+      <MusicPlayer />
     </View>
   );
 };
