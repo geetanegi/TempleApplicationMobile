@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   BackHandler,
-  Button
+  Button,
 } from 'react-native';
 import React, {useState, useEffect} from 'react';
 import st from '../../../global/styles';
@@ -26,11 +26,9 @@ const Home = ({navigation}) => {
   //   return true;
   // };
 
-
   const share = async () => {
     const options = {
-      message:
-        'hello this is a demo message',
+      message: 'hello this is a demo message',
       url: 'https://www.youtube.com/watch?v=wncM96HYcxw',
       email: 'geetanegi10917@gmail.com',
       subject: 'hello',
@@ -51,7 +49,7 @@ const Home = ({navigation}) => {
   return (
     <View style={[st.flex]}>
       <Header drawerIcon={false} navigation={navigation} />
-      {/* <Text style={tw`flex-1 justify-center`}>hello geeta</Text> */}
+       <Text style={tw`flex-1 justify-center`}>hello geeta</Text>
       {/* <Video/> */}
       {/* <View>
       <View style={{marginHorizontal: 40}}>

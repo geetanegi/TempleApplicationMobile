@@ -91,7 +91,6 @@ const VideoPlayerStack = () => {
   );
 };
 
- 
 const DrawerStack = () => {
   return (
     <Drawer.Navigator
@@ -189,7 +188,7 @@ const DrawerStack = () => {
         component={CourceCart}
       />
 
-<Drawer.Screen
+      <Drawer.Screen
         name="CourceDetails"
         options={{
           drawerLabel: 'Cource Details',
@@ -204,8 +203,8 @@ const DrawerStack = () => {
         }}
         component={CourceDetails}
       />
-       
-       <Drawer.Screen
+
+      <Drawer.Screen
         name="HighlightHubScreen"
         options={{
           drawerLabel: 'Cource Details',
@@ -221,7 +220,7 @@ const DrawerStack = () => {
         component={VedioHighlights}
       />
 
-       <Drawer.Screen
+      <Drawer.Screen
         name="EnterQue"
         options={{
           drawerLabel: 'Cource Details',
@@ -236,7 +235,7 @@ const DrawerStack = () => {
         }}
         component={EnterQueueHome}
       />
-       <Drawer.Screen
+      <Drawer.Screen
         name="PayingCart"
         options={{
           drawerLabel: 'Cource Details',
@@ -251,8 +250,7 @@ const DrawerStack = () => {
         }}
         component={PayingCart}
       />
-      
-       
+
       <Drawer.Screen
         name="CourseScreen"
         options={{
@@ -269,7 +267,7 @@ const DrawerStack = () => {
         component={CourseScreen}
       />
 
-<Drawer.Screen
+      <Drawer.Screen
         name="TeeBoxScreen"
         options={{
           drawerLabel: 'Cource Details',
@@ -285,8 +283,7 @@ const DrawerStack = () => {
         component={TeeBoxContainer}
       />
 
-
-<Drawer.Screen
+      <Drawer.Screen
         name="CountdownBox"
         options={{
           drawerLabel: 'Cource Details',

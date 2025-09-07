@@ -2,7 +2,6 @@ import React from 'react';
 import {View, TouchableOpacity, Text, StyleSheet, Image} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {APP_TEXT, colors, images} from '../../../global/theme';
-import {House, Users, User, CircleDollarSign, Hand} from 'lucide-react-native';
 import st from '../../../global/styles';
 import Community from '../../dashboard/community/CommunityList';
 import CourceDetails from '../../dashboard/betCentral/HoleScreen';
@@ -10,7 +9,6 @@ import CourceCart from '../../dashboard/betCentral/TeeScreen';
 import PayingCart from '../../dashboard/betCentral/CheckoutCart';
 import ProfileCard from '../../dashboard/Profile/Profilepage';
 import {createStackNavigator} from '@react-navigation/stack';
-import QRCodeScanner from '../../dashboard/QrScanner/scan';
 import EnterQueueHome from '../../dashboard/EnterQueue/EnterQueueHome';
 import RecordResult from '../../dashboard/EnterQueue/RecordYourResult';
 import AchievementScreen from '../../dashboard/EnterQueue/AchievmentScreen';
@@ -19,14 +17,21 @@ import CountdownBox from '../../dashboard/EnterQueue/CountdownBox';
 import TeeBoxResults from '../../dashboard/EnterQueue/TeeBoxResult';
 import HitTheGreen from '../../dashboard/EnterQueue/HitTheGreen';
 import CourseScreen from '../../dashboard/betCentral/CourseScreen';
-import Dashboard from '../../dashboard/HomeScreen/HomeDashBoard';
 import VedioHighlights from '../../dashboard/HighlightHub/VedioHighlights';
 import LeaderBoard from '../../dashboard/LeaderBoard/LeaderBoard';
 import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio';
 import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
 import Home from '../../dashboard/qr';
-import ViewPdf from '../../dashboard/Pdf/ViewPdf';
-
+import MainDashboard from '../../dashboard/Main/dashboard';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import FontAwesome from 'react-native-vector-icons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import TvMinimalPlay from 'react-native-vector-icons/MaterialCommunityIcons';
+import Plus from 'react-native-vector-icons/AntDesign';
+import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
+import JeevaniScreen from '../../dashboard/jeevani';
+import SongsPage from '../../dashboard/songs';
 
 const BetCentral = () => {
   return (
@@ -81,12 +86,13 @@ const ProfileStack = () => {
       <HomeStack.Screen name="Community" component={Community} />
       <HomeStack.Screen name="EditProfile" component={ProfileCard} />
       <HomeStack.Screen name="LeaderBoard" component={LeaderBoard} />
-      <HomeStack.Screen name="AllLeaderBoardVedio" component={AllLeaderBoardVedio} />
-      
+      <HomeStack.Screen
+        name="AllLeaderBoardVedio"
+        component={AllLeaderBoardVedio}
+      />
     </HomeStack.Navigator>
   );
 };
-
 
 const QueStack = () => {
   return (
@@ -104,7 +110,6 @@ const QueStack = () => {
       <HomeStack.Screen name="TeeBoxResults" component={TeeBoxResults} />
       <HomeStack.Screen name="HitTheGreen" component={HitTheGreen} />
       <HomeStack.Screen name="VedioHighlights" component={VedioHighlights} />
-      
     </HomeStack.Navigator>
   );
 };
@@ -112,7 +117,7 @@ const QueStack = () => {
 const CustomTabBarButton = ({children, onPress}) => (
   <TouchableOpacity
     style={{
-      top: -30, // Elevated button
+      top: -24, // Elevated button
       justifyContent: 'center',
       alignItems: 'center',
       ...styles.shadow,
@@ -120,34 +125,20 @@ const CustomTabBarButton = ({children, onPress}) => (
     onPress={onPress}>
     <View
       style={{
-        width: 75,
-        height: 75,
-
-        borderWidth: 5, // Define border width
-        borderColor: '#FFF',
-
-        borderRadius: 37.5,
-        backgroundColor: '#FFF',
+        width: 65,
+        height: 65,
+        borderRadius: 57.5,
       }}>
       {children}
     </View>
-    <Text
-      style={{
-        color: colors.black,
-        fontSize: 12,
-        marginTop: 9,
-      }}>
-      {APP_TEXT.HOME}
-    </Text>
   </TouchableOpacity>
 );
-
 
 function ScanScanner() {
   // const dispatch = useDispatch();
   return (
     <View style={styles.screen}>
-      <Text>Home Screen</Text>
+      <Text>Home Screen 1</Text>
       {/* <VideoPlayer/> */}
 
       {/* <ApplicationButton
@@ -181,6 +172,51 @@ function HomeScanner() {
   );
 }
 
+// Resuable Component to render tab icon
+const renderTabIcon =
+  (IconComponent, name) =>
+  ({focused}) =>
+    (
+      <View style={[st.icon]}>
+        <IconComponent
+          name={name}
+          strokeWidth={1}
+          style={{
+            color: focused ? colors.orange : colors.ICON_GREY,
+          }}
+          size={28}
+        />
+      </View>
+    );
+const renderTabImage =
+  (image, name) =>
+  ({focused}) =>
+    (
+      <View style={[st.icon]}>
+        <Image
+          source={image}
+          alt={name}
+          style={{
+            width: 28,
+            tintColor: focused ? colors.orange : colors.ICON_GREY,
+            height: 28,
+            alignSelf: 'center',
+            opacity: focused ? 1 : 0.5,
+          }}
+        />
+      </View>
+    );
+
+// Category Stack Screens
+function HomeStackScreens() {
+  return (
+    <HomeStack.Navigator screenOptions={{headerShown: false}}>
+      <HomeStack.Screen name="MainDashboard" component={MainDashboard} />
+      <HomeStack.Screen name="SongScreen" component={SongsPage} />
+    </HomeStack.Navigator>
+  );
+}
+
 export default function BottomNavigation() {
   return (
     <Tab.Navigator
@@ -205,9 +241,18 @@ export default function BottomNavigation() {
           marginBottom: 10,
         },
         tabBarStyle: {
-          // shadowColor: 'red',
-          height: 80,
-          // backgroundColor: colors.BACKGROUD_ICON_COLOR,
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          elevation: 5,
+          backgroundColor: '#fff',
+          borderRadius: 15,
+          height: 64,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowOffset: {width: 0, height: 5},
+          shadowRadius: 10,
         },
         activeTintColor: 'black',
         tabBarLabelStyle: {marginBottom: 20},
@@ -218,53 +263,25 @@ export default function BottomNavigation() {
         // component={Home}
         // component={QueStack}
         // component={LeaderBoard}
-        component={ScanScanner}
-        
+        component={HomeStackScreens}
         options={{
-          tabBarIcon: ({focused}) => (
-            <View style={[st.icon]}>
-              <House
-                strokeWidth={1}
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                }}
-                size={32}
-              />
-              <Text
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                  fontSize: 10,
-                }}>
-                {APP_TEXT.HOME}
-              </Text>
-            </View>
-          ),
+          tabBarIcon: renderTabImage(images.home, 'home'),
         }}
       />
       <Tab.Screen
+        name="Jevaani"
+        component={JeevaniScreen}
+        options={{
+          tabBarIcon: renderTabIcon(MaterialCommunityIcons, 'hand-front-right'),
+        }}
+      />
+      {/* <Tab.Screen
         name="Community"
         component={ProfileStack}
         options={{
-          tabBarIcon: ({focused}) => (
-            <View style={[st.icon]}>
-              <Users
-                strokeWidth={1}
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                }}
-                size={32}
-              />
-              <Text
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                  fontSize: 10,
-                }}>
-                {APP_TEXT.COMMUNITIES}
-              </Text>
-            </View>
-          ),
+          tabBarIcon: renderTabIcon(FontAwesome, 'user'),
         }}
-      />
+      /> */}
       {/* <Tab.Screen
         name="Contests"
         component={ContestsScreen}
@@ -289,78 +306,31 @@ export default function BottomNavigation() {
           ),
         }}
       /> */}
-         <Tab.Screen
+      <Tab.Screen
         name="Scan"
         component={Home}
         options={{
           tabBarIcon: ({focused}) => (
-            <Image
-            source={images.logoBuddha}
-            style={{
-              width: 50,
-              height: 50,
-              alignSelf: 'center',
-              marginTop: -10,
-            }}
-          />
-            // <Plus
-            //   strokeWidth={1}
-            //   style={{
-            //     color: colors.white,
-            //     padding: 10,
-            //   }}
-            //   size={32}
-            // />
+            <View style={styles.createBtn}>
+              <AntDesign name="plus" color="#fff" size={24} />
+            </View>
           ),
           tabBarButton: props => <CustomTabBarButton {...props} />,
         }}
       />
       <Tab.Screen
-        name="BetCentral"
-        component={ViewPdf}
+        name="Info"
+        component={ProfileCard}
         options={{
-          tabBarIcon: ({focused}) => (
-            <View style={[st.icon]}>
-              <Hand
-                strokeWidth={1}
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                }}
-                size={32}
-              />
-              <Text
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                  fontSize: 10,
-                }}>
-                {APP_TEXT.BET_CENTRAL}
-              </Text>
-            </View>
-          ),
+          tabBarIcon: renderTabImage(images.location, 'location'),
         }}
       />
+
       <Tab.Screen
         name="Profiles"
         component={ProfileCard}
         options={{
-          tabBarIcon: ({focused}) => (
-            <View style={[st.icon]}>
-              <User
-                strokeWidth={1}
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                }}
-                size={32}
-              />
-              <Text
-                style={{
-                  color: focused ? colors.PRIMARY_BUTTON : colors.ICON_GREY,
-                  fontSize: 10,
-                }}>
-                {APP_TEXT.PROFILE}
-              </Text>
-            </View>
-          ),
+          tabBarIcon: renderTabImage(images.notification, 'notification'),
         }}
       />
     </Tab.Navigator>
@@ -393,5 +363,15 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     height: 90,
     // ...styles.shadow,
+  },
+  createBtn: {
+    width: 64,
+    height: 64,
+    alignSelf: 'center',
+    marginTop: 6,
+    backgroundColor: colors.orange,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 55,
   },
 });

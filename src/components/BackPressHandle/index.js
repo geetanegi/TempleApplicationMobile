@@ -1,5 +1,5 @@
 import {BackHandler} from 'react-native';
-import React,{ useEffect } from 'react';
+import React, {useEffect} from 'react';
 
 function HandleBackPress() {
   useEffect(() => {
@@ -12,7 +12,7 @@ function HandleBackPress() {
       backAction,
     );
 
-    return () => backHandler.remove(); 
+    return () => backHandler.remove();
   }, []);
 }
 

@@ -27,11 +27,14 @@ export default StyleSheet.create({
   flex: {
     flex: 1,
   },
+  justify_Row: {
+    flexDirection: 'row',
+  },
   icon: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerAlign:{
+  centerAlign: {
     alignItems: 'center',
   },
   thumbnailSty: {
@@ -46,17 +49,25 @@ export default StyleSheet.create({
   row: {flexDirection: 'row'},
 
   pv20: {paddingVertical: 20},
-
+  pv10: {paddingVertical: 10},
+  pv6: {paddingVertical: 6},
   pd20: {padding: 20},
   pd40: {padding: 40},
   pd10: {padding: 10},
+  pd2: {padding: 2},
+  pd4: {padding: 4},
+  pd6: {padding: 6},
   pd_H10: {paddingHorizontal: 10},
   pdT0: {paddingTop: 0},
+  pdB20: {paddingBottom: 20},
   pd_H20: {paddingHorizontal: 20},
   pd_H40: {paddingHorizontal: 40},
   mt_v: {marginVertical: 10},
   mt_B: {marginBottom: 10},
   mt_B10: {marginBottom: 10},
+  mt_B20: {marginBottom: 20},
+  mt_B60: {marginBottom: 60},
+
   ml_5: {marginLeft: 15},
   ml_05: {marginLeft: -4},
   ml_15: {marginLeft: 10},
@@ -70,7 +81,6 @@ export default StyleSheet.create({
   mt_t60: {marginTop: 60},
   mt_t200: {marginTop: 200},
   mt_t150: {marginTop: 150},
-  mt_t150: {marginTop: 150},
   mt_t140: {marginTop: 140},
   mt_t100: {marginTop: 100},
   mt_t300: {marginTop: 330},
@@ -78,6 +88,15 @@ export default StyleSheet.create({
   mh_10: {marginHorizontal: 10},
   mr_10: {marginRight: 15},
   mt_50: {marginTop: '50%'},
+
+  gap2: {gap: 2},
+  gap4: {gap: 4},
+  gap6: {gap: 6},
+  gap8: {gap: 8},
+  gap10: {gap: 10},
+  gap12: {gap: 12},
+  gap15: {gap: 15},
+  gap20: {gap: 20},
 
   wdh60: {width: '60%'},
   wdh40: {width: '40%'},
@@ -94,6 +113,7 @@ export default StyleSheet.create({
   wdh75: {width: '75%'},
   wdh79: {width: '79%'},
   wdh90: {width: '90%'},
+  wdh100: {width: '100%'},
   wdh65: {width: '65%'},
   wdh85: {width: '85%'},
   wdh45: {width: '45%'},
@@ -121,6 +141,10 @@ export default StyleSheet.create({
   txDecor: {textDecorationLine: 'underline'},
   txColor: {
     color: colors.black,
+  },
+  txtlight: {
+    color: '#605f5f',
+    fontWeight: '200',
   },
   tx10: {
     fontSize: 10,
@@ -218,7 +242,7 @@ export default StyleSheet.create({
     fontSize: size.title,
     color: colors.PRIMARY_LIGHT_TEXT,
     fontFamily: family.regular,
-    fontWeight:'600',
+    fontWeight: '600',
     lineHeight: 21.82,
     letterSpacing: 0.3,
   },
@@ -227,7 +251,7 @@ export default StyleSheet.create({
     fontSize: size.subtitle,
     color: colors.PRIMARY_DARK,
     fontFamily: family.medium,
-    fontWeight:'600',
+    fontWeight: '600',
     lineHeight: 21.82,
     // letterSpacing: 0.3,
   },
@@ -285,7 +309,7 @@ export default StyleSheet.create({
     backgroundColor: colors.PRIMARY_TRANSPARENT_BLACK,
     opacity: 0.6,
     borderRadius: 6,
-//borderColor:colors.grey,
+    //borderColor:colors.grey,
     paddingHorizontal: 15,
 
     width: '100%',
@@ -297,7 +321,7 @@ export default StyleSheet.create({
     backgroundColor: colors.white,
     opacity: 0.6,
     borderRadius: 6,
-    borderColor:colors.grey,
+    borderColor: colors.grey,
     paddingHorizontal: 15,
     borderWidth: 1.5,
     width: '100%',
@@ -305,7 +329,7 @@ export default StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 8,
   },
-  hardText:{
+  hardText: {
     fontSize: 48,
     color: colors.white,
     fontFamily: family.semibold,
@@ -367,12 +391,12 @@ export default StyleSheet.create({
   cardsty: {
     paddingBottom: 30,
     width: '90%',
-    marginTop:50
+    marginTop: 50,
   },
   fcardsty: {
     paddingBottom: 30,
     width: '90%',
-    marginTop:20
+    marginTop: 20,
   },
   modalcardsty: {
     paddingBottom: 30,
@@ -384,8 +408,7 @@ export default StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shadowProp: {
-  },
+  shadowProp: {},
 
   option: {
     flex: 1,
@@ -469,10 +492,10 @@ export default StyleSheet.create({
   },
   HoleListContatiner: {
     width: '100%',
-    height:"100%",
-    backgroundColor:'#FFF',
+    height: '100%',
+    backgroundColor: '#FFF',
   },
-   metricBox: {
+  metricBox: {
     justifyContent: 'space-between',
     flexDirection: 'row',
     alignItems: 'center',
@@ -482,7 +505,7 @@ export default StyleSheet.create({
   },
   clubTitle: {
     color: '#1D1A0C',
-    fontSize: 14, 
+    fontSize: 14,
     fontFamily: family.medium,
     // fontWeight: '600',
   },
@@ -603,7 +626,8 @@ export default StyleSheet.create({
     fontWeight: WEIGHT.WEIGHT_500,
     color: colors.PRIMARY_DARK,
     left: 10,
-  },communityitemContainer: {
+  },
+  communityitemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.8)', // Transparent background for list items
@@ -624,7 +648,7 @@ export default StyleSheet.create({
   communityname: {
     // fontWeight: 'bold',
     fontSize: 16,
-    color:'#1D1A0C'
+    color: '#1D1A0C',
   },
   communitylocation: {
     color: '#A9A9A9',
@@ -636,7 +660,8 @@ export default StyleSheet.create({
   communityfollowers: {
     marginLeft: 5,
     color: '#A9A9A9',
-  }, listcontainer: {
+  },
+  listcontainer: {
     flex: 1,
     marginTop: StatusBar.currentHeight || -65,
   },

@@ -219,11 +219,10 @@ const Login = ({navigation}) => {
 
   useEffect(() => {
     const checkRememberMe = async () => {
-   //   const savedEmail = await AsyncStorage.getItem('username');
-    //  const savedPassword = await AsyncStorage.getItem('password');
-
-    //  console.log('------savedEmail------',savedEmail)
-    //  console.log('------savedPassword------',savedPassword)
+      //   const savedEmail = await AsyncStorage.getItem('username');
+      //  const savedPassword = await AsyncStorage.getItem('password');
+      //  console.log('------savedEmail------',savedEmail)
+      //  console.log('------savedPassword------',savedPassword)
       // if (savedEmail && savedPassword) {
       //   setInputs(prevState => ({...prevState, username: savedEmail}));
       //   setInputs(prevState => ({...prevState, password: savedPassword}));
@@ -238,9 +237,8 @@ const Login = ({navigation}) => {
 
   return (
     <ImageBackground style={{flex: 1}} source={images.loginBG}>
-    
       <ScrollView keyboardShouldPersistTaps={'handled'}>
-      <TransparentHeader />
+        <TransparentHeader />
         <View style={[st.card, st.mt_t200, styles.container]}>
           <LoginImg />
           <View style={styles.socialIconView}>
@@ -256,18 +254,18 @@ const Login = ({navigation}) => {
             {APP_TEXT.LOGIN_OR}
           </Text>
           <View style={[st.cardsty, st.shadowProp]}>
-          <AdminInput
-                isRequired
-                holderName={APP_TEXT.USER_NAME}
-                onChangeText={text => {
-                  handleOnchange(text, 'username');
-                }}
-                //   onFocus={() => handleError(null, 'username')}
-                error={errors?.username}
-                value={inputs?.username}
-                iconName={''}
-                label={''}
-              />
+            <AdminInput
+              isRequired
+              holderName={APP_TEXT.USER_NAME}
+              onChangeText={text => {
+                handleOnchange(text, 'username');
+              }}
+              //   onFocus={() => handleError(null, 'username')}
+              error={errors?.username}
+              value={inputs?.username}
+              iconName={''}
+              label={''}
+            />
 
             {/* <FloatingInput
               label={'FULL NAME'}
@@ -284,7 +282,7 @@ const Login = ({navigation}) => {
                 isRequired
                 holderName={APP_TEXT.LOGIN_PASSWORD}
                 onChangeText={text => handleOnchange(text, 'password')}
-              //  onFocus={() => handleError(null, 'password')}
+                //  onFocus={() => handleError(null, 'password')}
                 error={errors?.password}
                 password
                 label={''}
