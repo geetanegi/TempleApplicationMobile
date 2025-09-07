@@ -34,3 +34,29 @@
 // export default VideoPlayerReact;
 
 // const styles = StyleSheet.create({});
+import React from 'react';
+import {View, Dimensions} from 'react-native';
+import VideoPlayer from 'react-native-video-player';
+
+const Video = () => (
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: '#000',
+      width: '100%',
+      justifyContent: 'center',
+    }}>
+    <VideoPlayer
+      source={{
+        uri: 'https://youtu.be/2PBICX2d4xU?si=dZTWkV8xYh4Sgmn8',
+      }}
+      resizeMode="contain"
+      autoplay
+      showDuration
+      controlsTimeout={3000}
+      onError={e => console.log('Video error:', e)}
+    />
+  </View>
+);
+
+export default Video;

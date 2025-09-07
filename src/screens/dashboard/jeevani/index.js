@@ -1,11 +1,13 @@
 import {StyleSheet, Text, View} from 'react-native';
 import React from 'react';
 import MusicPlayer from '../musicPlayer';
+import Video from '../../../components/VideoPlayer';
 
 const JeevaniScreen = () => {
   return (
     <View style={styles.container}>
-      <MusicPlayer />
+      {/* <MusicPlayer /> */}
+      <Video />
     </View>
   );
 };
@@ -17,6 +19,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
   },
   comment: {
     marginBottom: 12,
