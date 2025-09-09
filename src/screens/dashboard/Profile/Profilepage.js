@@ -289,8 +289,8 @@
 //   );
 // };
 // export default ProfileScreen;
-
-import React, {act} from 'react';
+import React from 'react';
+import {Pressable} from 'react-native';
 import {
   View,
   Text,
@@ -307,6 +307,8 @@ import BioSection from './BioSection';
 import ProfileActions from './ProfileActions';
 import TabBar from './TabBar';
 import {Eye} from 'lucide-react-native'; // or use react-native-vector-icons
+import DialogComponent from '../../../components/dialog';
+import EvilIcons from 'react-native-vector-icons/EvilIcons';
 
 const profileData = {
   username: 'john_doe',
@@ -319,29 +321,35 @@ const profileData = {
       thumbnail:
         'https://images.pexels.com/photos/33639142/pexels-photo-33639142.jpeg',
       views: '3.5 M',
+      caption: 'My first travel vlog 🌍✈️',
     },
     {
       id: '2',
       thumbnail:
         'https://images.pexels.com/photos/33639137/pexels-photo-33639137.jpeg',
       views: '64 M',
+      caption: 'Behind the scenes 🎬',
     },
     {
       id: '3',
       thumbnail:
         'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg',
       views: '15.2 M',
+      caption: 'A day in the life ☕💻',
     },
     {
       id: '4',
       thumbnail:
         'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg',
       views: '11.2 M',
+      caption: 'Chill vibes with friends 🎶',
     },
   ],
-  photos: Array.from({length: 16}).map(
-    (_, i) => `https://picsum.photos/id/${i + 10}/300/300`,
-  ),
+
+  photos: Array.from({length: 16}).map((_, i) => ({
+    url: `https://picsum.photos/id/${i + 10}/300/300`,
+    caption: `This is caption for photo ${i + 1}`,
+  })),
 };
 const TABS = ['Photo', 'Text', 'Video'];
 
@@ -351,7 +359,23 @@ const {width} = Dimensions.get('window');
 
 const ProfileScreen = ({navigation, route}) => {
   const [activeTab, setActiveTab] = React.useState('Photo');
+  const [visible, setVisible] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState(null);
+  const [selectedCaption, setSelectedCaption] = React.useState('');
+
   const backIconVisibility = route?.params?.backIconVisibility || false;
+
+  const showDialog = (img, caption) => {
+    setSelectedImage(img);
+    setSelectedCaption(caption);
+    setVisible(true);
+  };
+
+  const handleCancel = () => {
+    setVisible(false);
+    setSelectedImage(null);
+    setSelectedCaption('');
+  };
 
   return (
     <View style={st.flex}>
@@ -383,10 +407,14 @@ const ProfileScreen = ({navigation, route}) => {
           keyExtractor={(item, index) => index.toString()}
           renderItem={({item}) => {
             if (activeTab === 'Photo') {
-              return <Image source={{uri: item}} style={styles.gridImage} />;
+              return (
+                <Pressable onPress={() => showDialog(item.url, item.caption)}>
+                  <Image source={{uri: item.url}} style={styles.gridImage} />
+                </Pressable>
+              );
             }
             if (activeTab === 'Text') {
-              return <Text style={styles.contentText}>{item}</Text>;
+              return <Text style={styles.contentText}>{item.caption}</Text>;
             }
             if (activeTab === 'Video') {
               return (
@@ -427,6 +455,28 @@ const ProfileScreen = ({navigation, route}) => {
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
+
+      {/* Dialog */}
+      <DialogComponent visible={visible} onCancel={handleCancel}>
+        {selectedImage && (
+          <>
+            <Image
+              source={{uri: selectedImage}}
+              style={styles.largeImage}
+              resizeMode="cover"
+            />
+            <View style={[st.justify_Row, st.justify_S]}>
+              <Text style={[st.txAlignC, st.pd_H10, st.tx14]}>
+                {selectedCaption}
+              </Text>
+              <View style={[st.justify_Row, st.pd_H10]}>
+                <EvilIcons name="like" color="#292929ff" size={28} />
+                <EvilIcons name="comment" color="#292929ff" size={28} />
+              </View>
+            </View>
+          </>
+        )}
+      </DialogComponent>
     </View>
   );
 };
@@ -466,6 +516,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 12,
     fontWeight: '600',
+  },
+  largeImage: {
+    width: width - 10,
+    minHeight: 300,
+    borderRadius: 10,
+    marginBottom: 10,
   },
 });
 

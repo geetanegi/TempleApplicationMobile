@@ -2,12 +2,14 @@ import {StyleSheet, Text, View} from 'react-native';
 import React from 'react';
 import MusicPlayer from '../musicPlayer';
 import Video from '../../../components/VideoPlayer';
+import SettingsScreen from '../setting';
 
 const JeevaniScreen = () => {
   return (
     <View style={styles.container}>
       {/* <MusicPlayer /> */}
-      <Video />
+      {/* <Video /> */}
+      <SettingsScreen />
     </View>
   );
 };

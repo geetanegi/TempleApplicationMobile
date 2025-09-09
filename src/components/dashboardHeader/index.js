@@ -16,8 +16,8 @@ const HeaderDashboard = ({LeftIcon, title, RightIcon, leftNav, rightNav}) => {
             onPress={() => navigation.navigate(leftNav)}
             style={[styles.icon, styles.profileIcon, st.pd4]}>
             <LeftIcon
-              strokeWidth={1}
-              style={{color: colors.ICON_GREY}}
+              strokeWidth={1.2}
+              style={{color: colors.DARK_BLACK}}
               size={24}
             />
           </Pressable>
@@ -38,9 +38,9 @@ const HeaderDashboard = ({LeftIcon, title, RightIcon, leftNav, rightNav}) => {
             onPress={() => navigation.navigate(rightNav)}
             style={[styles.icon, st.pd4]}>
             <RightIcon
-              strokeWidth={1}
-              style={{color: colors.ICON_GREY}}
-              size={32}
+              strokeWidth={1.2}
+              style={{color: colors.DARK_BLACK}}
+              size={30}
             />
           </Pressable>
         ) : (

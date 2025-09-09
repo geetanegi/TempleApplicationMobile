@@ -32,6 +32,7 @@ import Plus from 'react-native-vector-icons/AntDesign';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import JeevaniScreen from '../../dashboard/jeevani';
 import SongsPage from '../../dashboard/songs';
+import NotificationScreen from '../../dashboard/notification';
 
 const BetCentral = () => {
   return (
@@ -327,8 +328,8 @@ export default function BottomNavigation() {
       />
 
       <Tab.Screen
-        name="Profiles"
-        component={ProfileCard}
+        name="Notification"
+        component={NotificationScreen}
         options={{
           tabBarIcon: renderTabImage(images.notification, 'notification'),
         }}
