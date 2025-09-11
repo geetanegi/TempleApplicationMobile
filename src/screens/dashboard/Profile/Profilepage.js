@@ -309,7 +309,7 @@ import TabBar from './TabBar';
 import {Eye} from 'lucide-react-native'; // or use react-native-vector-icons
 import DialogComponent from '../../../components/dialog';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
-
+import {useNavigation} from '@react-navigation/native';
 const profileData = {
   username: 'john_doe',
   name: 'John Doe',
@@ -347,6 +347,7 @@ const profileData = {
   ],
 
   photos: Array.from({length: 16}).map((_, i) => ({
+    id: i + 1,
     url: `https://picsum.photos/id/${i + 10}/300/300`,
     caption: `This is caption for photo ${i + 1}`,
   })),
@@ -362,7 +363,7 @@ const ProfileScreen = ({navigation, route}) => {
   const [visible, setVisible] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState(null);
   const [selectedCaption, setSelectedCaption] = React.useState('');
-
+  const navigate = useNavigation();
   const backIconVisibility = route?.params?.backIconVisibility || false;
 
   const showDialog = (img, caption) => {
@@ -408,7 +409,13 @@ const ProfileScreen = ({navigation, route}) => {
           renderItem={({item}) => {
             if (activeTab === 'Photo') {
               return (
-                <Pressable onPress={() => showDialog(item.url, item.caption)}>
+                <Pressable
+                  onPress={() =>
+                    navigate.navigate('Posts', {
+                      posts: profileData.photos,
+                      initialIndex: item.id,
+                    })
+                  }>
                   <Image source={{uri: item.url}} style={styles.gridImage} />
                 </Pressable>
               );

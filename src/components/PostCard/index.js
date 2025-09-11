@@ -5,6 +5,8 @@ import {colors} from '../../global/theme';
 import st from '../../global/styles';
 import Drawer from '../CustomDrawer';
 import CommentScreen from '../../screens/dashboard/comment';
+import {Dimensions} from 'react-native';
+const {width, height} = Dimensions.get('screen');
 const PostCard = ({
   userName,
   location,
@@ -14,6 +16,7 @@ const PostCard = ({
   shares,
   avatar,
   contentText,
+  index,
 }) => {
   const [visible, setVisible] = React.useState(false);
   const comment = [
@@ -43,9 +46,7 @@ const PostCard = ({
       <Image source={{uri: image}} style={styles.postImage} />
 
       {/* Footer */}
-      <View style={[st.pd4]}>
-        <Text style={[st.tx14]}>{contentText}</Text>
-      </View>
+
       <View style={styles.footer}>
         <View style={styles.actions}>
           <View style={styles.actionRow}>
@@ -68,6 +69,9 @@ const PostCard = ({
           </Pressable>
         </View>
       </View>
+      <View style={[st.pv10]}>
+        <Text style={[st.tx14]}>{contentText}</Text>
+      </View>
     </View>
   );
 };
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: colors.orange,
-    paddingBottom: 16,
+    height: height / 2,
   },
   header: {
     flexDirection: 'row',
@@ -121,7 +125,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 8,
-    paddingHorizontal: 4,
   },
   actions: {
     flexDirection: 'row',
@@ -140,7 +143,6 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   comment: {
-    marginBottom: 14,
     gap: 8,
   },
   title: {

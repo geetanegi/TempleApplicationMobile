@@ -1,16 +1,21 @@
 // components/MusicCard.js
 import React from 'react';
 import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
+import EvilIcons from 'react-native-vector-icons/EvilIcons';
 
-export default function MusicCard({item, isActive}) {
+export default function VideoCard({item, isActive}) {
   return (
     <TouchableOpacity style={[styles.card, isActive && styles.activeCard]}>
-      <Image source={{uri: item.artwork}} style={styles.avatar} />
+      <Image source={{uri: item.thumbnail}} style={styles.avatar} />
       <View style={styles.textContainer}>
-        <Text style={[styles.name, isActive && styles.activeName]}>
-          {item.title}
-        </Text>
-        <Text style={styles.musicBy}>Music By : {item.artist}</Text>
+        <EvilIcons name="play" color="#000" size={36} />
+        <View>
+          <Text style={[styles.name, isActive && styles.activeName]}>
+            {item.title}
+          </Text>
+
+          <Text style={styles.musicBy}>Video By : {item.username}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -18,8 +23,6 @@ export default function MusicCard({item, isActive}) {
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 12,
     marginVertical: 6,
     marginHorizontal: 12,
@@ -27,18 +30,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: '#fff',
+    gap: 4,
   },
   activeCard: {
     backgroundColor: '#ff7f32',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: '100%',
+    borderRadius: 10,
     marginRight: 12,
+    aspectRatio: 16 / 9,
   },
   textContainer: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 4,
   },
   name: {
     fontSize: 16,

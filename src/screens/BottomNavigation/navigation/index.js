@@ -33,6 +33,8 @@ import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import JeevaniScreen from '../../dashboard/jeevani';
 import SongsPage from '../../dashboard/songs';
 import NotificationScreen from '../../dashboard/notification';
+import VideoScreen from '../../dashboard/video';
+import PostScreen from '../../dashboard/posts';
 
 const BetCentral = () => {
   return (
@@ -214,6 +216,9 @@ function HomeStackScreens() {
     <HomeStack.Navigator screenOptions={{headerShown: false}}>
       <HomeStack.Screen name="MainDashboard" component={MainDashboard} />
       <HomeStack.Screen name="SongScreen" component={SongsPage} />
+      <HomeStack.Screen name="VideoScreen" component={VideoScreen} />
+      <HomeStack.Screen name="Profiles" component={ProfileCard} />
+      <HomeStack.Screen name="Posts" component={PostScreen} />
     </HomeStack.Navigator>
   );
 }

@@ -49,3 +49,20 @@ export const songNavs = [
   {icon: 'image', label: 'Singer', navigateTo: 'ImageScreen'},
   {icon: 'image', label: 'Favourite', navigateTo: 'ImageScreen'},
 ];
+
+export const videoList = [
+  {
+    id: '1',
+    title: 'First time in Temple',
+    username: 'John Doe',
+    thumbnail: 'https://randomuser.me/api/portraits/women/1.jpg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  },
+  {
+    id: '2',
+    title: 'Revisiting Temple',
+    username: 'John Doe',
+    thumbnail: 'https://randomuser.me/api/portraits/men/1.jpg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  },
+];
