@@ -37,6 +37,7 @@ const Header = ({
   backIcon,
   profileIcon,
   drawerIcon,
+  search,
 }) => {
   const dispatch = useDispatch();
 
@@ -80,7 +81,7 @@ const Header = ({
               color={colors.grey}
             />
           )}
-          {!backIcon && <Image source={leftImg} style={styles.leftImage} />}
+          {backIcon && <Image source={leftImg} style={styles.leftImage} />}
           <Text
             style={[
               st.headerLeftTitle,
@@ -91,14 +92,16 @@ const Header = ({
         </View>
 
         <View style={[st.row, st.align_C]}>
-          <Pressable>
-            <Icon
-              name={'search'}
-              size={20}
-              color={colors.ICON_GREY}
-              style={{marginRight: 20}}
-            />
-          </Pressable>
+          {search && (
+            <Pressable>
+              <Icon
+                name={'search'}
+                size={20}
+                color={colors.ICON_GREY}
+                style={{marginRight: 20}}
+              />
+            </Pressable>
+          )}
           {leftImg !== 'cart' && (
             <Pressable onPress={() => logout()}>
               <Icon
@@ -117,12 +120,14 @@ const Header = ({
               color={colors.ICON_GREY}
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Notification')}>
-            <Image
-              source={images.user} // Replace with actual profile image URI
-              style={styles.profileImage}
-            />
-          </TouchableOpacity>
+          {profileIcon && (
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+              <Image
+                source={images.user} // Replace with actual profile image URI
+                style={styles.profileImage}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>

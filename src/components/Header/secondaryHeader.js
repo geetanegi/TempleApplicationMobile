@@ -4,17 +4,23 @@ import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons'; // You can change icon set
 import {colors} from '../../global/theme/index';
 
-const SecondaryHeader = ({title}) => {
-  const navigate = useNavigation();
+const SecondaryHeader = ({title, navigate, textLeft}) => {
+  const navigater = useNavigation();
   function handleBack() {
-    navigate.goBack();
+    navigater.goBack();
   }
   return (
     <View style={styles.header}>
-      <Pressable onPress={handleBack}>
+      <Pressable onPress={navigate || handleBack}>
         <Icon name="arrow-back" size={28} color={colors.DARK_BLACK} />
       </Pressable>
-      <Text style={styles.headerTitle}>{title}</Text>
+      <Text
+        style={[
+          styles.headerTitle,
+          textLeft && {textAlign: 'left', paddingHorizontal: 10},
+        ]}>
+        {title}
+      </Text>
     </View>
   );
 };
@@ -31,7 +37,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     marginRight: 24,
     color: colors.DARK_BLACK,

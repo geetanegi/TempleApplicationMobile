@@ -7,7 +7,7 @@ import Community from '../../dashboard/community/CommunityList';
 import CourceDetails from '../../dashboard/betCentral/HoleScreen';
 import CourceCart from '../../dashboard/betCentral/TeeScreen';
 import PayingCart from '../../dashboard/betCentral/CheckoutCart';
-import ProfileCard from '../../dashboard/Profile/Profilepage';
+import ProfilePage from '../../dashboard/Profile/Profilepage';
 import {createStackNavigator} from '@react-navigation/stack';
 import EnterQueueHome from '../../dashboard/EnterQueue/EnterQueueHome';
 import RecordResult from '../../dashboard/EnterQueue/RecordYourResult';
@@ -88,7 +88,7 @@ const ProfileStack = () => {
       initialRouteName="Community"
       screenOptions={{headerShown: false}}>
       <HomeStack.Screen name="Community" component={Community} />
-      <HomeStack.Screen name="EditProfile" component={ProfileCard} />
+      <HomeStack.Screen name="EditProfile" component={ProfilePage} />
       <HomeStack.Screen name="LeaderBoard" component={LeaderBoard} />
       <HomeStack.Screen
         name="AllLeaderBoardVedio"
@@ -218,7 +218,7 @@ function HomeStackScreens() {
       <HomeStack.Screen name="MainDashboard" component={MainDashboard} />
       <HomeStack.Screen name="SongScreen" component={SongsPage} />
       <HomeStack.Screen name="VideoScreen" component={VideoScreen} />
-      <HomeStack.Screen name="Profiles" component={ProfileCard} />
+      <HomeStack.Screen name="Profiles" component={ProfilePage} />
       <HomeStack.Screen name="Posts" component={PostScreen} />
       <HomeStack.Screen name="VideoPlayer" component={VideoPlayer} />
     </HomeStack.Navigator>
@@ -328,7 +328,7 @@ export default function BottomNavigation() {
       />
       <Tab.Screen
         name="Info"
-        component={ProfileCard}
+        component={ProfilePage}
         options={{
           tabBarIcon: renderTabImage(images.location, 'location'),
         }}

@@ -30,7 +30,7 @@ import PayingCart from '../screens/dashboard/betCentral/CheckoutCart';
 import CourseScreen from '../screens/dashboard/betCentral/CourseScreen';
 import TeeBoxContainer from '../screens/dashboard/EnterQueue/TeeScreen';
 import CountdownBox from '../screens/dashboard/EnterQueue/CountdownBox';
-
+import {Dimensions} from 'react-native';
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 const Tab = createMaterialTopTabNavigator();
@@ -99,6 +99,9 @@ const DrawerStack = () => {
         headerShown: false,
         drawerActiveTintColor: colors.blue,
         drawerInactiveTintColor: '#333',
+        drawerStyle: {
+          width: Dimensions.get('window').width / 1.25,
+        },
       }}
       drawerContent={props => <DrawerScreen {...props} />}>
       <Drawer.Screen
