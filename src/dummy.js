@@ -55,14 +55,20 @@ export const videoList = [
     id: '1',
     title: 'First time in Temple',
     username: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ',
     thumbnail: 'https://randomuser.me/api/portraits/women/1.jpg',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    url: 'https://www.pexels.com/download/video/19278606/',
   },
   {
     id: '2',
     title: 'Revisiting Temple',
     username: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ',
     thumbnail: 'https://randomuser.me/api/portraits/men/1.jpg',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    url: 'https://www.pexels.com/download/video/32564112/',
   },
 ];

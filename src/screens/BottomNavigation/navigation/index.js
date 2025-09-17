@@ -35,6 +35,7 @@ import SongsPage from '../../dashboard/songs';
 import NotificationScreen from '../../dashboard/notification';
 import VideoScreen from '../../dashboard/video';
 import PostScreen from '../../dashboard/posts';
+import VideoPlayer from '../../../components/VideoPlayer';
 
 const BetCentral = () => {
   return (
@@ -219,6 +220,7 @@ function HomeStackScreens() {
       <HomeStack.Screen name="VideoScreen" component={VideoScreen} />
       <HomeStack.Screen name="Profiles" component={ProfileCard} />
       <HomeStack.Screen name="Posts" component={PostScreen} />
+      <HomeStack.Screen name="VideoPlayer" component={VideoPlayer} />
     </HomeStack.Navigator>
   );
 }

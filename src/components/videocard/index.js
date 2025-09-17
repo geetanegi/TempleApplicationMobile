@@ -2,10 +2,16 @@
 import React from 'react';
 import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
+import {useNavigation} from '@react-navigation/native';
 
 export default function VideoCard({item, isActive}) {
+  const navigater = useNavigation();
   return (
-    <TouchableOpacity style={[styles.card, isActive && styles.activeCard]}>
+    <TouchableOpacity
+      onPress={() => {
+        navigater.navigate('VideoPlayer', item);
+      }}
+      style={[styles.card, isActive && styles.activeCard]}>
       <Image source={{uri: item.thumbnail}} style={styles.avatar} />
       <View style={styles.textContainer}>
         <EvilIcons name="play" color="#000" size={36} />

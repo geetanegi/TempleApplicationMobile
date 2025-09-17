@@ -35,28 +35,106 @@
 
 // const styles = StyleSheet.create({});
 import React from 'react';
-import {View, Dimensions} from 'react-native';
+import {View, Dimensions, StyleSheet, Text, Image} from 'react-native';
 import VideoPlayer from 'react-native-video-player';
+const {width, height} = Dimensions.get('window');
+import st from '../../global/styles';
+import {colors} from '../../global/theme';
+const Video = ({route}) => {
+  const {url, title, description, username, avatar} = route.params;
 
-const Video = () => (
-  <View
-    style={{
-      flex: 1,
-      backgroundColor: '#000',
-      width: '100%',
-      justifyContent: 'center',
-    }}>
-    <VideoPlayer
-      source={{
-        uri: 'https://youtu.be/2PBICX2d4xU?si=dZTWkV8xYh4Sgmn8',
-      }}
-      resizeMode="contain"
-      autoplay
-      showDuration
-      controlsTimeout={3000}
-      onError={e => console.log('Video error:', e)}
-    />
-  </View>
-);
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'flex-start',
+        paddingVertical: 20,
+        width: width,
+      }}>
+      <VideoPlayer
+        source={{
+          uri: url,
+        }}
+        resizeMode="contain"
+        autoplay
+        showDuration
+        controlsTimeout={3000}
+        onError={e => console.log('Video error:', e)}
+      />
+      <View style={[st.pd10]}>
+        <Text style={[st.tx16]}>{title}</Text>
+        <Text style={[st.tx12, {color: 'grey'}]}>{description}</Text>
+        <View>
+          <View style={[st.justify_Row, {paddingVertical: 20}]}>
+            <Image
+              source={{uri: avatar}} // mock user avatar
+              style={styles.avatar}
+            />
+            <Text style={styles.userName}>{username}</Text>
+            {/* <Text style={styles.location}>{location}</Text> */}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default Video;
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  userName: {
+    fontWeight: '300',
+    fontSize: 14,
+    color: colors.black,
+  },
+  location: {
+    fontSize: 12,
+    color: '#666',
+  },
+  postImage: {
+    width: '100%',
+    height: 280,
+    borderRadius: 10,
+    marginVertical: 8,
+  },
+  footer: {
+    marginTop: 8,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: 20,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  actionText: {
+    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#333',
+  },
+  comment: {
+    gap: 8,
+  },
+  title: {
+    textAlign: 'center',
+    marginHorizontal: 'auto',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'black',
+  },
+});
