@@ -1,8 +1,23 @@
-import {StyleSheet, Text, View, FlatList, Image} from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  Image,
+  Pressable,
+  Touchable,
+  TouchableOpacity,
+  TextInput,
+  Dimensions,
+} from 'react-native';
 import React from 'react';
 import Drawer from '../../../components/CustomDrawer';
 import st from '../../../global/styles';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+
+import InputText from '../../../components/InputText';
+import {colors} from '../../../global/theme';
 
 const CommentScreen = ({visible, setVisible, comment}) => {
   return (
@@ -14,7 +29,7 @@ const CommentScreen = ({visible, setVisible, comment}) => {
         data={comment}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({item}) => (
-          <View style={[styles.comment, st.justify_Row, st.align_C]}>
+          <View style={[styles.comment, st.justify_Row, st.align_S, st.pv6]}>
             <View>
               <Image
                 style={styles.avatar}
@@ -23,18 +38,29 @@ const CommentScreen = ({visible, setVisible, comment}) => {
                 }}
               />
             </View>
-            <View style={[st.wdh100]}>
+
+            <View>
               <View style={[st.justify_Row, st.wdh100, st.align_C]}>
                 <Text style={[st.tx12, st.txColor]}>{item.user}</Text>
                 <Text style={[st.tx10, st.txtlight]}> 19h</Text>
               </View>
               <View style={[st.justify_Row, styles.commentContainer]}>
                 <Text style={[st.tx14]}>{item.text}</Text>
-                <EvilIcons name="heart" color="#000" size={24} />
               </View>
-              <View style={[st.justify_Row, styles.commentContainer]}>
+
+              <Pressable style={[st.justify_Row, styles.commentContainer]}>
                 <Text style={[st.tx12, st.txtlight]}>Reply</Text>
-              </View>
+              </Pressable>
+              <Pressable
+                style={[st.justify_Row, styles.commentContainer, st.wdh100]}>
+                <Text style={[st.tx12, st.txtlight, st.txAlignC, st.pd_H40]}>
+                  View more reply
+                </Text>
+              </Pressable>
+            </View>
+            <View style={[st.align_C, st.wdh10, {marginLeft: 'auto'}, st.gap2]}>
+              <EvilIcons name="heart" color="#000" size={24} />
+              <Text style={[st.tx12]}>1</Text>
             </View>
           </View>
         )}
@@ -43,6 +69,7 @@ const CommentScreen = ({visible, setVisible, comment}) => {
             <Text style={[styles.title]}>{'Comments'}</Text>
           </View>
         }
+        ListFooterComponent={<InputReply />}
       />
     </Drawer>
   );
@@ -76,4 +103,33 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
   },
+  inputbtn: {
+    width: 50,
+    borderColor: colors.orange,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0.6,
+    borderRadius: 2,
+    backgroundColor: 'rgba(253, 124, 32, 0.8)',
+  },
+  inputBox: {
+    width: Dimensions.get('window').width - 100,
+    borderWidth: 0.2,
+    borderRadius: 2,
+    padding: 10,
+  },
 });
+
+const InputReply = () => {
+  return (
+    <View style={[st.justify_Row, st.gap2, st.pv10, st.justify_C]}>
+      <TextInput
+        style={styles.inputBox}
+        placeholder="What do you think of this?"
+      />
+      <TouchableOpacity style={styles.inputbtn}>
+        <FontAwesome name="send-o" color="#000000" />
+      </TouchableOpacity>
+    </View>
+  );
+};

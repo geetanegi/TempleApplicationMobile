@@ -120,7 +120,11 @@ const HomeStackScreens = () => (
       }}
       component={VideoScreen}
     />
-    <HomeStack.Screen name="Profiles" component={ProfilePage} />
+    <HomeStack.Screen
+      name="Profiles"
+      options={{headerShown: false}}
+      component={ProfilePage}
+    />
     <HomeStack.Screen name="Posts" component={PostScreen} />
     <HomeStack.Screen
       name="VideoPlayer"

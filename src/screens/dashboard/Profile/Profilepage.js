@@ -350,6 +350,7 @@ const profileData = {
     id: i + 1,
     url: `https://picsum.photos/id/${i + 10}/300/300`,
     caption: `This is caption for photo ${i + 1}`,
+    likes: 2,
   })),
 };
 const TABS = ['Photo', 'Text', 'Video'];

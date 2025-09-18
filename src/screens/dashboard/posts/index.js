@@ -23,6 +23,7 @@ const PostScreen = ({route}) => {
             contentText={item.caption}
             image={item.url}
             avatar={item.url}
+            likes={item.likes}
           />
         )}
         pagingEnabled
