@@ -19,9 +19,9 @@ import MusicCard from '../../../components/musicCard';
 const SongsPage = () => {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
+      {/* <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
 
-      <CustomHeader title={'Song'} />
+      <CustomHeader title={'Song'} /> */}
       <FlatList
         style={[st.pd_H20]}
         data={musicList}

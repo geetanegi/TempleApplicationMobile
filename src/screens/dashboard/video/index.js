@@ -17,9 +17,9 @@ import st from '../../../global/styles';
 const VideoScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
+      {/* <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
 
-      <CustomHeader title={'Videos'} />
+      <CustomHeader title={'Videos'} /> */}
       <FlatList
         style={[st.pd_H20]}
         data={videoList}

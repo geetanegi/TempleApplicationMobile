@@ -31,8 +31,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 15,
-    marginBottom: 20,
+    paddingTop: 25,
+    padding: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: '#fff',
   },
   headerTitle: {
     flex: 1,

@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   username: {
     marginTop: 10,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
     color: 'black',
   },
 });

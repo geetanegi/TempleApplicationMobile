@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
-  Pressable,
+  SafeAreaView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import {colors} from '../../../global/theme';
+import st from '../../../global/styles';
 import SecondaryHeader from '../../../components/Header/secondaryHeader';
 //  Reusable Request Item
 const RequestItem = ({name, image, onAccept, onReject}) => {
@@ -40,6 +41,8 @@ const NotificationItem = ({image, message}) => {
 
 //  Notification Screen
 const NotificationScreen = () => {
+  const [showAll, setShowAll] = React.useState(false);
+
   const requests = [
     {
       id: '1',
@@ -55,6 +58,41 @@ const NotificationScreen = () => {
       id: '3',
       name: 'Corey Culhane',
       image: 'https://randomuser.me/api/portraits/men/43.jpg',
+    },
+    {
+      id: '4',
+      name: 'John Doe',
+      image: 'https://randomuser.me/api/portraits/men/46.jpg',
+    },
+    {
+      id: '5',
+      name: 'Jane Smith',
+      image: 'https://randomuser.me/api/portraits/women/47.jpg',
+    },
+    {
+      id: '6',
+      name: 'Michael Johnson',
+      image: 'https://randomuser.me/api/portraits/men/48.jpg',
+    },
+    {
+      id: '7',
+      name: 'Emily Davis',
+      image: 'https://randomuser.me/api/portraits/women/49.jpg',
+    },
+    {
+      id: '8',
+      name: 'David Wilson',
+      image: 'https://randomuser.me/api/portraits/men/50.jpg',
+    },
+    {
+      id: '9',
+      name: 'Sophia Martinez',
+      image: 'https://randomuser.me/api/portraits/women/51.jpg',
+    },
+    {
+      id: '10',
+      name: 'Liam Brown',
+      image: 'https://randomuser.me/api/portraits/men/52.jpg',
     },
   ];
 
@@ -80,45 +118,50 @@ const NotificationScreen = () => {
       image: 'https://randomuser.me/api/portraits/men/39.jpg',
     },
   ];
+  const visibleRequests = showAll ? requests : requests.slice(0, 3);
 
   return (
-    <View style={styles.container}>
-      {/* Logo */}
-      <SecondaryHeader title={'Notifications'} />
-      {/* Request Section (only if available) */}
-      {requests.length > 0 && (
-        <View>
-          <Text style={styles.sectionTitle}>Request</Text>
-          <LinearGradient
-            colors={[colors.orange, '#d59564ff']}
-            style={styles.requestBox}>
-            {requests.map(req => (
-              <RequestItem
-                key={req.id}
-                name={req.name}
-                image={req.image}
-                onAccept={() => console.log('Accepted', req.name)}
-                onReject={() => console.log('Rejected', req.name)}
-              />
-            ))}
-
-            <TouchableOpacity style={styles.seeMore}>
-              <Text style={{color: colors.black}}>See more ▼</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-      )}
-
-      {/* Notification Section */}
-      <Text style={styles.sectionTitle}>Notification</Text>
+    <>
+      {/* <SecondaryHeader title="Notifications" /> */}
       <FlatList
+        ListHeaderComponent={
+          <>
+            {requests.length > 0 && (
+              <SafeAreaView>
+                <Text style={styles.sectionTitle}>Request</Text>
+                <LinearGradient
+                  colors={[colors.orange, '#d59564ff']}
+                  style={styles.requestBox}>
+                  {visibleRequests.map(req => (
+                    <RequestItem
+                      key={req.id}
+                      name={req.name}
+                      image={req.image}
+                      onAccept={() => console.log('Accepted', req.name)}
+                      onReject={() => console.log('Rejected', req.name)}
+                    />
+                  ))}
+                  <TouchableOpacity
+                    onPress={() => setShowAll(!showAll)}
+                    style={styles.seeMore}>
+                    <Text style={{color: colors.black}}>
+                      {showAll ? 'See less ▲' : 'See more ▼'}
+                    </Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </SafeAreaView>
+            )}
+            <Text style={styles.sectionTitle}>Notification</Text>
+          </>
+        }
         data={notifications}
         keyExtractor={item => item.id}
         renderItem={({item}) => (
           <NotificationItem image={item.image} message={item.message} />
         )}
+        style={[st.pd10]}
       />
-    </View>
+    </>
   );
 };
 

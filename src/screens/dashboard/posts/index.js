@@ -11,7 +11,7 @@ const PostScreen = ({route}) => {
   const flatListRef = useRef(null);
   return (
     <SafeAreaView style={styles.container}>
-      <SecondaryHeader title={'Posts'} />
+      {/* <SecondaryHeader title={'Posts'} /> */}
       <FlatList
         ref={flatListRef}
         keyExtractor={item => item.id.toString()}

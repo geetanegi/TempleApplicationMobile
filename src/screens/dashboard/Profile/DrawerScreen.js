@@ -160,6 +160,7 @@ const DrawerScreen = ({navigation}) => {
             onPress={() => console.log(item.label + ' pressed')}
           />
         )}
+        style={[{marginTop: 50}]}
       />
     </View>
   );
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   signOutButton: {
     position: 'absolute',
