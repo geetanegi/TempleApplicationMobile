@@ -44,11 +44,14 @@ import NotificationScreen from '../../dashboard/notification';
 import VideoScreen from '../../dashboard/video';
 import PostScreen from '../../dashboard/posts';
 import VideoPlayer from '../../../components/VideoPlayer';
+import SubCategoryPage from '../../dashboard/jeevani/subCategory';
+import JevaaniScreen from '../../dashboard/jeevani';
 
 // --------------------------------
 // Stack Navigators
 // --------------------------------
 const HomeStack = createStackNavigator();
+const JeevaniStack = createStackNavigator();
 
 const BetCentralStack = () => (
   <HomeStack.Navigator screenOptions={{headerShown: false}}>
@@ -138,6 +141,27 @@ const HomeStackScreens = () => (
   </HomeStack.Navigator>
 );
 
+const JeevaniScreenStack = () => {
+  return (
+    <JeevaniStack.Navigator>
+      <JeevaniStack.Screen
+        name="Jevaani"
+        options={{headerTitleAlign: 'center', headerTitleStyle: {fontSize: 18}}}
+        component={JevaaniScreen}
+      />
+      <JeevaniStack.Screen
+        name="SubCategoryPage"
+        options={({route}) => ({
+          headerTitle: route.params?.title || 'Sub Category',
+          headerTitleAlign: 'center',
+          headerTitleStyle: {fontSize: 18},
+        })}
+        component={SubCategoryPage}
+      />
+    </JeevaniStack.Navigator>
+  );
+};
+
 // --------------------------------
 // Custom Components
 // --------------------------------
@@ -224,20 +248,10 @@ export default function BottomNavigation() {
       />
       <Tab.Screen
         name="Jevaani"
-        component={Home}
+        component={JeevaniScreenStack}
         options={{
           tabBarIcon: renderTabIcon(MaterialCommunityIcons, 'hand-front-right'),
-          headerLeft: () => (
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={{paddingLeft: 15}}>
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={24}
-                color="#000"
-              />
-            </Pressable>
-          ),
+          headerShown: false,
           headerTitleAlign: 'center',
           headerTitleStyle: {fontSize: 18},
         }}

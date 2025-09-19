@@ -1,36 +1,128 @@
-import {StyleSheet, Text, View} from 'react-native';
+import {
+  Text,
+  View,
+  TouchableOpacity,
+  Button,
+  FlatList,
+  Image,
+  StyleSheet,
+} from 'react-native';
 import React from 'react';
-import MusicPlayer from '../musicPlayer';
-import Video from '../../../components/VideoPlayer';
-import SettingsScreen from '../setting';
+import st from '../../../global/styles';
+import Header from '../../../components/Header';
+import Share from 'react-native-share';
+import {images} from '../../../global/theme';
+import {setupPlayer} from 'react-native-track-player/lib/src/trackPlayer';
+// import { styled } from "nativewind";
+const gridItems = [
+  {id: '1', title: 'Bhakti', image: images.bhakti, navigate: 'BhaktiScreen'},
+  {id: '2', title: 'Chalisa', image: images.chalisa, navigate: 'BhaktiScreen'},
+  {
+    id: '3',
+    title: 'Puja Path',
+    image: images.pujapath,
+    navigate: 'BhaktiScreen',
+  },
+  {id: '4', title: 'Stotra', image: images.stotra, navigate: 'StotraScreen'},
+  {id: '5', title: 'Stuti', image: images.stuti, navigate: 'StutiScreen'},
+  {id: '6', title: 'Vidhi', image: images.vidhi, navigate: 'VidhiScreen'},
+  {id: '7', title: 'Aarti', image: images.aarti, navigate: 'AartiScreen'},
+  {id: '8', title: 'Granth', image: images.aarti, navigate: 'GranthScreen'},
+];
+const JevaaniScreen = ({navigation}) => {
+  // const StyledText = styled(Text);
 
-const JeevaniScreen = () => {
+  // backAction = () => {
+  //   Alert.alert('Exit ?', 'Are you sure you want to exit ?', [
+  //     {
+  //       text: 'Cancel',
+  //       onPress: () => null,
+  //       style: 'cancel',
+  //     },
+  //     {text: 'YES', onPress: () => BackHandler.exitApp()},
+  //   ]);
+  //   return true;
+  // };
+  const handlePress = item => {
+    console.log(item.path);
+    navigation.navigate('SubCategoryPage', {...item});
+  };
+
+  const share = async () => {
+    const options = {
+      message: 'hello this is a demo message',
+      url: 'https://www.youtube.com/watch?v=wncM96HYcxw',
+      email: 'geetanegi10917@gmail.com',
+      subject: 'hello',
+      recipient: '919755638573',
+    };
+
+    try {
+      const res = await Share.open(options);
+      console.log(res);
+    } catch (err) {
+      console.log(err);
+    }
+
+    // Share.open(options)
+    //   .then(res => console.log(res))
+    //   .catch(err => console.log(err));
+  };
   return (
-    <View style={styles.container}>
-      {/* <MusicPlayer /> */}
-      {/* <Video /> */}
-      <SettingsScreen />
+    <View style={[st.flex]}>
+      {/* <Header navigation={navigation} /> */}
+      <View>
+        <FlatList
+          data={gridItems}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.gridContainer}
+          renderItem={({item}) => (
+            <TouchableOpacity
+              style={styles.gridItem}
+              onPress={() => handlePress(item)}>
+              <Image source={item.image} style={styles.gridImage} />
+              <View style={styles.gridOverlay}>
+                <Text style={styles.gridText}>{item.title}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
     </View>
   );
 };
 
-export default JeevaniScreen;
+export default JevaaniScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+  container: {flex: 1, paddingHorizontal: 16, backgroundColor: '#fff'},
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
+    paddingVertical: 10,
   },
-  comment: {
-    marginBottom: 12,
+  logo: {fontSize: 24, fontWeight: 'bold', color: '#FF8C00'},
+  searchBar: {marginBottom: 10},
+  gridContainer: {paddingBottom: 80, paddingHorizontal: 10},
+  gridItem: {
+    flex: 1,
+    margin: 5,
+    height: 150,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  title: {
-    textAlign: 'center',
-    marginHorizontal: 'auto',
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'black',
+  gridImage: {width: '100%', height: '100%'},
+  gridOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 140, 0, 0.8)',
+    padding: 10,
+    alignItems: 'center',
   },
+  gridText: {color: '#fff', fontWeight: 'bold'},
 });
