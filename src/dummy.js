@@ -72,3 +72,33 @@ export const videoList = [
     url: 'https://www.pexels.com/download/video/32564112/',
   },
 ];
+
+export const imageList = [
+  {
+    id: '1',
+    title: 'At the temple',
+    username: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/women/5.jpg',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ',
+    imageUrl: 'https://randomuser.me/api/portraits/women/5.jpg',
+  },
+  {
+    id: '2',
+    title: 'Morning visit',
+    username: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/women/6.jpg',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ',
+    imageUrl: 'https://randomuser.me/api/portraits/men/6.jpg',
+  },
+  {
+    id: '3',
+    title: 'Morning visit',
+    username: 'John Doe',
+    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ',
+    imageUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
+  },
+];

@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import React from 'react';
 import CustomHeader from '../../../components/Header/newHeader';
@@ -24,11 +25,11 @@ const SubCategoryPage = () => {
   const route = useRoute();
   const {title, image} = route.params || {};
   return (
-    <SafeAreaView style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
 
       <CustomHeader title={'Song'} /> */}
-      <View
+      {/* <View
         style={{
           flex: 1 / 3,
           justifyContent: 'center',
@@ -39,7 +40,7 @@ const SubCategoryPage = () => {
           source={image}
           style={{width: width, resizeMode: 'cover', height: '100%'}}
         />
-      </View>
+      </View> */}
       <FlatList
         style={[st.pd_H20, st.flex]}
         data={musicList}
@@ -74,7 +75,7 @@ const SubCategoryPage = () => {
           </View>
         }
       />
-    </SafeAreaView>
+    </ScrollView>
   );
 };
 

@@ -11,6 +11,8 @@ const Input = ({
   password,
   labelColor,
   textSty,
+  defaulValue,
+  multiLine = false,
   onFocus = () => {},
   ...props
 }) => {
@@ -34,9 +36,12 @@ const Input = ({
           }}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={hidePassword}
-          style={[st.tx14, st.flex, textSty,{color:colors.black}]}
+          style={[st.tx14, st.flex, textSty, {color: colors.black}]}
           {...props}
           placeholderTextColor={'#1C2439'}
+          value={defaulValue}
+          multiline={multiLine}
+          numberOfLines={multiLine ? 3 : 1}
         />
 
         {iconName && (
@@ -48,7 +53,7 @@ const Input = ({
               right: 15,
               width: 25,
               height: 25,
-              color:colors.blue
+              color: colors.blue,
             }}
             tintColor={colors.blue}
           />
@@ -63,7 +68,9 @@ const Input = ({
           )} */}
       </View>
       {error && (
-        <Text style={[{color: colors.danger, fontSize: 12, marginLeft:15}]}>{error}</Text>
+        <Text style={[{color: colors.danger, fontSize: 12, marginLeft: 15}]}>
+          {error}
+        </Text>
       )}
     </View>
   );
@@ -83,7 +90,7 @@ const style = StyleSheet.create({
     borderRadius: 7,
     alignItems: 'center',
     marginTop: 10,
-    height:48
+    height: 48,
   },
 });
 

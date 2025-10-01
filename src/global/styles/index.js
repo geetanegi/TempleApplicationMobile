@@ -169,28 +169,11 @@ export default StyleSheet.create({
     textAlign: 'justify',
     // letterSpacing: 1,
   },
-  headingtxt: {
-    height: 42,
-    width: 100,
-    opacity: 0.9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    borderRadius: 5,
-    backgroundColor: colors.indian_red,
-    margin: 1,
-  },
   tx14No: {
     fontSize: 16,
     color: colors.black,
     fontFamily: family.regular,
     textAlign: 'justify',
-  },
-  htxt: {
-    textAlign: 'center',
-    color: 'white',
-    fontSize: 16,
-    letterSpacing: 0.3,
   },
   tx14: {
     fontSize: size.subtitle,

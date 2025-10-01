@@ -1,10 +1,17 @@
 // components/MusicCard.js
+import {useNavigation} from '@react-navigation/native';
 import React from 'react';
 import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
 
 export default function MusicCard({item, isActive}) {
+  const navigate = useNavigation();
+  const handlePress = () => {
+    navigate.navigate('ViewPDF', {pdfUrl: item.pdfUrl});
+  };
   return (
-    <TouchableOpacity style={[styles.card, isActive && styles.activeCard]}>
+    <TouchableOpacity
+      onPress={handlePress}
+      style={[styles.card, isActive && styles.activeCard]}>
       <Image source={{uri: item.artwork}} style={styles.avatar} />
       <View style={styles.textContainer}>
         <Text style={[styles.name, isActive && styles.activeName]}>

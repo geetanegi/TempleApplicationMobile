@@ -41,11 +41,15 @@ import MainDashboard from '../../dashboard/Main/dashboard';
 import JeevaniScreen from '../../dashboard/jeevani';
 import SongsPage from '../../dashboard/songs';
 import NotificationScreen from '../../dashboard/notification';
-import VideoScreen from '../../dashboard/video';
+import VideoScreen from '../../dashboard/Main/videoScreen';
 import PostScreen from '../../dashboard/posts';
 import VideoPlayer from '../../../components/VideoPlayer';
 import SubCategoryPage from '../../dashboard/jeevani/subCategory';
 import JevaaniScreen from '../../dashboard/jeevani';
+import SerachPage from '../../dashboard/search';
+import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
+import ViewPdf from '../../dashboard/Pdf/ViewPdf';
+import ImageScreen from '../../dashboard/Main/imageScreen';
 
 // --------------------------------
 // Stack Navigators
@@ -124,9 +128,23 @@ const HomeStackScreens = () => (
       component={VideoScreen}
     />
     <HomeStack.Screen
+      name="ImageScreen"
+      options={{
+        headerTitle: 'Images',
+        headerTitleAlign: 'center',
+        headerTitleStyle: {fontSize: 18},
+      }}
+      component={ImageScreen}
+    />
+    <HomeStack.Screen
       name="Profiles"
       options={{headerShown: false}}
       component={ProfilePage}
+    />
+    <HomeStack.Screen
+      name="EditProfileScreen"
+      options={{headerShown: true, title: 'Edit Profile'}}
+      component={ProfileEditScreen}
     />
     <HomeStack.Screen name="Posts" component={PostScreen} />
     <HomeStack.Screen
@@ -157,6 +175,16 @@ const JeevaniScreenStack = () => {
           headerTitleStyle: {fontSize: 18},
         })}
         component={SubCategoryPage}
+      />
+      <JeevaniStack.Screen
+        name="ViewPDF"
+        options={{
+          headerShown: true,
+          title: 'PDF Viewer',
+          headerTitleAlign: 'center',
+          headerTitleStyle: {fontSize: 18},
+        }}
+        component={ViewPdf}
       />
     </JeevaniStack.Navigator>
   );
@@ -272,9 +300,11 @@ export default function BottomNavigation() {
 
       <Tab.Screen
         name="Info"
-        component={JeevaniScreen}
+        component={SerachPage}
         options={{
           tabBarIcon: renderTabImage(images.location, 'location'),
+          headerTitleAlign: 'center',
+          headerTitleStyle: {fontSize: 18},
         }}
       />
 

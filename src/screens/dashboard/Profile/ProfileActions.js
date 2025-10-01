@@ -29,7 +29,7 @@ const ProfileActions = ({navigation, profile}) => {
     <View style={[styles.btnContainer, st.justify_Row, st.justify_S]}>
       <Pressable
         style={styles.button}
-        onPress={() => navigation.navigate('EditProfileScreen')}>
+        onPress={() => navigation.navigate('EditProfileScreen', {profile})}>
         <Text style={[st.tx12]}>Edit Profile</Text>
       </Pressable>
       <Pressable style={styles.button} onPress={onShare}>
