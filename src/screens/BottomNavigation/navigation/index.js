@@ -50,6 +50,7 @@ import SerachPage from '../../dashboard/search';
 import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import ImageScreen from '../../dashboard/Main/imageScreen';
+import ImagePicker from '../../../components/Posts/imagepicker';
 
 // --------------------------------
 // Stack Navigators
@@ -286,14 +287,16 @@ export default function BottomNavigation() {
       />
 
       <Tab.Screen
-        name="Scan"
-        component={Home}
+        name="New Post"
+        component={ImagePicker}
         options={{
           tabBarIcon: () => (
             <View style={styles.createBtn}>
               <AntDesign name="plus" color="#fff" size={24} />
             </View>
           ),
+          headerTitleAlign: 'center',
+          headerTitleStyle: {fontSize: 18},
           tabBarButton: props => <CustomTabBarButton {...props} />,
         }}
       />
