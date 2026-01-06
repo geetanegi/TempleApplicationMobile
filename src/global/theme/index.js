@@ -95,6 +95,7 @@ const images = {
   vidhi: require('../../images/vidhi.png'),
   bhakti: require('../../images/bhakti.png'),
   aarti: require('../../images/aarti.png'),
+  pdfimg: require('../../images/pdfimg.png'),
   googlelogo: '../../images/glogo.png',
   instagramlogo: '../../images/ilogo.png',
   Instagram: '../../images/Instagram.png',
@@ -134,7 +135,6 @@ const images = {
   Button_No: require('../../images/Button_No.png'),
   logoBuddha: require('../../images/b10.png'),
   Button_Yes: require('../../images/Button_Yes.png'),
-
   // Home Icons
   home: require('../../images/home.png'),
   jainism: require('../../images/jainism.png'),

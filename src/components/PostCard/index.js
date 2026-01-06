@@ -1,219 +1,408 @@
-import React, {useRef, useState} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   Pressable,
+  Modal,
+  TouchableOpacity,
   Animated,
 } from 'react-native';
-import {Heart, MessageCircle, Send, MoreHorizontal} from 'lucide-react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  MoreVertical,
+  Trash2,
+  Archive,
+  Clock3,
+} from 'lucide-react-native';
+
 import {colors} from '../../global/theme';
 import CommentScreen from '../../screens/dashboard/comment';
 
+const ORANGE_1 = 'rgba(248,175,83,1)';
+const ORANGE_2 = 'rgba(192,108,75,1)';
+
 const PostCard = ({
-  userName = 'shivam',
-  location = 'Unknown',
+  userName = 'Camila',
+  location = 'Mexico City, Mexico',
+  timeText = '55m',
   image,
-  likes = 0,
+  likes = 5400,
   comments = [],
-  shares = 0,
+  shares = 100,
   avatar,
   contentText = '',
 }) => {
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const likeCount = likes + (isLiked ? 1 : 0);
+  const commentCount = comments?.length ?? 0;
+
+  const shortText = useMemo(() => {
+    if (!contentText) return '';
+    if (contentText.length <= 90) return contentText;
+    return contentText.slice(0, 90).trim();
+  }, [contentText]);
 
   const handleLike = () => {
     setIsLiked(prev => !prev);
 
     Animated.spring(scaleAnim, {
-      toValue: 1.15,
+      toValue: 1.12,
       useNativeDriver: true,
-      friction: 3,
+      friction: 4,
       tension: 140,
     }).start(() => {
       Animated.spring(scaleAnim, {
         toValue: 1,
         useNativeDriver: true,
-        friction: 4,
+        friction: 5,
         tension: 120,
       }).start();
     });
   };
 
-  const likeCount = likes + (isLiked ? 1 : 0);
-  const commentCount = comments?.length ?? 0;
+  const ActionPill = ({icon, count}) => {
+    return (
+      <LinearGradient
+        colors={[ORANGE_1, ORANGE_2]}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.pill}>
+        {icon}
+        <Text style={styles.pillText}>{count ? count :90}</Text>
+      </LinearGradient>
+    );
+  };
 
   return (
-    <View style={styles.card}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <Image
-            source={{
-              uri:
-                avatar ||
-                'https://i.pravatar.cc/150?img=12', // fallback avatar
-            }}
-            style={styles.avatar}
-          />
-          <View>
-            <Text style={styles.userName} numberOfLines={1}>
-              {userName}
-            </Text>
-            <Text style={styles.location} numberOfLines={1}>
-              {location}
-            </Text>
+    <>
+      <View style={styles.card}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <Image
+              source={{uri: avatar || 'https://i.pravatar.cc/150?img=12'}}
+              style={styles.avatar}
+            />
+
+            <View style={{flex: 1}}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {userName}
+              </Text>
+              <Text style={styles.location} numberOfLines={1}>
+                {location}
+              </Text>
+
+              <View style={styles.timeRow}>
+                <Text style={styles.timeText}>{timeText}</Text>
+                <Clock3 size={12} color="#777" style={{marginLeft: 6}} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerRight}>
+            {/* Follow button */}
+            <Pressable>
+              <LinearGradient
+                colors={[ORANGE_1, ORANGE_2]}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+                style={styles.followBtn}>
+                <Text style={styles.followText}>Follow</Text>
+              </LinearGradient>
+            </Pressable>
+
+            {/* Menu */}
+            <Pressable hitSlop={12} onPress={() => setMenuOpen(true)}>
+              <MoreVertical size={20} color="#111" />
+            </Pressable>
           </View>
         </View>
 
-        <Pressable hitSlop={10}>
-          <MoreHorizontal size={20} color="#222" />
-        </Pressable>
+        {/* MENU DROPDOWN */}
+        <Modal transparent visible={menuOpen} animationType="fade">
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+            <View />
+          </Pressable>
+
+          <View style={styles.menuBox}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                // TODO: delete action
+              }}>
+              <Trash2 size={16} color="#666" />
+              <Text style={styles.menuText}>Delete</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                // TODO: archive action
+              }}>
+              <Archive size={16} color="#666" />
+              <Text style={styles.menuText}>Archive</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
+        {/* CAPTION */}
+        {!!contentText && (
+          <Text style={styles.caption}>
+            {expanded ? contentText : shortText}
+            {contentText.length > 90 && (
+              <Text style={styles.seeMore} onPress={() => setExpanded(p => !p)}>
+                {expanded ? '  See less' : '... See more'}
+              </Text>
+            )}
+          </Text>
+        )}
+
+        {/* IMAGE CARD */}
+        {!!image && (
+          <View style={styles.imageWrap}>
+            <Image source={{uri: image}} style={styles.postImage} />
+          </View>
+        )}
+
+        {/* ACTIONS (pills + label) */}
+        <View style={styles.actionsRow}>
+          <View style={styles.actionCol}>
+            <Pressable onPress={handleLike}>
+              <ActionPill
+                count={formatCount(likeCount)}
+                icon={
+                  <Animated.View style={{transform: [{scale: scaleAnim}]}}>
+                    <Heart
+                      size={18}
+                      color="#fff"
+                      fill={isLiked ? '#fff' : 'transparent'}
+                    />
+                  </Animated.View>
+                }
+              />
+            </Pressable>
+            {/* <Text style={styles.actionLabel}>Like</Text> */}
+          </View>
+
+          <View style={styles.actionCol}>
+            <Pressable onPress={() => setVisible(true)}>
+              <ActionPill
+                count={formatCount(commentCount)}
+                icon={<MessageCircle size={18} color="#fff" />}
+              />
+            </Pressable>
+            {/* <Text style={styles.actionLabel}>Comment</Text> */}
+          </View>
+
+          <View style={styles.actionCol}>
+            <Pressable>
+              <ActionPill
+                count={formatCount(shares)}
+                icon={<Send size={18} color="#fff" />}
+              />
+            </Pressable>
+            {/* <Text style={styles.actionLabel}>Share</Text> */}
+          </View>
+        </View>
       </View>
 
-      {/* CAPTION */}
-      {!!contentText && (
-        <Text style={styles.caption} numberOfLines={2}>
-          {contentText}
-        </Text>
-      )}
-
-      {/* IMAGE */}
-      {!!image && <Image source={{uri: image}} style={styles.postImage} />}
-
-      {/* ACTIONS */}
-      <View style={styles.actions}>
-        {/* LIKE */}
-        <Pressable style={styles.actionPill} onPress={handleLike}>
-          <Animated.View style={{transform: [{scale: scaleAnim}]}}>
-            <Heart
-              size={18}
-              color={colors.orange}
-              fill={isLiked ? colors.orange : 'transparent'}
-            />
-          </Animated.View>
-          <Text style={styles.actionText}>{likeCount}</Text>
-        </Pressable>
-
-        {/* COMMENT */}
-        <Pressable style={styles.actionPill} onPress={() => setVisible(true)}>
-          {/* Modal */}
-          <CommentScreen
-            visible={visible}
-            setVisible={setVisible}
-            comment={comments}
-          />
-
-          <MessageCircle size={18} color={colors.orange} />
-          <Text style={styles.actionText}>{commentCount}</Text>
-        </Pressable>
-
-        {/* SHARE */}
-        <Pressable style={styles.actionPill}>
-          <Send size={18} color={colors.orange} />
-          <Text style={styles.actionText}>{shares}</Text>
-        </Pressable>
-      </View>
-    </View>
+      {/* COMMENTS SHEET */}
+      <CommentScreen visible={visible} setVisible={setVisible} comment={comments} />
+    </>
   );
 };
 
 export default PostCard;
 
+// ---------- helpers ----------
+function formatCount(n) {
+  const num = Number(n || 0);
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}m`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+  return String(num);
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 28,
+    borderRadius: 26,
     padding: 16,
-    marginVertical: 14,
-
-    borderWidth: 1.5,
-    borderColor: colors.orange,
+    marginVertical: 12,
 
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: {width: 0, height: 4},
-    elevation: 3,
-
-    overflow: 'hidden',
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: {width: 0, height: 6},
+    elevation: 2,
   },
 
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
   },
 
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
 
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    marginRight: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 999,
+    marginRight: 12,
     backgroundColor: '#eee',
   },
 
   userName: {
+    fontSize: 18,
     fontWeight: '800',
-    fontSize: 16,
     color: '#111',
-    maxWidth: 220,
   },
 
   location: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 13,
+    color: '#7B7B7B',
     marginTop: 2,
-    maxWidth: 220,
+    fontWeight: '600',
+  },
+
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+
+  timeText: {
+    fontSize: 12,
+    color: '#111',
+    fontWeight: '700',
+  },
+
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  followBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+
+  followText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
   },
 
   caption: {
-    fontSize: 15,
-    color: '#222',
-    marginVertical: 10,
+    marginTop: 10,
+    fontSize: 14,
+    color: '#111',
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+
+  seeMore: {
+    color: '#666',
+    fontWeight: '700',
+  },
+
+  imageWrap: {
+    marginTop: 14,
+    borderRadius: 28,
+    overflow: 'hidden',
   },
 
   postImage: {
     width: '100%',
-    aspectRatio: 1.15, // ✅ consistent across all screen sizes
-    borderRadius: 22,
+    height: 340,
     backgroundColor: '#eee',
   },
 
-  actions: {
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
+    marginTop: 16,
+    paddingHorizontal: 6,
+    alignItems: 'center',
   },
-
-  actionPill: {
-    flex: 1,
-    marginHorizontal: 6,
+  
+  actionCol: {
+    marginRight: 12, // spacing between pills
+  },
+  
+  pill: {
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-
-    backgroundColor: '#F6EFE7',
-    paddingVertical: 12,
-    borderRadius: 28,
     gap: 8,
   },
+  
+  pillText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
 
-  actionText: {
-    fontSize: 13,
+  actionLabel: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#12256B', // same vibe as screenshot (blue text)
+  },
+
+  // menu
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+  },
+  menuBox: {
+    position: 'absolute',
+    top: 90,
+    right: 18,
+    width: 150,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical: 6,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 6},
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  menuText: {
+    fontSize: 14,
+    color: '#444',
     fontWeight: '700',
-    color: '#333',
   },
 });

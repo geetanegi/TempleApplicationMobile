@@ -1,63 +1,89 @@
+import React from 'react';
 import {
   StyleSheet,
-  Text,
   View,
+  Text,
+  ImageBackground,
   ScrollView,
-  Platform,
+  SafeAreaView,
   Dimensions,
+  Platform,
 } from 'react-native';
-import React from 'react';
-import Pdf from 'react-native-pdf';
-import AuthHeader from '../../../components/Auth_Header';
 import Footer from '../../../components/footer';
 import st from '../../../global/styles';
-import {useNavigation} from '@react-navigation/native';
 
-const ViewPdf = ({navigation, route}) => {
-  const navigate = useNavigation();
-  const {pdfUrl} = route.params || '';
-  const url =
-    'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+const {width, height} = Dimensions.get('window');
 
-  const source = {
-    uri: pdfUrl || url,
-    cache: true,
-  };
+const AartiScreen = () => {
+  const content = `
+वृषभ अजित सम्भव अभिनंदन सुमति पद्म सुपार्श्व जिनराय,
+
+चन्द्र पुष्प शीतल श्रेयांसु नमि पथ पण्डित सुरराय.
+
+विमल अनंत धर्म जस उज्जवल शांति कुंथ अर मल्लि मनाय,
+मुनि सुव्रत नमि नेमि पार्श्व प्रभु वर्धमान पद पूज बढ़ाय.
+
+ॐ ह्रीं श्री वृषभ-भादि वीरां चतुर-विंशति जिन समूहो अत्र अवतर अवतर संवौषट्
+ॐ ह्रीं श्री वृषभ-भादि वीरां चतुर-विंशति जिन समूहो अत्र तिष्ठ तिष्ठ ठः ठः
+ॐ ह्रीं श्री वृषभ-भादि वीरां चतुर-विंशति जिन समूहो अत्र मम सन्निहितो भव भव वषट्
+
+... (बाकी टेक्स्ट यहाँ)
+`;
 
   return (
     <View style={st.flex}>
-      {/* <AuthHeader
-        title={'PDF Viewer'}
-        onBack={() => navigate.goBack()}
-        auth={true}
-      /> */}
-      <Pdf
-        source={source}
-        trustAllCerts={Platform.OS === 'ios'}
-        onLoadComplete={(pages, path) => {
-          console.log('Loaded', pages);
-        }}
-        onError={e => {
-          console.log('PDF error', e);
-        }}
-        onPageChanged={(page, numberOfPages) => {}}
-        //   onError={error => {
-        //     // alert(error);
-        //   }}
-        onPressLink={uri => {}}
-        style={styles.pdf}
-      />
-      <Footer />
+      <ImageBackground
+        source={require('../../../images/pdfimg.png')}
+        style={styles.bg}
+        resizeMode="stretch"
+      >
+        <SafeAreaView style={styles.safe}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.title}>JainSansaar</Text>
+
+            <Text style={styles.text}>{content.trim()}</Text>
+          </ScrollView>
+        </SafeAreaView>
+
+        <Footer />
+      </ImageBackground>
     </View>
   );
 };
 
-export default ViewPdf;
+export default AartiScreen;
 
 const styles = StyleSheet.create({
-  pdf: {
+  bg: {
+
+    padding:90,
+    height,
+  },
+  safe: {
     flex: 1,
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
+    paddingBottom: 90, // Footer/TabBar space
+  },
+  scrollContent: {
+    paddingTop: Platform.OS === 'android' ? 18 : 10,
+    paddingHorizontal: 26,
+    paddingBottom: 40,
+  },
+  title: {
+    textAlign: 'center',
+    fontSize: 26,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 18,
+    color: '#1b1b1b',
+  },
+  text: {
+    textAlign: 'center',
+    fontSize: 16,
+    lineHeight: 26,
+    color: '#1b1b1b',
+    paddingBottom: 40,
   },
 });
