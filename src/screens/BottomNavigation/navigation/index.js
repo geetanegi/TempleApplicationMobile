@@ -36,7 +36,6 @@ import VedioHighlights from '../../dashboard/HighlightHub/VedioHighlights';
 import LeaderBoard from '../../dashboard/LeaderBoard/LeaderBoard';
 import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio';
 import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
-import Home from '../../dashboard/qr';
 import MainDashboard from '../../dashboard/Main/dashboard';
 import JeevaniScreen from '../../dashboard/jeevani';
 import SongsPage from '../../dashboard/songs';
@@ -51,12 +50,24 @@ import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import ImageScreen from '../../dashboard/Main/imageScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
+import {
+  Home,
+  BookOpen,
+  MapPin,
+  PlayCircle,
+  User,
+} from 'lucide-react-native';
 
 // --------------------------------
 // Stack Navigators
 // --------------------------------
 const HomeStack = createStackNavigator();
 const JeevaniStack = createStackNavigator();
+
+
+import LinearGradient from 'react-native-linear-gradient';
+
+
 
 const BetCentralStack = () => (
   <HomeStack.Navigator screenOptions={{headerShown: false}}>
@@ -206,19 +217,29 @@ const CustomTabBarButton = ({children, onPress}) => (
     <View style={{width: 65, height: 65, borderRadius: 57.5}}>{children}</View>
   </TouchableOpacity>
 );
-
 const renderTabIcon =
-  (IconComponent, name) =>
-  ({focused}) =>
-    (
-      <View style={st.icon}>
-        <IconComponent
-          name={name}
-          size={28}
-          color={focused ? colors.orange : colors.ICON_GREY}
-        />
-      </View>
-    );
+  Icon =>
+  ({focused}) => {
+    if (focused) {
+      return (
+        <LinearGradient
+          colors={['rgba(248,175,83,1)', 'rgba(192,108,75,1)']}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <Icon size={20} color="#fff" strokeWidth={2} />
+        </LinearGradient>
+      );
+    }
+
+    return <Icon size={22} color="#B5B5B5" strokeWidth={2} />;
+  };
 
 const renderTabImage =
   (image, name) =>
@@ -238,9 +259,7 @@ const renderTabImage =
       </View>
     );
 
-// --------------------------------
-// Bottom Navigation
-// --------------------------------
+
 const Tab = createBottomTabNavigator();
 
 export default function BottomNavigation() {
@@ -271,7 +290,7 @@ export default function BottomNavigation() {
         name="Home"
         component={HomeStackScreens}
         options={{
-          tabBarIcon: renderTabImage(images.home, 'home'),
+          tabBarIcon: renderTabIcon(Home),
           headerShown: false,
         }}
       />
@@ -279,14 +298,25 @@ export default function BottomNavigation() {
         name="Jevaani"
         component={JeevaniScreenStack}
         options={{
-          tabBarIcon: renderTabIcon(MaterialCommunityIcons, 'hand-front-right'),
+          tabBarIcon: renderTabIcon(BookOpen),
           headerShown: false,
           headerTitleAlign: 'center',
           headerTitleStyle: {fontSize: 18},
         }}
       />
 
-      <Tab.Screen
+<Tab.Screen
+        name="Jevaaeni"
+        component={JeevaniScreenStack}
+        options={{
+          tabBarIcon: renderTabIcon(MapPin),
+          headerShown: false,
+          headerTitleAlign: 'center',
+          headerTitleStyle: {fontSize: 18},
+        }}
+      />
+
+      {/* <Tab.Screen
         name="New Post"
         component={ImagePicker}
         options={{
@@ -299,13 +329,13 @@ export default function BottomNavigation() {
           headerTitleStyle: {fontSize: 18},
           tabBarButton: props => <CustomTabBarButton {...props} />,
         }}
-      />
+      /> */}
 
       <Tab.Screen
         name="Info"
         component={SerachPage}
         options={{
-          tabBarIcon: renderTabImage(images.location, 'location'),
+          tabBarIcon: renderTabIcon(PlayCircle),
           headerTitleAlign: 'center',
           headerTitleStyle: {fontSize: 18},
         }}
@@ -315,7 +345,7 @@ export default function BottomNavigation() {
         name="Notification"
         component={NotificationScreen}
         options={{
-          tabBarIcon: renderTabImage(images.notification, 'notification'),
+          tabBarIcon: renderTabIcon(User),
           headerLeft: () => (
             <Pressable
               onPress={() => navigation.goBack()}

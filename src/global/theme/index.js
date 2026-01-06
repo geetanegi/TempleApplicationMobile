@@ -35,7 +35,7 @@ const colors = {
   ICON_GREY: '#748c94',
   DARK_GREY: '#484848',
   PRIMARY_DARK: '#1D1A0C',
-  PRIMARY_BUTTON: '#0077B6',
+  PRIMARY_BUTTON: 'rgba(255, 201, 120, 1)',
   PRIMARY_SMALL_TEXT: '#3A3A3A',
   PRIMARY_SOLID_TEXT: '#FF3B30',
   PRIMARY_LIGHT_TEXT: '#7B7887',
@@ -76,7 +76,7 @@ const images = {
   logo: require('../../images/logo.png'),
   SplashScreen: require('../../images/backgroungimg.png'),
   Nodatafound: require('../../images/Nodatafound.png'),
-  communitybg: require('../../images/ScreenBg.png'),
+  // communitybg: require('../../images/screenBg.png'),
   Success: require('../../images/success.png'),
   house: require('../../images/house.png'),
   user: require('../../images/userimg.png'),
@@ -117,9 +117,6 @@ const images = {
   backButton: require('../../images/backButton.png'),
   submitScore: require('../../images/submitScore.png'),
   skipButton: require('../../images/skipButton.png'),
-
-  //
-  achievementBadge: require('../../images/achievementBadge.png'),
   holeOne: require('../../images/holeOne.png'),
   publishIcon: require('../../images/publishIcon.png'),
   menuIcon: require('../../images/menuIcon.png'),
@@ -217,7 +214,8 @@ const APP_TEXT = {
   SEND_OTP: 'Send OTP',
 
   // RESET PASSWORD SCREEN - Verifyemail.js
-  RESET_PASSWORD: 'Forgot Your Password',
+  RESET_PASSWORD: 'Reset password',
+  RESET_2:`Don’t Worry, you can use the two methods Below to get your account back`,
   RESET_YOUR_PASSWORD: 'Reset Your Password',
   EMAIL_PLACEHOLDER: 'Enter Registered Email Id',
   RESET_BUTTON: 'Reset Password',

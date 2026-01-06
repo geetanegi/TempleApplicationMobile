@@ -2,18 +2,17 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Button,
   FlatList,
   Image,
   StyleSheet,
+  SafeAreaView,
 } from 'react-native';
-import React from 'react';
+import React, {useMemo, useState} from 'react';
 import st from '../../../global/styles';
-import Header from '../../../components/Header';
 import Share from 'react-native-share';
 import {images} from '../../../global/theme';
-import {setupPlayer} from 'react-native-track-player/lib/src/trackPlayer';
-// import { styled } from "nativewind";
+import InputText from '../../../components/InputText';
+
 const gridItems = [
   {id: '1', title: 'Bhakti', image: images.bhakti, navigate: 'BhaktiScreen'},
   {id: '2', title: 'Chalisa', image: images.chalisa, navigate: 'BhaktiScreen'},
@@ -29,25 +28,21 @@ const gridItems = [
   {id: '7', title: 'Aarti', image: images.aarti, navigate: 'AartiScreen'},
   {id: '8', title: 'Granth', image: images.aarti, navigate: 'GranthScreen'},
 ];
-const JevaaniScreen = ({navigation}) => {
-  // const StyledText = styled(Text);
 
-  // backAction = () => {
-  //   Alert.alert('Exit ?', 'Are you sure you want to exit ?', [
-  //     {
-  //       text: 'Cancel',
-  //       onPress: () => null,
-  //       style: 'cancel',
-  //     },
-  //     {text: 'YES', onPress: () => BackHandler.exitApp()},
-  //   ]);
-  //   return true;
-  // };
+const JevaaniScreen = ({navigation}) => {
+  const [searchText, setSearchText] = useState('');
+
+  const filteredItems = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return gridItems;
+    return gridItems.filter(item => item.title.toLowerCase().includes(q));
+  }, [searchText]);
+
   const handlePress = item => {
-    console.log(item.path);
     navigation.navigate('SubCategoryPage', {...item});
   };
 
+  // (optional) kept your share function as-is
   const share = async () => {
     const options = {
       message: 'hello this is a demo message',
@@ -63,66 +58,128 @@ const JevaaniScreen = ({navigation}) => {
     } catch (err) {
       console.log(err);
     }
-
-    // Share.open(options)
-    //   .then(res => console.log(res))
-    //   .catch(err => console.log(err));
   };
+
+  const renderItem = ({item}) => (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.85}
+      onPress={() => handlePress(item)}>
+      <Image source={item.image} style={styles.cardImage} />
+
+      {/* Floating pill title */}
+      <View style={styles.titlePill}>
+        <Text style={styles.titleText}>{item.title}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={[st.flex]}>
-      {/* <Header navigation={navigation} /> */}
-      <View>
-        <FlatList
-          data={gridItems}
-          keyExtractor={item => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.gridContainer}
-          renderItem={({item}) => (
-            <TouchableOpacity
-              style={styles.gridItem}
-              onPress={() => handlePress(item)}>
-              <Image source={item.image} style={styles.gridImage} />
-              <View style={styles.gridOverlay}>
-                <Text style={styles.gridText}>{item.title}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+    <SafeAreaView style={[st.flex, styles.container]}>
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <InputText
+          placeholder="Search"
+          iconName="search"
+          value={searchText}
+          onChangeText={setSearchText}
+          inputStyle={styles.searchInput}
         />
       </View>
-    </View>
+
+      {/* Grid */}
+      <FlatList
+        data={filteredItems}
+        keyExtractor={item => item.id}
+        numColumns={2}
+        contentContainerStyle={styles.gridContainer}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No Data found</Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   );
 };
 
 export default JevaaniScreen;
 
 const styles = StyleSheet.create({
-  container: {flex: 1, paddingHorizontal: 16, backgroundColor: '#fff'},
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
+  container: {
+    backgroundColor: '#fff',
   },
-  logo: {fontSize: 24, fontWeight: 'bold', color: '#FF8C00'},
-  searchBar: {marginBottom: 10},
-  gridContainer: {paddingBottom: 80, paddingHorizontal: 10},
-  gridItem: {
+
+  /* Search */
+  searchWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  // This assumes your InputText supports these keys via inputStyle
+  searchInput: {
+    height: 48,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#C7C7D1',
+    backgroundColor: '#fff',
+  },
+
+  /* Grid */
+  gridContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 90,
+  },
+
+  card: {
     flex: 1,
-    margin: 5,
-    height: 150,
-    borderRadius: 10,
+    margin: 8,
+    height: 190,
+    borderRadius: 18,
     overflow: 'hidden',
-    position: 'relative',
+    backgroundColor: '#fff',
+
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 6},
+
+    // Android shadow
+    elevation: 6,
   },
-  gridImage: {width: '100%', height: '100%'},
-  gridOverlay: {
+
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  /* Floating label pill */
+  titlePill: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(255, 140, 0, 0.8)',
-    padding: 10,
+    bottom: 14,
+    alignSelf: 'center',
+    paddingHorizontal: 42,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: '#D99A63', // warm Figma-like
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+
+  titleText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  emptyWrap: {
+    paddingTop: 30,
     alignItems: 'center',
   },
-  gridText: {color: '#fff', fontWeight: 'bold'},
+  emptyText: {
+    opacity: 0.6,
+  },
 });

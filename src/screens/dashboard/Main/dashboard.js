@@ -1,64 +1,47 @@
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   FlatList,
   View,
+  Image,
+  Pressable,
 } from 'react-native';
 import st from '../../../global/styles';
-import {User, MessageSquareMore} from 'lucide-react-native';
-import {APP_TEXT, colors} from '../../../global/theme';
-import React, {useEffect} from 'react';
+import { Menu, Bell, MessageCircle, Plus } from 'lucide-react-native';
+import { APP_TEXT, colors } from '../../../global/theme';
 import HeaderDashboard from '../../../components/dashboardHeader';
-import InputText from '../../../components/InputText';
-import CategoryButton from '../../../components/categoryButton';
 import PostCard from '../../../components/PostCard';
+import SearchInput from './SearchInput';
 
-const navs = [
-  {icon: 'music', label: 'Song', navigateTo: 'SongScreen'},
-  {icon: 'book', label: 'Story', navigateTo: 'StoryScreen'},
-  {icon: 'image', label: 'Image', navigateTo: 'ImageScreen'},
-  {icon: 'video', label: 'Video', navigateTo: 'VideoScreen'},
-  {icon: 'map', label: 'Location', navigateTo: 'LocationScreen'},
+const storiesData = [
+  { id: 'add' },
+  {
+    id: '1',
+    image:
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&auto=format&fit=crop&q=60',
+  },
+  {
+    id: '2',
+    image:
+      'https://images.unsplash.com/photo-1524503033411-f9f3a9a61f5c?w=300&auto=format&fit=crop&q=60',
+  },
+  {
+    id: '3',
+    image:
+      'https://images.unsplash.com/photo-1529665253569-6d01c0eaf7b6?w=300&auto=format&fit=crop&q=60',
+  },
+  {
+    id: '4',
+    image:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=60',
+  },
 ];
 
-// const posts = [
-//   {
-//     id: '1',
-//     userName: 'Camila',
-//     location: 'Mexico City, Mexico',
-//     image: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e',
-//     likes: '5.4k',
-//     comments: 165,
-//     shares: 12,
-//     avatar: 'https://i.pravatar.cc/101',
-//   },
-//   {
-//     id: '2',
-//     userName: 'John Doe',
-//     location: 'Paris, France',
-//     image: 'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0',
-//     likes: '2.3k',
-//     comments: 87,
-//     shares: 2,
-//     avatar: 'https://i.pravatar.cc/102',
-//   },
-//   {
-//     id: '3',
-//     userName: 'Alicia',
-//     location: 'Jaipur, India',
-//     image:
-//       'https://images.unsplash.com/photo-1756068785746-8aa1a82d2d1d?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw1fHx8ZW58MHx8fHx8',
-//     likes: '7.1k',
-//     comments: 302,
-//     shares: 120,
-//     avatar: 'https://i.pravatar.cc/103',
-//   },
-// ];
-
 const MainDashboard = () => {
-  const [post, setPosts] = React.useState([]);
+  const [posts, setPosts] = useState([]);
+  const [searchText, setSearchText] = useState('');
 
   async function getPosts() {
     try {
@@ -72,11 +55,11 @@ const MainDashboard = () => {
           },
         },
       );
-      console.log(res);
 
       const data = await res.json();
+
       const formatted = (data?.data || []).map(item => ({
-        id: item.id,
+        id: String(item.id),
         userName: item.user?.username || 'Unknown',
         location: item.user?.location || 'Unknown',
         image: item.photoUrl || item.videoUrl || null,
@@ -84,12 +67,11 @@ const MainDashboard = () => {
         comments: item.comments || 0,
         shares: item.shares || 0,
         avatar: item.user?.userProfile || 'https://i.pravatar.cc/150',
-        contentText: item.contentText,
+        contentText: item.contentText || '',
         createdAt: item.createdAt,
       }));
 
-      // 👇 assign API data to state
-      setPosts(formatted); // Adjust if API returns in different key
+      setPosts(formatted);
     } catch (err) {
       console.error('Error fetching posts:', err);
     }
@@ -99,23 +81,81 @@ const MainDashboard = () => {
     getPosts();
   }, []);
 
+  // ✅ Filter posts by search text (username, location, content)
+  const filteredPosts = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return posts;
+
+    return posts.filter(p => {
+      const haystack = [p.userName, p.location, p.contentText]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [posts, searchText]);
+
+
+  const StoriesRow = () => (
+    <FlatList
+      data={storiesData}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyExtractor={(item, index) => item?.id ?? String(index)}
+      contentContainerStyle={styles.storiesContainer}
+      renderItem={({ item, index }) => {
+        if (index === 0) {
+          return (
+            <Pressable style={styles.addTile} onPress={() => {}}>
+              <View style={styles.addPlus}>
+                <Plus size={18} color={colors.DARK_BLACK} />
+              </View>
+            </Pressable>
+          );
+        }
+
+        // thumbnails
+        return (
+          <Image
+            source={{ uri: item.image }}
+            style={styles.storyImg}
+            resizeMode="cover"
+          />
+        );
+      }}
+    />
+  );
+
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       <HeaderDashboard
-        title={APP_TEXT.HOME}
-        LeftIcon={User}
-        RightIcon={MessageSquareMore}
-        leftNav={'Profiles'}
+        title="JainSansaar"
+        LeftIcon={Menu}
+        RightIcon1={Bell}
+        RightIcon2={MessageCircle}
+        leftNav="HomeDrawer"
+        rightNav1="Notifications"
+        rightNav2="Chat"
       />
+<View style={[st.pd_H20, st.mt_B10]}>
+  <SearchInput
+    value={searchText}
+    onChangeText={setSearchText}
+    placeholder={APP_TEXT.SEARCH}
+  />
+</View>
+      <View style={[st.pd_H20, st.mt_B10]}>
+      <StoriesRow />
+      </View>
 
-      {/* Post FlatList */}
       <FlatList
-        data={post}
+        data={filteredPosts}
         keyExtractor={item => item.id}
         style={[st.pd_H20]}
-        renderItem={({item}) => (
+        renderItem={({ item }) => (
           <PostCard
             userName={item.userName}
             location={item.location}
@@ -128,35 +168,8 @@ const MainDashboard = () => {
           />
         )}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={[st.mt_B10]}>
-            <InputText
-              placeholder={APP_TEXT.SEARCH}
-              iconName={'search'}
-              onFocus={() => Alert.alert('Clicked!')}
-            />
-            <FlatList
-              data={navs}
-              keyExtractor={item => item.label}
-              renderItem={({item}) => (
-                <CategoryButton
-                  icon={item.icon}
-                  label={item.label}
-                  navigateTo={item.navigateTo}
-                />
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                st.mt_t10,
-                st.wdh100,
-                st.justify_S,
-                st.pv10,
-              ]}
-            />
-          </View>
-        }
-        contentContainerStyle={[st.pdB20]} // ✅ prevents last card being cut
+        contentContainerStyle={[st.pdB20]}
+        keyboardShouldPersistTaps="handled"
       />
     </SafeAreaView>
   );
@@ -166,6 +179,39 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+
+  // ✅ Stories row styles
+  storiesContainer: {
+    paddingVertical: 14,
+    gap: 12,
+  },
+  addTile: {
+    width: 74,
+    height: 74,
+    borderRadius: 16,
+    backgroundColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPlus: {
+    position: 'absolute',
+    right: -6,
+    bottom: -6,
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  storyImg: {
+    width: 74,
+    height: 74,
+    borderRadius: 16,
+    backgroundColor: '#eee',
   },
 });
 

@@ -34,7 +34,7 @@ const BadgeScreenModal = ({imageData, onPress}) => {
 
   const renderItem = ({item}) => (
     <TouchableOpacity style={styles.imageContainer}>
-      <Image source={images.achievementBadge} style={styles.image} />
+      {/* <Image source={images.achievementBadge} style={styles.image} /> */}
     </TouchableOpacity>
   );
 

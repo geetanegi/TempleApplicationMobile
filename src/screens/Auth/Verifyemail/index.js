@@ -1,189 +1,125 @@
 import {
   StyleSheet,
   Text,
+  View,
   ScrollView,
-  Keyboard,
+  Pressable,
+  SafeAreaView,
   TouchableOpacity,
-  ImageBackground,
-  BackHandler,
 } from 'react-native';
-import React, {useState, useRef, useEffect} from 'react';
-import st from '../../../global/styles';
-import {colors, images, APP_TEXT, NAVIGATION} from '../../../global/theme';
-import {useDispatch} from 'react-redux';
-import LoginImg from '../../../components/loginImage';
-import {API} from '../../../utils/endpoints';
-import Loader from '../../../components/loader';
-import {ValidateUserName} from '../../../utils/helperfunctions/validations';
-import {View} from 'react-native-animatable';
+import React, { useEffect, useState } from 'react';
+import { colors, APP_TEXT, NAVIGATION } from '../../../global/theme';
 import AdminInput from '../../../components/adminInput';
+import TransparentHeader from '../../../components/TransparentHeader';
 import ApplicationButton from '../../../components/ApplicationButton';
-import DeviceInfo from 'react-native-device-info';
+import Checkbox from 'react-native-check-box';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  ValidatePassword,
+  ValidateUserName,
+} from '../../../utils/helperfunctions/validations';
+import { setLogin } from '../../../redux/reducers/Login';
+import { storeTokenData } from '../../../utils/apicalls/tokenApi';
+import { API } from '../../../utils/endpoints';
+import { setLogindata } from '../../../redux/reducers/Logindata';
+import { postNoAuth } from '../../../utils/apicalls/postApi';
+import Loader from '../../../components/loader';
 import PopUpMessage from '../../../components/popup';
-import {requestLocationPermission} from '../../../utils/helperfunctions/location';
-import {postNoAuth} from '../../../utils/apicalls/postApi';
-import useNetworkStatus from '../../../hooks/networkStatus';
-import Toast from 'react-native-simple-toast';
-import {useFocusEffect} from '@react-navigation/native';
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
-
+import { useDispatch } from 'react-redux';
+import st from '../../../global/styles';
 const INITIALINPUT = {
   username: '',
+  password: '',
 };
 
 const Verifyemail = ({navigation}) => {
   const [inputs, setInputs] = useState(INITIALINPUT);
   const [errors, setErrors] = useState(INITIALINPUT);
+  const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [myDeviceInfo, setMyDeviceInfo] = useState('');
-  const [title, setTitle] = useState();
-  const [subtitle, setSubtitle] = useState('');
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
-  const [warning, setWarning] = useState(false);
-  const isConnected = useNetworkStatus();
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+
   const dispatch = useDispatch();
 
-  const handleOnchange = (text, input) => {
-    if (input == 'username') {
-      const validNumber = ValidateUserName(text);
-      let isValid = true;
-      if (validNumber != 'success') {
-        handleError(validNumber, 'username');
-        isValid = false;
-      } else {
-        handleError('', 'username');
-      }
-    }
-    setInputs(prevState => ({...prevState, [input]: text}));
-  };
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
 
-  const handleError = (error, input) => {
-    setErrors(prevState => ({...prevState, [input]: error}));
-  };
-
-  const onPopupMessageModalClick = value => {
-    if (warning == true) {
-      handleSubmitPress();
-      setPopupMessageVisibility(value);
-    } else {
-      setPopupMessageVisibility(value);
+  const loadSavedCredentials = async () => {
+    const u = await AsyncStorage.getItem('username');
+    const p = await AsyncStorage.getItem('password');
+    if (u && p) {
+      setInputs({ username: u, password: p });
+      setIsChecked(true);
     }
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const backHandler = BackHandler.addEventListener(
-        'hardwareBackPress',
-        handleBackPress,
-      );
+  const handleChange = (text, field) => {
+    setInputs(prev => ({ ...prev, [field]: text }));
 
-      return () => backHandler.remove();
-    }, []),
-  );
-  const handleBackPress = () => {
-    navigation.navigate(NAVIGATION.TO_LOGIN);
-    return true;
-  };
-  const show_alert_msg = value => {
-    return (
-      <PopUpMessage
-        display={popupMessageVisibility}
-        titleMsg={title}
-        subTitle={subtitle}
-        onModalClick={value => {
-          onPopupMessageModalClick(value);
-        }}
-        twoButton={warning ? true : false}
-        onPressNoBtn={() => {
-          setWarning(false);
-          setPopupMessageVisibility(false);
-        }}
-      />
-    );
+    if (field === 'username') {
+      const v = ValidateUserName(text);
+      setErrors(prev => ({ ...prev, username: v === 'success' ? '' : v }));
+    }
+
+    if (field === 'password') {
+      const v = ValidatePassword(text);
+      setErrors(prev => ({ ...prev, password: v === 'success' ? '' : v }));
+    }
   };
 
-  const handleSubmitPress = async () => {
-    const url = API.FORGET_PASSWORD;
-    const params = {
-      username: inputs?.username,
-      mode:"MOBILE"
+  const onLogin = async () => {
+    if (errors.username || errors.password) return;
 
-    };
+    if (isChecked) {
+      await AsyncStorage.setItem('username', inputs.username);
+      await AsyncStorage.setItem('password', inputs.password);
+    }
+
     setIsLoading(true);
-    postNoAuth(url, params)
-      .then(result => {
-        if (!result?.error) {
-          setIsLoading(false);
-          console.log('----------result',result?.data)
-          const data = {
-            emailId: result?.data?.maskedEmail,
-            message: result?.data?.message,
-            token: result?.data?.token,
-            username:inputs?.username
-          };
-          Toast.show(result?.data?.message);
-          navigation.navigate(NAVIGATION.TO_OTP_SCREEN, {item: data});
+    postNoAuth(API.LOGIN_AUTH, {
+      username: inputs.username,
+      password: inputs.password,
+      mode: 'Mobile',
+    })
+      .then(res => {
+        if (!res?.error) {
+          storeTokenData(res?.data?.token);
+          dispatch(setLogindata(res?.data));
+          dispatch(setLogin(true));
         } else {
-          setIsLoading(false);
-
           setTitle('Oops!');
-          setWarning(false);
-
-          setSubtitle(result?.description);
+          setSubtitle(res?.description);
           setPopupMessageVisibility(true);
         }
       })
       .catch(err => {
-        //console.log('LOGIN_AUTH catch', err);
-        setIsLoading(false);
-        if (err?.status === 303) {
-          setTitle('Warning!');
-          setWarning(true);
-        } else {
-          setTitle('Oops!');
-          setWarning(false);
-        }
-        setSubtitle(err?.message);
+        setTitle('Error');
+        setSubtitle(err?.message || 'Something went wrong');
         setPopupMessageVisibility(true);
       })
-      .finally(() => {
-        //console.log('LOGIN_AUTH finally');
-        setIsLoading(false);
-      });
+      .finally(() => setIsLoading(false));
   };
 
-  const getInfoHandle = async () => {
-    let deviceId = DeviceInfo.getDeviceId();
-    const deviceName = await DeviceInfo.getDeviceName();
-    const data = {
-      deviceId,
-      deviceName,
-    };
-    setMyDeviceInfo(data);
-    await requestLocationPermission();
-  };
 
-  useEffect(() => {}, []);
-
-  const validation = async () => {
-    Keyboard.dismiss();
-    const validNumber = ValidateUserName(inputs?.username);
-    let isValid = true;
-    if (validNumber != 'success') {
-      handleError(validNumber, 'username');
-      isValid = false;
-    } else {
-      handleError('', 'username');
-    }
-    if (isValid) {
-      handleSubmitPress();
-    }
+  const validation = () => {
+    
   };
 
   return (
-    <ImageBackground style={{flex: 1}} source={images.loginBG}>
-      <ScrollView keyboardShouldPersistTaps={'handled'}>
-        <View style={[st.card, st.mt_t300, styles.container]}>
+    <SafeAreaView style={styles.safe}>
+      {/* Cream Header */}
+      <View style={styles.topBg} />
+
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <TransparentHeader />
+      <View style={styles.card}>
           {/* <LoginImg /> */}
           <View
             style={{
@@ -202,30 +138,49 @@ const Verifyemail = ({navigation}) => {
               {APP_TEXT.RESET_PASSWORD}
             </Text>
           </View>
-          <View style={[st.fcardsty, st.shadowProp]}>
-            <View
-              style={
-                {
-                  // backgroundColor: colors.PRIMARY_TRANSPARENT_BLACK,
-                  // opacity: 0.6,
-                  // borderRadius: 6,
-                }
-              }>
-              <AdminInput
-                    isRequired
-                    holderName={APP_TEXT.LOGIN_USERNAME}
-                    onChangeText={text => {
-                      handleOnchange(text, 'username');
-                    }}
-                    onFocus={() => handleError(null, 'username')}
-                    error={errors?.username}
-                    value={inputs?.username}
-                    iconName={''}
-                    label={''}
-                // keyboardType={'numeric'}
-              />
+
+          <View
+            style={{
+              width: '100%',
+              paddingVertical: 1,
+              alignItems: 'center',
+            }}>
+            <Text
+              style={{
+                color: colors.PRIMARY_DARK,
+                lineHeight: 19.1,
+                padding: 5,
+                fontSize: 15,
+                textAlign: 'center',
+              }}>
+              {APP_TEXT.RESET_2}
+            </Text>
+          </View>
+
+   <View style={styles.form}>
+  
+          </View>
+
+
+          <View style={styles.form}>
+            <AdminInput
+               isRequired
+               holderName={APP_TEXT.LOGIN_USERNAME}
+               onChangeText={text => {
+                 handleOnchange(text, 'username');
+               }}
+               onFocus={() => handleError(null, 'username')}
+               error={errors?.username}
+               value={inputs?.username}
+               iconName={''}
+               label={''}
+            />
+            <View style={styles.gap} />
             </View>
 
+          <View style={[st.fcardsty, st.shadowProp]}>
+
+{/* 
             <View style={[st.mt_B10]}>
               <ApplicationButton
                 backgroundColor={colors.PRIMARY_BUTTON}
@@ -234,8 +189,8 @@ const Verifyemail = ({navigation}) => {
                   validation();
                 }}
               />
-            </View>
-            <TouchableOpacity
+            </View> */}
+            {/* <TouchableOpacity
               onPress={() => {
                 navigation.navigate(NAVIGATION.TO_LOGIN);
               }}>
@@ -251,44 +206,133 @@ const Verifyemail = ({navigation}) => {
                 ]}>
                 {APP_TEXT.BACK_TO_LOGIN}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       </ScrollView>
+
+      <View style={styles.bottomBtnWrap}>
+        <ApplicationButton
+          backgroundColor={colors.PRIMARY_BUTTON}
+          label={APP_TEXT.SEND_OTP}
+          onButtonPress={validation}
+        />
+      </View>
+
       {isLoading && <Loader />}
-      {show_alert_msg()}
-    </ImageBackground>
+      <PopUpMessage
+        display={popupMessageVisibility}
+        titleMsg={title}
+        subTitle={subtitle}
+        onModalClick={() => setPopupMessageVisibility(false)}
+      />
+    </SafeAreaView>
   );
 };
 
 export default Verifyemail;
 
 const styles = StyleSheet.create({
-  gustBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-  },
-  logincon: {
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    backgroundColor: colors.white,
-    padding: 20,
+  safe: {
     flex: 1,
+    backgroundColor: '#FFF',
   },
-  container: {
+
+  topBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    backgroundColor: '#F5D19A',
+  },
+
+  scroll: {
+    paddingBottom: 160,
+  },
+
+  brand: {
+    textAlign: 'center',
+    fontSize: 26,
+    fontWeight: '700',
+    marginVertical: 20,
+  },
+
+  card: {
+    marginTop: 30,
+    //   marginHorizontal: 18,
+       backgroundColor: '#FFFFFF',
+       borderTopLeftRadius: 28,
+       paddingTop: 22,
+  },
+  container: { justifyContent: 'center', alignItems: 'center', flex: 1, paddingHorizontal: 10, marginHorizontal: 5, },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+
+  gap: {
+    height: 14,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+  },
+  form: { paddingTop: 6 ,padding:35},
+  remember: {
+    marginLeft: 10,
+    fontSize: 14,
+  },
+
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 6,
+    letterSpacing: 0.4,
+  },
+
+  links: {
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  linkText: {
+    fontSize: 13,
+  },
+
+  link: {
+    color: colors.PRIMARY_BUTTON,
+    fontWeight: '600',
+  },
+  bottomBtnWrap: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 22,
+  },
+
+  bottomSwipe: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+    backgroundColor: '#F5D19A',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 10,
-    marginHorizontal: 16,
   },
-  txtSignUp: {
+
+  swipeText: {
     fontSize: 14,
-    color: colors.PRIMARY_SOLID_TEXT,
-    // fontFamily: family.semibold,
-    textAlign: 'center',
-    // letterSpacing: 0.6,
+    fontWeight: '600',
   },
+  txtSignUp: { fontSize: 14, color: colors.PRIMARY_SOLID_TEXT, // fontFamily: family.semibold, textAlign: 'center', // letterSpacing: 0.6, 
+    },
 });

@@ -365,7 +365,7 @@ const TeeBoxContainer = ({navigation, route}) => {
           setModalVisible5(!modalVisible5);
         }}>
         <View style={styles.centeredVieww}>
-          <BadgeScreenModal imageData={IMAGE_DATA} onPress={onClose5} />
+          {/* <BadgeScreenModal imageData={IMAGE_DATA} onPress={onClose5} /> */}
         </View>
       </Modal>
       <ScrollView

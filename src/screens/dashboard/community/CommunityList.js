@@ -107,7 +107,7 @@ const Community = ({navigation}) => {
         navigation={navigation}
         title={APP_TEXT.USER}
       />
-      <ImageBackground style={{flex: 1}} source={images.communitybg}>
+      <ImageBackground style={{flex: 1}}>
         <View style={st.listoverlay} />
         <View style={st.listsearchContainer}>
           <TextInput

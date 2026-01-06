@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -5,72 +6,109 @@ import {
   FlatList,
   Image,
   Pressable,
-  Touchable,
-  TouchableOpacity,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import React from 'react';
-import Drawer from '../../../components/CustomDrawer';
-import st from '../../../global/styles';
-import EvilIcons from 'react-native-vector-icons/EvilIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
-import InputText from '../../../components/InputText';
-import {colors} from '../../../global/theme';
+import Drawer from '../../../components/CustomDrawer';
+import st from '../../../global/styles';
+import { colors } from '../../../global/theme';
 
-const CommentScreen = ({visible, setVisible, comment}) => {
+const { width } = Dimensions.get('window');
+
+const AVATAR =
+  'https://randomuser.me/api/portraits/men/31.jpg';
+
+const CommentScreen = ({ visible, setVisible, comment }) => {
+  const [input, setInput] = useState('');
+
+  const data = useMemo(() => comment ?? [], [comment]);
+
+  const renderItem = ({ item, index }) => {
+    return (
+      <View style={styles.row}>
+        <Image style={styles.avatar} source={{ uri: AVATAR }} />
+
+        <View style={styles.textBlock}>
+          <View style={styles.titleRow}>
+            <Text style={styles.nameText}>{item?.user ?? 'User'}</Text>
+            <Text style={styles.timeText}> 19h</Text>
+          </View>
+
+          <Text style={styles.bodyText}>{item?.text ?? ''}</Text>
+
+          <Pressable hitSlop={10} style={styles.replyBtn}>
+            <Text style={styles.replyText}>Reply</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const onSend = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    // TODO: hook your API / add to state
+    // Example: add locally / call parent callback
+    setInput('');
+  };
+
   return (
-    <Drawer
-      visible={visible}
-      title={'Comments'}
-      onClose={() => setVisible(false)}>
-      <FlatList
-        data={comment}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({item}) => (
-          <View style={[styles.comment, st.justify_Row, st.align_S, st.pv6]}>
-            <View>
-              <Image
-                style={styles.avatar}
-                source={{
-                  uri: 'https://randomuser.me/api/portraits/men/31.jpg',
-                }}
+    <Drawer visible={visible} title={'Comments'} onClose={() => setVisible(false)}>
+      <LinearGradient
+        colors={['#E9D3A3', '#F6F2E6', '#F6F2E6']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.sheet}
+      >
+        {/* small handle like figma */}
+        <View style={styles.handleWrap}>
+          <View style={styles.handle} />
+        </View>
+
+        <Text style={styles.headerTitle}>Comments</Text>
+
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        >
+          <FlatList
+            data={data}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+
+          {/* Fixed input like figma */}
+          <View style={styles.inputDock}>
+            <Image style={styles.meAvatar} source={{ uri: AVATAR }} />
+
+            <View style={styles.inputPill}>
+              <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholder="Add a comment"
+                placeholderTextColor="#8E8E8E"
+                style={styles.input}
+                returnKeyType="send"
+                onSubmitEditing={onSend}
               />
-            </View>
 
-            <View>
-              <View style={[st.justify_Row, st.wdh100, st.align_C]}>
-                <Text style={[st.tx12, st.txColor]}>{item.user}</Text>
-                <Text style={[st.tx10, st.txtlight]}> 19h</Text>
-              </View>
-              <View style={[st.justify_Row, styles.commentContainer]}>
-                <Text style={[st.tx14]}>{item.text}</Text>
-              </View>
-
-              <Pressable style={[st.justify_Row, styles.commentContainer]}>
-                <Text style={[st.tx12, st.txtlight]}>Reply</Text>
-              </Pressable>
-              <Pressable
-                style={[st.justify_Row, styles.commentContainer, st.wdh100]}>
-                <Text style={[st.tx12, st.txtlight, st.txAlignC, st.pd_H40]}>
-                  View more reply
-                </Text>
+              <Pressable onPress={onSend} hitSlop={10} style={styles.actionBtn}>
+                {/* you can swap this icon to match your figma */}
+                <FontAwesome name="send" size={16} color="#FFFFFF" />
               </Pressable>
             </View>
-            <View style={[st.align_C, st.wdh10, {marginLeft: 'auto'}, st.gap2]}>
-              <EvilIcons name="heart" color="#000" size={24} />
-              <Text style={[st.tx12]}>1</Text>
-            </View>
           </View>
-        )}
-        ListHeaderComponent={
-          <View style={[st.justify_C, st.mt_B20]}>
-            <Text style={[styles.title]}>{'Comments'}</Text>
-          </View>
-        }
-        ListFooterComponent={<InputReply />}
-      />
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </Drawer>
   );
 };
@@ -78,58 +116,145 @@ const CommentScreen = ({visible, setVisible, comment}) => {
 export default CommentScreen;
 
 const styles = StyleSheet.create({
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 56,
-    marginRight: 8,
+  flex: { flex: 1 },
+
+  sheet: {
+    flex: 1,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    overflow: 'hidden',
+    paddingBottom: 8,
   },
-  comment: {
-    marginBottom: 12,
-    gap: 8,
-    maxHeight: 'min-content',
-    paddingVertical: 2,
-  },
-  title: {
-    textAlign: 'center',
-    marginHorizontal: 'auto',
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-  commentContainer: {
-    width: '80%',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-  },
-  inputbtn: {
-    width: 50,
-    borderColor: colors.orange,
-    justifyContent: 'center',
+
+  handleWrap: {
     alignItems: 'center',
-    borderWidth: 0.6,
-    borderRadius: 2,
-    backgroundColor: 'rgba(253, 124, 32, 0.8)',
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  inputBox: {
-    width: Dimensions.get('window').width - 100,
-    borderWidth: 0.2,
-    borderRadius: 2,
-    padding: 10,
+  handle: {
+    width: 70,
+    height: 5,
+    borderRadius: 99,
+    backgroundColor: '#111',
+    opacity: 0.6,
+  },
+
+  headerTitle: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    paddingVertical: 10,
+  },
+
+  listContent: {
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 90, // IMPORTANT: so list doesn't hide behind input
+  },
+
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 14,
+  },
+
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#DDD',
+  },
+
+  textBlock: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  nameText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+  },
+
+  timeText: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    fontWeight: '500',
+  },
+
+  bodyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#111',
+  },
+
+  replyBtn: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+
+  replyText: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    fontWeight: '600',
+  },
+
+  inputDock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(240,240,240,0.95)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+  },
+
+  meAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#DDD',
+  },
+
+  inputPill: {
+    flex: 1,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: '#EDEDED',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.18)',
+    paddingLeft: 16,
+    paddingRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111',
+    paddingVertical: 0,
+  },
+
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
-
-const InputReply = () => {
-  return (
-    <View style={[st.justify_Row, st.gap2, st.pv10, st.justify_C]}>
-      <TextInput
-        style={styles.inputBox}
-        placeholder="What do you think of this?"
-      />
-      <TouchableOpacity style={styles.inputbtn}>
-        <FontAwesome name="send-o" color="#000000" />
-      </TouchableOpacity>
-    </View>
-  );
-};
