@@ -66,6 +66,7 @@ const JeevaniStack = createStackNavigator();
 
 
 import LinearGradient from 'react-native-linear-gradient';
+import ProfileScreen from '../../dashboard/Profile/Profilepage';
 
 
 
@@ -167,6 +168,15 @@ const HomeStackScreens = () => (
         headerTitleStyle: {fontSize: 18},
       }}
       component={VideoPlayer}
+    />
+        <HomeStack.Screen
+      name="Notifications"
+      options={{
+        headerTitleAlign: 'center',
+        headerTitle: 'Video Player',
+        headerTitleStyle: {fontSize: 18},
+      }}
+      component={NotificationScreen}
     />
   </HomeStack.Navigator>
 );
@@ -342,8 +352,8 @@ export default function BottomNavigation() {
       />
 
       <Tab.Screen
-        name="Notification"
-        component={NotificationScreen}
+        name="Profile"
+        component={ProfileScreen}
         options={{
           tabBarIcon: renderTabIcon(User),
           headerLeft: () => (

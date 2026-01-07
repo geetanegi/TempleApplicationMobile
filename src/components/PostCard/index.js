@@ -8,6 +8,7 @@ import {
   Modal,
   TouchableOpacity,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {
@@ -19,8 +20,7 @@ import {
   Archive,
   Clock3,
 } from 'lucide-react-native';
-
-import {colors} from '../../global/theme';
+import Share from 'react-native-share';
 import CommentScreen from '../../screens/dashboard/comment';
 
 const ORANGE_1 = 'rgba(248,175,83,1)';
@@ -36,11 +36,18 @@ const PostCard = ({
   shares = 100,
   avatar,
   contentText = '',
+  shareUrl, // optional: pass actual url from parent
+  onDelete, // optional callbacks
+  onArchive,
 }) => {
+  const {width: screenW, height: screenH} = useWindowDimensions();
+
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
+  const menuBtnRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({top: 0, left: 0});
   const [expanded, setExpanded] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -80,9 +87,50 @@ const PostCard = ({
         end={{x: 1, y: 1}}
         style={styles.pill}>
         {icon}
-        <Text style={styles.pillText}>{count ? count :90}</Text>
+        <Text style={styles.pillText}>{count}</Text>
       </LinearGradient>
     );
+  };
+
+  const openMenuNextToButton = () => {
+    // measure the 3-dots position and place menu near it
+    menuBtnRef.current?.measureInWindow((x, y, w, h) => {
+      const MENU_W = 150;
+      const MENU_H = 110; // approx for 2 items
+      const GAP = 8;
+
+      // default: open below + align right edges
+      let left = x + w - MENU_W;
+      let top = y + h + GAP;
+
+      // keep inside screen horizontally
+      left = Math.max(12, Math.min(left, screenW - MENU_W - 12));
+
+      // if going out of bottom, open above
+      if (top + MENU_H > screenH - 12) {
+        top = y - MENU_H - GAP;
+      }
+
+      setMenuPos({top, left});
+      setMenuOpen(true);
+    });
+  };
+
+  const share = async url => {
+    try {
+      const options = {
+        title: 'Share',
+        message: 'Check this out',
+        url: url,
+      };
+      const res = await Share.open(options);
+      console.log('Share result:', res);
+    } catch (err) {
+      // User cancelled share => ignore
+      if (err?.message !== 'User did not share') {
+        console.log('Share error:', err);
+      }
+    }
   };
 
   return (
@@ -123,25 +171,30 @@ const PostCard = ({
               </LinearGradient>
             </Pressable>
 
-            {/* Menu */}
-            <Pressable hitSlop={12} onPress={() => setMenuOpen(true)}>
+            {/* Menu button (3 dots) */}
+            <Pressable ref={menuBtnRef} hitSlop={12} onPress={openMenuNextToButton}>
               <MoreVertical size={20} color="#111" />
             </Pressable>
           </View>
         </View>
 
         {/* MENU DROPDOWN */}
-        <Modal transparent visible={menuOpen} animationType="fade">
-          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-            <View />
-          </Pressable>
+        <Modal
+          transparent
+          visible={menuOpen}
+          animationType="fade"
+          onRequestClose={() => setMenuOpen(false)}>
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setMenuOpen(false)}
+          />
 
-          <View style={styles.menuBox}>
+          <View style={[styles.menuBox, {top: menuPos.top, left: menuPos.left}]}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 setMenuOpen(false);
-                // TODO: delete action
+                onDelete?.();
               }}>
               <Trash2 size={16} color="#666" />
               <Text style={styles.menuText}>Delete</Text>
@@ -151,7 +204,7 @@ const PostCard = ({
               style={styles.menuItem}
               onPress={() => {
                 setMenuOpen(false);
-                // TODO: archive action
+                onArchive?.();
               }}>
               <Archive size={16} color="#666" />
               <Text style={styles.menuText}>Archive</Text>
@@ -178,7 +231,7 @@ const PostCard = ({
           </View>
         )}
 
-        {/* ACTIONS (pills + label) */}
+        {/* ACTIONS */}
         <View style={styles.actionsRow}>
           <View style={styles.actionCol}>
             <Pressable onPress={handleLike}>
@@ -195,7 +248,6 @@ const PostCard = ({
                 }
               />
             </Pressable>
-            {/* <Text style={styles.actionLabel}>Like</Text> */}
           </View>
 
           <View style={styles.actionCol}>
@@ -205,23 +257,25 @@ const PostCard = ({
                 icon={<MessageCircle size={18} color="#fff" />}
               />
             </Pressable>
-            {/* <Text style={styles.actionLabel}>Comment</Text> */}
           </View>
 
           <View style={styles.actionCol}>
-            <Pressable>
+            <Pressable onPress={() => share(shareUrl || 'https://example.com')}>
               <ActionPill
                 count={formatCount(shares)}
                 icon={<Send size={18} color="#fff" />}
               />
             </Pressable>
-            {/* <Text style={styles.actionLabel}>Share</Text> */}
           </View>
         </View>
       </View>
 
-      {/* COMMENTS SHEET */}
-      <CommentScreen visible={visible} setVisible={setVisible} comment={comments} />
+      {/* COMMENTS */}
+      <CommentScreen
+        visible={visible}
+        setVisible={setVisible}
+        comment={comments}
+      />
     </>
   );
 };
@@ -345,11 +399,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: 'center',
   },
-  
+
   actionCol: {
-    marginRight: 12, // spacing between pills
+    marginRight: 12,
   },
-  
+
   pill: {
     borderRadius: 999,
     paddingVertical: 10,
@@ -359,18 +413,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  
+
   pillText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '900',
-  },
-
-  actionLabel: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#12256B', // same vibe as screenshot (blue text)
   },
 
   // menu
@@ -380,11 +427,9 @@ const styles = StyleSheet.create({
   },
   menuBox: {
     position: 'absolute',
-    top: 90,
-    right: 18,
     width: 150,
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 6,
 
     shadowColor: '#000',

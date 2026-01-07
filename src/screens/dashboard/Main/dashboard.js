@@ -150,11 +150,11 @@ const MainDashboard = () => {
       <View style={[st.pd_H20, st.mt_B10]}>
       <StoriesRow />
       </View>
-
+      <View style={[{paddingBottom:320}]}>
       <FlatList
         data={filteredPosts}
         keyExtractor={item => item.id}
-        style={[st.pd_H20]}
+        style={[st.pd_H20,{paddingBottom:90}]}
         renderItem={({ item }) => (
           <PostCard
             userName={item.userName}
@@ -171,6 +171,7 @@ const MainDashboard = () => {
         contentContainerStyle={[st.pdB20]}
         keyboardShouldPersistTaps="handled"
       />
+      </View>
     </SafeAreaView>
   );
 };
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.white,
+   // marginBottom:90
   },
 
   // ✅ Stories row styles
