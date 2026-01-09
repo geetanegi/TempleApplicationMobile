@@ -50,6 +50,8 @@ import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import ImageScreen from '../../dashboard/Main/imageScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
+import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
+import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
 import {
   Home,
   BookOpen,
@@ -168,6 +170,13 @@ const HomeStackScreens = () => (
         headerTitleStyle: {fontSize: 18},
       }}
       component={VideoPlayer}
+    />
+    <HomeStack.Screen
+      name="YouTubePlayer"
+      options={{
+        headerShown: false,
+      }}
+      component={YouTubePlayerScreen}
     />
         <HomeStack.Screen
       name="Notifications"
@@ -342,12 +351,11 @@ export default function BottomNavigation() {
       /> */}
 
       <Tab.Screen
-        name="Info"
-        component={SerachPage}
+        name="Video"
+        component={VideosReelsScreen}
         options={{
           tabBarIcon: renderTabIcon(PlayCircle),
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
+          headerShown: false,
         }}
       />
 

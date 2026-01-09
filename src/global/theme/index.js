@@ -140,6 +140,7 @@ const images = {
   jainism: require('../../images/jainism.png'),
   location: require('../../images/location.png'),
   notification: require('../../images/notification.png'),
+  jainSansaarLogo: require('../../images/jainsansaar.png'), // Update this path with your logo image
 };
 
 const NAVIGATION = {

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient'; // ✅ if you have it
 import st from '../../global/styles';
-import { colors } from '../../global/theme';
+import { colors, images } from '../../global/theme';
 
 const HeaderDashboard = ({
   title,
@@ -59,6 +59,8 @@ const HeaderDashboard = ({
       <View style={styles.centerArea}>
         {logoSource ? (
           <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+        ) : images.jainSansaarLogo ? (
+          <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
         ) : (
           <Text style={styles.titleText}>{title}</Text>
         )}
