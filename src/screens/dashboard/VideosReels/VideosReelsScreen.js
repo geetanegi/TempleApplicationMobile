@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,46 @@ const COLORS = {
   filterInactive: '#F5F5F5',
 };
 
+// Function to extract YouTube video ID from URL
+const getYouTubeVideoId = (url) => {
+  if (!url) return null;
+  
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+};
+
+// Function to generate thumbnail URL from video URL
+const generateThumbnailFromUrl = (videoUrl, existingThumbnail = null) => {
+  // If thumbnail already exists, use it
+  if (existingThumbnail) {
+    return existingThumbnail;
+  }
+  
+  // Try to generate YouTube thumbnail
+  if (videoUrl) {
+    const videoId = getYouTubeVideoId(videoUrl);
+    if (videoId) {
+      // Try maxresdefault first (highest quality)
+      return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    }
+  }
+  
+  // Return null if we can't generate a thumbnail
+  return null;
+};
+
+// Function to get fallback thumbnail URL (hqdefault)
+const getFallbackThumbnail = (videoUrl) => {
+  if (videoUrl) {
+    const videoId = getYouTubeVideoId(videoUrl);
+    if (videoId) {
+      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    }
+  }
+  return null;
+};
+
 // Category filters
 const categories = [
   'All',
@@ -51,75 +91,76 @@ const videosData = [
   {
     id: '1',
     thumbnail:
-      'https://img.youtube.com/vi/8pmcxUUARzM/maxresdefault.jpg',
+      'https://i3.ytimg.com/vi/tYe_WO-mWrI?si=eRxmZgSHY6d16wal/maxresdefault.jpg',
     channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
     title: 'History of jainism religion from Season 1 | Jainsansaar',
     channelName: 'Bhakti',
     views: '200k',
     timeAgo: '2 days ago',
     type: 'video',
-    youtubeUrl: 'https://youtu.be/8pmcxUUARzM?si=cwYhZ_Wvh22Pz29W',
+    youtubeUrl: 'https://youtu.be/7nGNhvxMj3k?si=AgJncRBDPOSbGd21',
   },
   {
     id: '2',
     thumbnail:
-      'https://images.pexels.com/photos/33639137/pexels-photo-33639137.jpeg?auto=compress&cs=tinysrgb&w=800',
-    channelAvatar: 'https://randomuser.me/api/portraits/women/45.jpg',
+    'https://i3.ytimg.com/vi/tYe_WO-mWrI?si=eRxmZgSHY6d16wal/maxresdefault.jpg',
+  channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
     title: 'Understanding Jain Philosophy and Principles',
     channelName: 'Spiritual Path',
     views: '150k',
     timeAgo: '5 days ago',
     type: 'video',
-    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
+    youtubeUrl: 'https://youtu.be/7nGNhvxMj3k?si=AgJncRBDPOSbGd21', // Replace with actual YouTube URL
   },
   {
     id: '3',
     thumbnail:
-      'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://i3.ytimg.com/vi/tYe_WO-mWrI?si=eRxmZgSHY6d16wal/maxresdefault.jpg',
+    channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
     channelAvatar: 'https://randomuser.me/api/portraits/men/22.jpg',
     title: 'Temple Architecture: A Journey Through Time',
     channelName: 'Heritage',
     views: '89k',
     timeAgo: '1 week ago',
     type: 'video',
-    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
+    youtubeUrl: 'https://youtu.be/7nGNhvxMj3k?si=AgJncRBDPOSbGd21',// Replace with actual YouTube URL
   },
   {
     id: '4',
     thumbnail:
-      'https://images.pexels.com/photos/33646957/pexels-photo-33646957.jpeg?auto=compress&cs=tinysrgb&w=800',
-    channelAvatar: 'https://randomuser.me/api/portraits/women/32.jpg',
+      'https://i3.ytimg.com/vi/tYe_WO-mWrI?si=eRxmZgSHY6d16wal/maxresdefault.jpg',
+    channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
     title: 'Festival Celebrations: Paryushan Parva',
     channelName: 'Jain Festivals',
     views: '320k',
     timeAgo: '3 days ago',
     type: 'reel',
-    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
+    youtubeUrl: 'https://youtu.be/7nGNhvxMj3k?si=AgJncRBDPOSbGd21',// Replace with actual YouTube URL
   },
-  {
-    id: '5',
-    thumbnail:
-      'https://images.pexels.com/photos/33639142/pexels-photo-33639142.jpeg?auto=compress&cs=tinysrgb&w=800',
-    channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
-    title: 'Daily Prayers and Meditation Practices',
-    channelName: 'Bhakti',
-    views: '95k',
-    timeAgo: '4 days ago',
-    type: 'video',
-    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
-  },
-  {
-    id: '6',
-    thumbnail:
-      'https://images.pexels.com/photos/33639137/pexels-photo-33639137.jpeg?auto=compress&cs=tinysrgb&w=800',
-    channelAvatar: 'https://randomuser.me/api/portraits/women/45.jpg',
-    title: 'Community Service and Seva in Jainism',
-    channelName: 'Spiritual Path',
-    views: '67k',
-    timeAgo: '6 days ago',
-    type: 'video',
-    youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
-  },
+  // {
+  //   id: '5',
+  //   thumbnail:
+  //     'https://images.pexels.com/photos/33639142/pexels-photo-33639142.jpeg?auto=compress&cs=tinysrgb&w=800',
+  //   channelAvatar: 'https://randomuser.me/api/portraits/men/31.jpg',
+  //   title: 'Daily Prayers and Meditation Practices',
+  //   channelName: 'Bhakti',
+  //   views: '95k',
+  //   timeAgo: '4 days ago',
+  //   type: 'video',
+  //   youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
+  // },
+  // {
+  //   id: '6',
+  //   thumbnail:
+  //     'https://images.pexels.com/photos/33639137/pexels-photo-33639137.jpeg?auto=compress&cs=tinysrgb&w=800',
+  //   channelAvatar: 'https://randomuser.me/api/portraits/women/45.jpg',
+  //   title: 'Community Service and Seva in Jainism',
+  //   channelName: 'Spiritual Path',
+  //   views: '67k',
+  //   timeAgo: '6 days ago',
+  //   type: 'video',
+  //   youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Replace with actual YouTube URL
+  // },
 ];
 
 // Grid items (2-column layout for some content)
@@ -141,6 +182,12 @@ const gridItems = [
 export default function VideosReelsScreen() {
   const nav = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
+  // Process videos to generate thumbnails from URLs if not provided
+  const processedVideos = videosData.map(video => ({
+    ...video,
+    thumbnail: generateThumbnailFromUrl(video.youtubeUrl, video.thumbnail) || video.thumbnail,
+  }));
 
   const openYouTubeVideo = (videoItem) => {
     if (!videoItem?.youtubeUrl) {
@@ -192,14 +239,37 @@ export default function VideosReelsScreen() {
     );
   };
 
-  const renderVideoCard = ({item}) => {
+  // Video Card Component with thumbnail error handling
+  const VideoCard = React.memo(({item, onPress}) => {
+    const thumbnailUrl = generateThumbnailFromUrl(item.youtubeUrl, item.thumbnail);
+    const fallbackThumbnail = getFallbackThumbnail(item.youtubeUrl);
+    const [imageError, setImageError] = useState(false);
+    
+    // Use fallback if main thumbnail fails
+    const displayThumbnail = imageError && fallbackThumbnail ? fallbackThumbnail : thumbnailUrl;
+    
     return (
       <Pressable
-        onPress={() => openYouTubeVideo(item)}
+        onPress={() => onPress(item)}
         style={styles.videoCard}>
         {/* Video Thumbnail */}
         <View style={styles.thumbnailContainer}>
-          <Image source={{uri: item.thumbnail}} style={styles.thumbnail} />
+          {displayThumbnail ? (
+            <Image 
+              source={{uri: displayThumbnail}} 
+              style={styles.thumbnail}
+              onError={() => {
+                // Try fallback thumbnail
+                if (fallbackThumbnail && !imageError) {
+                  setImageError(true);
+                }
+              }}
+            />
+          ) : (
+            <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+              <Ionicons name="videocam-outline" size={40} color={COLORS.sub} />
+            </View>
+          )}
           {item.type === 'reel' && (
             <View style={styles.reelBadge}>
               <MaterialCommunityIcons name="film" size={14} color="#fff" />
@@ -237,6 +307,10 @@ export default function VideosReelsScreen() {
         </View>
       </Pressable>
     );
+  });
+
+  const renderVideoCard = ({item}) => {
+    return <VideoCard item={item} onPress={openYouTubeVideo} />;
   };
 
   return (
@@ -260,7 +334,7 @@ export default function VideosReelsScreen() {
 
         {/* Content List */}
         <FlatList
-          data={videosData}
+          data={processedVideos}
           keyExtractor={item => item.id.toString()}
           renderItem={renderVideoCard}
           contentContainerStyle={styles.listContent}
@@ -357,6 +431,11 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  thumbnailPlaceholder: {
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reelBadge: {
     position: 'absolute',

@@ -48,7 +48,7 @@ const VideoList = () => {
     <View style={styles.cardContainer}>
       <TouchableOpacity onPress={() => togglePlayPause(item.id)}>
         <VideoPlayer
-            video={{ uri: 'https://www.w3schools.com/html/mov_bbb.mp4' }} // Test video URL
+            video={{ uri: 'https://youtu.be/7nGNhvxMj3k?si=AgJncRBDPOSbGd21' }} // Test video URL
             videoWidth={screenWidth}
             videoHeight={screenWidth * 0.5625} // 16:9 aspect ratio
             autoplay={true} // Autoplay the video

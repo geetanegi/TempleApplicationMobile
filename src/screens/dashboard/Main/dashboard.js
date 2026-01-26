@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   FlatList,
@@ -8,6 +7,7 @@ import {
   Image,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import st from '../../../global/styles';
 import { Menu, Bell, MessageCircle, Plus } from 'lucide-react-native';
 import { APP_TEXT, colors } from '../../../global/theme';
@@ -128,7 +128,7 @@ const MainDashboard = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       <HeaderDashboard

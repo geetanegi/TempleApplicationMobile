@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient'; // ✅ if you have it
 import st from '../../global/styles';
 import { colors, images } from '../../global/theme';
@@ -19,6 +20,7 @@ const HeaderDashboard = ({
   onRightPress2,
 }) => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const handleNav = (route) => {
     if (!route) return;
@@ -41,7 +43,7 @@ const HeaderDashboard = ({
   };
 
   return (
-    <View style={[styles.headerContainer, st.pd_H10, st.mt_B10,st.mt_t10]}>
+    <View style={[styles.headerContainer, st.pd_H10, st.mt_B10, { paddingTop: Math.max(insets.top, 10) }]}>
       {/* Left */}
       <View style={styles.leftArea}>
         {LeftIcon ? (
