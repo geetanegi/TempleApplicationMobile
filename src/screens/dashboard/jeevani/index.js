@@ -6,8 +6,9 @@ import {
   Image,
   StyleSheet,
   SafeAreaView,
+  RefreshControl,
 } from 'react-native';
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useCallback} from 'react';
 import st from '../../../global/styles';
 import Share from 'react-native-share';
 import {images} from '../../../global/theme';
@@ -31,6 +32,13 @@ const gridItems = [
 
 const JevaaniScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setSearchText('');
+    setTimeout(() => setRefreshing(false), 400);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -95,6 +103,14 @@ const JevaaniScreen = ({navigation}) => {
         contentContainerStyle={styles.gridContainer}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#D48A4A']}
+            tintColor="#D48A4A"
+          />
+        }
         ListEmptyComponent={() => (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>No Data found</Text>

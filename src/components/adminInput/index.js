@@ -17,6 +17,10 @@ const AdminInput = ({
   textSty,
   search,
   onFocus = () => {},
+  inputBackgroundColor,
+  inputTextColor,
+  placeholderColor,
+  inputFontSize,
   ...props
 }) => {
 //  alert(props.value)
@@ -35,8 +39,8 @@ const AdminInput = ({
       <TouchableOpacity onPress={handleTextInputPress} activeOpacity={1}>
       <View
         style={{
-          backgroundColor: colors.PRIMARY_TRANSPARENT_BLACK,
-          opacity: 0.6,
+          backgroundColor: inputBackgroundColor ?? colors.PRIMARY_TRANSPARENT_BLACK,
+          opacity: inputBackgroundColor ? 1 : 0.6,
           borderRadius: 6,
           
         }}>
@@ -54,9 +58,9 @@ const AdminInput = ({
           ]}>
          {((!isFocused && value?.trim() === '') || value == undefined )&& (
           <View style={style.placeholderContainer}>
-            <Text style={style.placeholderText}>{holderName}</Text>
+            <Text style={[style.placeholderText, placeholderColor ? { color: placeholderColor } : null, inputFontSize ? { fontSize: inputFontSize } : null]}>{holderName}</Text>
             {isRequired &&(
-            <Text style={style.asterisk}>*</Text>
+            <Text style={[style.asterisk, inputFontSize ? { fontSize: inputFontSize } : null]}>*</Text>
             )}
           </View>
        )}  
@@ -71,9 +75,9 @@ const AdminInput = ({
           }}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={hidePassword}
-          style={style.inputtxt}
+          style={[style.inputtxt, inputTextColor ? { color: inputTextColor } : null, inputFontSize ? { fontSize: inputFontSize } : null]}
           {...props}
-          placeholderTextColor={'white'}
+          placeholderTextColor={placeholderColor ?? 'white'}
           
         />
     
@@ -82,7 +86,7 @@ const AdminInput = ({
             onPress={() => setHidePassword(!hidePassword)}
             name={hidePassword ? 'eye-off' : 'eye'}
             style={{fontSize: 22,marginTop:-9}}
-            color={colors.white}
+            color={inputTextColor || colors.white}
           />
         )}
         </View>

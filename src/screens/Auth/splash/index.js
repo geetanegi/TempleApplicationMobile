@@ -1,50 +1,50 @@
 import {
   View,
-  ImageBackground,
   Image,
-  ScrollView,
-  Text,
   StyleSheet,
 } from 'react-native';
 import React from 'react';
-import st from '../../../global/styles';
-import {colors, images, APP_TEXT, NAVIGATION} from '../../../global/theme';
+import LinearGradient from 'react-native-linear-gradient';
+
+const CREAM = '#FFF8E7';
+const WHITE = '#FFFFFF';
+
+const splashImage = require('../../../assets/images/splash.png');
 
 const Splash = () => {
   return (
-    <ImageBackground
-      source={images.loginBG}
-      // resizeMode={'stretch'}
-      style={st.flex}>
-      <ScrollView style={{flex: 1}}>
-        <View style={[st.mt_t200, styles.container]}>
-          <View>
-            {/* <Image source={images.loginLogo} style={styles.imgLogo} /> */}
-          </View>
-          {/* <View style={styles.txtView}>
-            <Text style={st.hardText}>{APP_TEXT.SPLASH_APP_NAME}</Text>
-            <Text style={[st.tx16, {color: colors.white}]}>
-              {APP_TEXT.SPLASH_TEXT}
-            </Text>
-          </View> */}
-        </View>
-      </ScrollView>
-    </ImageBackground>
+    <LinearGradient
+      colors={[CREAM, WHITE, CREAM]}
+      locations={[0, 0.5, 1]}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.gradient}
+    >
+      <View style={styles.center}>
+        <Image
+          source={splashImage}
+          style={styles.splashImage}
+          resizeMode="contain"
+        />
+      </View>
+    </LinearGradient>
   );
 };
 
 export default Splash;
+
 const styles = StyleSheet.create({
-  container: {
-    justifyContent: 'center',
-    alignItems: 'center',
+  gradient: {
     flex: 1,
   },
-  imgLogo: {
-    width: 220,
-    height: 220,
-    alignSelf: 'center',
-    marginTop: -10,
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  txtView: {marginTop: -15, alignItems: 'center'},
+  splashImage: {
+    width: 280,
+    height: 280,
+    maxWidth: '85%',
+  },
 });

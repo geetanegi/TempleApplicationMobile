@@ -13,6 +13,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
@@ -22,13 +23,67 @@ const AVATAR = 'https://randomuser.me/api/portraits/men/31.jpg';
 
 const SHEET_HEIGHT = Math.round(SCREEN_H * 0.78); // tweak 0.72 - 0.85
 
-const CommentScreen = ({visible, setVisible, comment}) => {
+const DRAG_CLOSE_THRESHOLD = 80;
+const VELOCITY_CLOSE_THRESHOLD = 400;
+
+const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
   const [input, setInput] = useState('');
 
   const data = useMemo(() => comment ?? [], [comment]);
 
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+
+  const runCloseAnimation = useRef(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SHEET_HEIGHT,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dragY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setVisible(false));
+  }).current;
+
+  const runSnapBack = useRef(() => {
+    Animated.spring(dragY, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 300,
+    }).start();
+  }).current;
+
+  const panGesture = useRef(
+    Gesture.Pan()
+      .activeOffsetY(5)
+      .failOffsetY(-20)
+      .onUpdate((e) => {
+        if (e.translationY > 0) {
+          dragY.setValue(e.translationY);
+        }
+      })
+      .onEnd((e) => {
+        const {translationY, velocityY} = e;
+        const shouldClose =
+          translationY > DRAG_CLOSE_THRESHOLD || velocityY > VELOCITY_CLOSE_THRESHOLD;
+        if (shouldClose) {
+          runCloseAnimation();
+        } else {
+          runSnapBack();
+        }
+      }),
+  ).current;
 
   useEffect(() => {
     if (visible) {
@@ -62,11 +117,13 @@ const CommentScreen = ({visible, setVisible, comment}) => {
 
   const close = () => setVisible(false);
 
-  const onSend = () => {
+  const onSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // TODO: call API / update list
+    if (typeof onSendComment === 'function') {
+      await onSendComment(trimmed);
+    }
     setInput('');
   };
 
@@ -110,7 +167,7 @@ const CommentScreen = ({visible, setVisible, comment}) => {
         style={[
           styles.sheetWrap,
           {
-            transform: [{translateY}],
+            transform: [{translateY: Animated.add(translateY, dragY)}],
           },
         ]}>
         <LinearGradient
@@ -118,13 +175,15 @@ const CommentScreen = ({visible, setVisible, comment}) => {
           start={{x: 0.5, y: 0}}
           end={{x: 0.5, y: 1}}
           style={styles.sheet}>
-          {/* handle */}
-          <View style={styles.handleWrap}>
-            <View style={styles.handle} />
-          </View>
-
-          {/* title */}
-          <Text style={styles.headerTitle}>Comments</Text>
+          {/* handle + header: drag down to close */}
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.dragArea} collapsable={false}>
+              <View style={styles.handleWrap}>
+                <View style={styles.handle} />
+              </View>
+              <Text style={styles.headerTitle}>Comments</Text>
+            </View>
+          </GestureDetector>
 
           <KeyboardAvoidingView
             style={styles.flex}
@@ -191,6 +250,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
+  dragArea: {
+    minHeight: 56,
+    paddingBottom: 4,
+    justifyContent: 'flex-start',
+  },
   handleWrap: {
     alignItems: 'center',
     paddingTop: 10,

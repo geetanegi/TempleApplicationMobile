@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,26 @@ import {
   StatusBar,
   SafeAreaView,
   ActivityIndicator,
-  Image,
-  Linking,
+  Platform,
 } from 'react-native';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import {useNavigation, useRoute} from '@react-navigation/native';
+import {ArrowLeft} from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {colors} from '../../../global/theme';
 
-const {width, height} = Dimensions.get('window');
+const {width} = Dimensions.get('window');
+const PLAYER_HEIGHT = Math.round((width * 9) / 16);
+
+// Extra top margin so header sits below status/notification bar (Android)
+const TOP_INSET =
+  Platform.OS === 'android'
+    ? (StatusBar.currentHeight ?? 28) + 8
+    : 12;
 
 // Function to extract YouTube video ID from URL
 const getYouTubeVideoId = (url) => {
   if (!url) return null;
-  
+
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return match && match[2].length === 11 ? match[2] : null;
@@ -30,57 +37,40 @@ export default function YouTubePlayerScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const {video} = route.params || {};
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  const videoId = getYouTubeVideoId(video?.youtubeUrl);
-  const thumbnailUrl = videoId 
-    ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-    : null;
 
-  useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+  const videoId = getYouTubeVideoId(video?.youtubeUrl);
+
+  const onReady = useCallback(() => {
+    setIsLoading(false);
   }, []);
 
-  const handlePlayVideo = async () => {
-    if (!videoId) {
-      setError('Invalid video ID');
-      return;
-    }
+  const onChangeState = useCallback((state) => {
+    // Optional: handle state changes (playing, paused, ended, etc.)
+  }, []);
 
-    try {
-      const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      // Try YouTube app first
-      const youtubeAppUrl = `youtube://watch?v=${videoId}`;
-      const canOpen = await Linking.canOpenURL(youtubeAppUrl);
-      
-      if (canOpen) {
-        await Linking.openURL(youtubeAppUrl);
-      } else {
-        // Fallback to browser
-        await Linking.openURL(youtubeUrl);
-      }
-    } catch (err) {
-      console.error('Error opening video:', err);
-      setError('Unable to open video');
-    }
-  };
-  
+  const onError = useCallback((err) => {
+    setIsLoading(false);
+    setError('Failed to load video. Please try again.');
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+      <SafeAreaView style={[styles.safeArea, {paddingTop: TOP_INSET}]}>
+        {/* Fixed top header with back button - visible on black */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            style={styles.backButton}
+            activeOpacity={0.8}
+            hitSlop={{top: 16, bottom: 16, left: 16, right: 16}}>
+            <View style={styles.backButtonInner}>
+              <ArrowLeft size={22} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={styles.backLabel}>Back</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {video?.title || 'Video Player'}
@@ -88,62 +78,45 @@ export default function YouTubePlayerScreen() {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Video Player Area */}
+        {/* Content below header */}
+        <View style={styles.content}>
+        {/* In-app YouTube player (no external app) */}
         <View style={styles.playerContainer}>
           {videoId ? (
             <>
-              {isLoading ? (
+              {isLoading && (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color="#fff" />
                   <Text style={styles.loadingText}>Loading video...</Text>
                 </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.videoThumbnailContainer}
-                  onPress={handlePlayVideo}
-                  activeOpacity={0.9}>
-                  {thumbnailUrl && (
-                    <Image
-                      source={{uri: thumbnailUrl}}
-                      style={styles.thumbnailImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                  <View style={styles.playButtonOverlay}>
-                    <View style={styles.playButton}>
-                      <Ionicons name="play" size={40} color="#fff" />
-                    </View>
-                  </View>
-                  <View style={styles.youtubeBadge}>
-                    <Ionicons name="logo-youtube" size={20} color="#fff" />
-                    <Text style={styles.youtubeText}>YouTube</Text>
-                  </View>
-                </TouchableOpacity>
               )}
-              {error && (
+              {error ? (
                 <View style={styles.errorOverlay}>
                   <Ionicons name="alert-circle" size={32} color="#ff4444" />
                   <Text style={styles.errorText}>{error}</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setError(null);
-                      handlePlayVideo();
-                    }}
-                    style={styles.retryButton}>
-                    <Text style={styles.retryText}>Try Again</Text>
-                  </TouchableOpacity>
                 </View>
+              ) : (
+                <YoutubePlayer
+                  height={PLAYER_HEIGHT}
+                  play={true}
+                  videoId={videoId}
+                  onChangeState={onChangeState}
+                  onReady={onReady}
+                  onError={onError}
+                  forceAndroidAutoplay={Platform.OS === 'android'}
+                  initialPlayerParams={{
+                    preventFullScreen: false,
+                    controls: true,
+                    rel: false,
+                  }}
+                />
               )}
             </>
           ) : (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={48} color="#ff4444" />
-              <Text style={styles.errorText}>
-                Invalid YouTube URL
-              </Text>
-              <Text style={styles.errorSubtext}>
-                Please check the video link
-              </Text>
+              <Text style={styles.errorText}>Invalid YouTube URL</Text>
+              <Text style={styles.errorSubtext}>Please check the video link</Text>
             </View>
           )}
         </View>
@@ -157,9 +130,9 @@ export default function YouTubePlayerScreen() {
             </Text>
           </View>
         )}
-        
-        {/* Spacer for bottom tab bar */}
+
         <View style={styles.bottomSpacer} />
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -177,83 +150,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
+    minHeight: 52,
     backgroundColor: '#000',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.15)',
+    zIndex: 10,
+    elevation: 10,
   },
   backButton: {
-    padding: 8,
+    padding: 4,
+  },
+  backButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    minWidth: 88,
+  },
+  backLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   headerTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-    marginHorizontal: 12,
+    marginHorizontal: 8,
     textAlign: 'center',
   },
   placeholder: {
-    width: 40,
+    minWidth: 80,
+  },
+  content: {
+    flex: 1,
   },
   playerContainer: {
     width: width,
-    height: (width * 9) / 16, // 16:9 aspect ratio
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  videoThumbnailContainer: {
-    width: width,
-    height: (width * 9) / 16,
+    minHeight: PLAYER_HEIGHT,
     backgroundColor: '#000',
     position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  thumbnailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  playButtonOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  youtubeBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    gap: 6,
-  },
-  youtubeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   loadingContainer: {
     position: 'absolute',
@@ -301,18 +243,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#ff4444',
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   videoInfo: {
     padding: 16,
     backgroundColor: '#000',
@@ -328,6 +258,6 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   bottomSpacer: {
-    height: 100, // Space for bottom tab bar
+    height: 24, // Bottom safe area (tab bar hidden on this screen)
   },
 });

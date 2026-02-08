@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -24,6 +25,10 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme">
+        <!-- Google Maps API Key - replace with your key from Google Cloud Console -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyDK6UoNV-QPxx0KJHH1NvwREj8n2tKdmZU"/>
 
         <!-- Main Activity -->
         <activity

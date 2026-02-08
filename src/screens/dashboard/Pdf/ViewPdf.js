@@ -9,7 +9,6 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import Footer from '../../../components/footer';
 import st from '../../../global/styles';
 
 const {width, height} = Dimensions.get('window');
@@ -47,8 +46,6 @@ const AartiScreen = () => {
             <Text style={styles.text}>{content.trim()}</Text>
           </ScrollView>
         </SafeAreaView>
-
-        <Footer />
       </ImageBackground>
     </View>
   );
@@ -64,7 +61,7 @@ const styles = StyleSheet.create({
   },
   safe: {
     flex: 1,
-    paddingBottom: 90, // Footer/TabBar space
+    paddingBottom: 24,
   },
   scrollContent: {
     paddingTop: Platform.OS === 'android' ? 18 : 10,

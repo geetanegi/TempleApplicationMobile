@@ -8,9 +8,10 @@ import {
   View,
 } from 'react-native';
 import React, {useEffect, useState} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {colors, images} from '../../../global/theme';
 import DrawerHeader from '../../../components/DrawerHeader';
-import Feather from 'react-native-vector-icons/Feather'; // Import icons
+import Feather from 'react-native-vector-icons/Feather';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
@@ -90,6 +91,13 @@ const DrawerScreen = ({navigation}) => {
     return true;
   };
 
+  const performLogout = async () => {
+    navigation.closeDrawer();
+    await AsyncStorage.removeItem('token');
+    dispatch(cleanLogindata());
+    dispatch(clearLogin());
+  };
+
   const show_alert_msg = () => {
     return (
       <PopUpMessage
@@ -97,10 +105,9 @@ const DrawerScreen = ({navigation}) => {
         titleMsg={title}
         subTitle={subtitle}
         twoButton={twoButton}
-        onModalClick={value => {
-          navigation.closeDrawer();
-          dispatch(clearLogin());
-          dispatch(cleanLogindata());
+        onModalClick={() => {
+          performLogout();
+          setPopupMessageVisibility(false);
         }}
         onPressNoBtn={() => {
           navigation.closeDrawer();
@@ -122,6 +129,7 @@ const DrawerScreen = ({navigation}) => {
     {id: '3', label: 'Privacy Policy', icon: 'lock'},
     {id: '4', label: 'Terms & Condition', icon: 'gavel'},
     {id: '5', label: 'Configuration', icon: 'settings'},
+    {id: '6', label: 'Logout', icon: 'logout'},
   ];
 
   return (
@@ -157,7 +165,8 @@ const DrawerScreen = ({navigation}) => {
           <SettingItem
             icon={item.icon}
             label={item.label}
-            onPress={() => console.log(item.label + ' pressed')}
+            onPress={() => (item.label === 'Logout' ? handleBackPress() : console.log(item.label + ' pressed'))}
+            isLogout={item.label === 'Logout'}
           />
         )}
         style={[{marginTop: 50}]}
@@ -166,19 +175,21 @@ const DrawerScreen = ({navigation}) => {
   );
 };
 
-const SettingItem = ({icon, label, onPress}) => {
+const SettingItem = ({icon, label, onPress, isLogout}) => {
   return (
     <TouchableOpacity style={styles.itemContainer} onPress={onPress}>
-      <View style={styles.iconWrapper}>
+      <View style={[styles.iconWrapper, isLogout && styles.iconWrapperLogout]}>
         <Icon name={icon} size={20} color={colors.white} />
       </View>
-      <Text style={styles.label}>{label}</Text>
-      <Icon
-        name="chevron-right"
-        size={22}
-        color={colors.DARK_GREY}
-        style={styles.arrow}
-      />
+      <Text style={[styles.label, isLogout && styles.labelLogout]}>{label}</Text>
+      {!isLogout && (
+        <Icon
+          name="chevron-right"
+          size={22}
+          color={colors.DARK_GREY}
+          style={styles.arrow}
+        />
+      )}
     </TouchableOpacity>
   );
 };
@@ -250,6 +261,13 @@ const styles = StyleSheet.create({
   },
   arrow: {
     marginLeft: 10,
+  },
+  iconWrapperLogout: {
+    backgroundColor: colors.indian_red || '#A4353D',
+  },
+  labelLogout: {
+    color: colors.indian_red || '#A4353D',
+    fontWeight: '600',
   },
 });
 export default DrawerScreen;

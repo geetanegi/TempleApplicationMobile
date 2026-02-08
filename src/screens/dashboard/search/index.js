@@ -1,105 +1,234 @@
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  Image,
-  Dimensions,
-  FlatList,
   Pressable,
   ScrollView,
+  TextInput,
+  Keyboard,
 } from 'react-native';
-import React from 'react';
-import {images} from '../../../global/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { Search, X, TrendingUp, MapPin, Flame, Zap, Menu, Bell, MessageCircle } from 'lucide-react-native';
 import st from '../../../global/styles';
-import {colors} from '../../../global/theme';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import {MapPin} from 'lucide-react-native';
+import { colors, APP_TEXT } from '../../../global/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import HeaderDashboard from '../../../components/dashboardHeader';
 
-const {width} = Dimensions.get('window');
+const RECENT_SEARCHES_KEY = '@search_recent';
 
-const photos = [
-  {id: 1, src: {uri: 'https://picsum.photos/id/1011/400/300'}},
-  {id: 2, src: {uri: 'https://picsum.photos/id/1015/400/300'}},
-  {id: 3, src: {uri: 'https://picsum.photos/id/1016/400/300'}},
-  {id: 4, src: {uri: 'https://picsum.photos/id/1025/400/300'}},
-  {id: 5, src: {uri: 'https://picsum.photos/id/1035/400/300'}},
+const CATEGORIES = [
+  { id: 'trending', label: 'Trending', Icon: TrendingUp },
+  { id: 'nearby', label: 'Near By', Icon: MapPin },
+  { id: 'popular', label: 'Popular', Icon: Flame },
+  { id: 'hot', label: 'Hot', Icon: Zap },
 ];
-const SerachPage = () => {
-  return (
-    <ScrollView style={[st.flex, st.pd_H20, {marginBottom: 100}]}>
-      <View>
-        <Image source={images.aarti} style={styles.image} />
 
-        <View>
-          <Text style={[st.tx18, st.txbold]}>Netus dignissum</Text>
-          <Text style={[st.tx14, st.txtlight]}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-            ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-            aliquip ex ea commodo consequat.
-          </Text>
+const SearchScreen = () => {
+  const navigation = useNavigation();
+  const [query, setQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState([]);
+
+  useEffect(() => {
+    loadRecentSearches();
+  }, []);
+
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setRecentSearches(Array.isArray(parsed) ? parsed.slice(0, 10) : []);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const addRecentSearch = async (text) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    const next = [trimmed, ...recentSearches.filter((s) => s !== trimmed)].slice(0, 10);
+    setRecentSearches(next);
+    try {
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    Keyboard.dismiss();
+    if (query.trim()) {
+      addRecentSearch(query.trim());
+      // Optional: navigate to results or stay and show results
+    }
+  };
+
+  const handleRecentPress = (item) => {
+    setQuery(item);
+  };
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <HeaderDashboard
+        title="JainSansaar"
+        LeftIcon={Menu}
+        RightIcon1={Bell}
+        RightIcon2={MessageCircle}
+        leftNav="HomeDrawer"
+        rightNav1="Notifications"
+        rightNav2="Chat"
+      />
+
+      <View style={styles.content}>
+        <View style={[st.pd_H20, styles.searchBarRow]}>
+          <View style={styles.searchWrapper}>
+            <Search size={18} color={colors.DARK_BLACK} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={APP_TEXT.SEARCH}
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchSubmit}
+              autoFocus
+            />
+            {(query || '').trim().length > 0 && (
+              <Pressable
+                onPress={() => setQuery('')}
+                hitSlop={10}
+                style={styles.clearBtn}
+              >
+                <X size={18} color={colors.DARK_BLACK} />
+              </Pressable>
+            )}
+          </View>
         </View>
-        <Text style={[st.tx16, st.pv10]}>More Photos</Text>
-        <FlatList
-          horizontal
-          data={photos}
-          keyExtractor={item => item.id.toString()}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({item}) => (
-            <Image source={item.src} style={styles.imagesl} />
-          )}
-        />
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+        <View style={styles.categoriesRow}>
+          {CATEGORIES.map(({ id, label, Icon }) => (
+            <Pressable
+              key={id}
+              style={styles.categoryItem}
+              onPress={() => {}}
+            >
+              <View style={styles.categoryIconWrap}>
+                <Icon size={24} color={colors.DARK_BLACK} strokeWidth={2} />
+              </View>
+              <Text style={styles.categoryLabel}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.subheading}>Recent Search</Text>
+        <View style={styles.recentList}>
+          {(recentSearches.length ? recentSearches : ['Temple events', 'Aarti timings', 'Nearby temples']).slice(0, 3).map((item, index) => (
+            <Pressable
+              key={`${item}-${index}`}
+              style={styles.recentItem}
+              onPress={() => handleRecentPress(item)}
+            >
+              <Text style={styles.recentText}>{item}</Text>
+            </Pressable>
+          ))}
+        </View>
+        </ScrollView>
       </View>
-      <View style={[st.wdh100, st.justify_Row, st.mt_B10, st.mt_t20, st.gap10]}>
-        <Pressable style={[styles.btn, st.justify_C, st.align_C]}>
-          {/* <Image
-            source={images.location}
-            style={[styles.imgLogo, {marginTop: 20}]}
-          /> */}
-          {/* <Icon name="location" size={25} color={colors.white} /> */}
-          <MapPin size={25} style={[styles.imgLogo]} color={colors.white} />
-        </Pressable>
-        <Pressable style={[styles.btn, st.justify_C, st.align_C, {flex: 4}]}>
-          <Text style={[st.txAlignC, st.tx13, {color: colors.white}]}>
-            Know More
-          </Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 };
 
-export default SerachPage;
+export default SearchScreen;
 
 const styles = StyleSheet.create({
-  image: {
-    width: width - 40, // full width with margin
-    height: 300, // fixed height
-    borderRadius: 15,
-    marginBottom: 26,
-    marginTop: 10,
-    backgroundColor: colors.grey, // fallback color
-  },
-  container: {
-    marginTop: 20,
-  },
-
-  imagesl: {
-    width: width * 0.25, // about 30% of screen width
-    height: 100,
-    borderRadius: 10,
-    marginHorizontal: 5,
-  },
-  btn: {
-    backgroundColor: colors.orange,
+  screen: {
     flex: 1,
-    height: 60,
-    borderRadius: 14,
+    backgroundColor: colors.white,
   },
-  imgLogo: {
-    width: 25,
-    height: 25,
-    resizeMode: 'contain',
-    alignSelf: 'center',
+  content: {
+    flex: 1,
+  },
+  searchBarRow: {
+    marginBottom: 10,
+  },
+  searchWrapper: {
+    height: 50,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    width: '100%',
+  },
+  input: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#111827',
+    paddingRight: 8,
+  },
+  clearBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  categoriesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 32,
+  },
+  categoryItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.BACKGROUD_ICON_COLOR || '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryLabel: {
+    fontSize: 13,
+    color: colors.DARK_BLACK,
+    fontWeight: '500',
+  },
+  subheading: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.DARK_BLACK,
+    marginBottom: 12,
+  },
+  recentList: {
+    gap: 4,
+  },
+  recentItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  recentText: {
+    fontSize: 15,
+    color: colors.grey,
   },
 });

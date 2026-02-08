@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { DrawerActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient'; // ✅ if you have it
 import st from '../../global/styles';
 import { colors, images } from '../../global/theme';
 
@@ -24,20 +24,17 @@ const HeaderDashboard = ({
 
   const handleNav = (route) => {
     if (!route) return;
+    if (route === 'HomeDrawer') {
+      navigation.dispatch(DrawerActions.openDrawer());
+      return;
+    }
     navigation.navigate(route);
   };
 
   const IconButton = ({ children, onPress }) => {
     return (
       <Pressable onPress={onPress} style={styles.btnPressable}>
-        <LinearGradient
-          colors={['rgba(248, 175, 83, 1)', 'rgba(192, 108, 75, 1)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.btn}
-        >
-          {children}
-        </LinearGradient>
+        {children}
       </Pressable>
     );
   };
@@ -50,7 +47,7 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onLeftPress ? onLeftPress : () => handleNav(leftNav)}
           >
-            <LeftIcon size={22} strokeWidth={1.8} color={colors.DARK_BLACK} />
+            <LeftIcon size={22} color={colors.DARK_BLACK} fill={colors.DARK_BLACK} />
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />
@@ -74,7 +71,7 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onRightPress1 ? onRightPress1 : () => handleNav(rightNav1)}
           >
-            <RightIcon1 size={22} strokeWidth={1.8} color={colors.DARK_BLACK} />
+            <RightIcon1 size={22} color={colors.DARK_BLACK} fill={colors.white} />
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />
@@ -86,7 +83,7 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onRightPress2 ? onRightPress2 : () => handleNav(rightNav2)}
           >
-            <RightIcon2 size={22} strokeWidth={1.8} color={colors.DARK_BLACK} />
+            <RightIcon2 size={22} color={colors.DARK_BLACK} fill={colors.white} />
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />
@@ -129,14 +126,8 @@ const styles = StyleSheet.create({
   },
 
   btnPressable: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-
-  btn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },

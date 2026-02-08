@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   StatusBar,
   StyleSheet,
@@ -6,14 +6,18 @@ import {
   View,
   Image,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import st from '../../../global/styles';
-import { Menu, Bell, MessageCircle, Plus } from 'lucide-react-native';
+import { Menu, Bell, MessageCircle, Plus, User } from 'lucide-react-native';
 import { APP_TEXT, colors } from '../../../global/theme';
 import HeaderDashboard from '../../../components/dashboardHeader';
 import PostCard from '../../../components/PostCard';
 import SearchInput from './SearchInput';
+import { getAllPosts } from '../../../utils/apicalls/socialHandler';
+import { getUserId } from '../../../redux/store/getState';
 
 const storiesData = [
   { id: 'add' },
@@ -40,45 +44,50 @@ const storiesData = [
 ];
 
 const MainDashboard = () => {
+  const navigation = useNavigation();
   const [posts, setPosts] = useState([]);
   const [searchText, setSearchText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  async function getPosts() {
+  const currentUserId = getUserId();
+
+  const loadPosts = useCallback(async () => {
     try {
-      const res = await fetch(
-        'http://13.203.150.178:8080/jain-app/user/social/posts',
-        {
-          method: 'GET',
-          headers: {
-            Authorization: 'Bearer api-EEXM2IGOAwKhQPwbLqg_Oqw',
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const res = await getAllPosts(currentUserId);
+      const raw = res?.data ?? [];
 
-      const data = await res.json();
-
-      const formatted = (data?.data || []).map(item => ({
+      const formatted = (Array.isArray(raw) ? raw : []).map(item => ({
         id: String(item.id),
-        userName: item.user?.username || 'Unknown',
+        postId: item.id,
+        authorUserId: item.user?.id ?? item.userId,
+        userName: item.user?.username || item.user?.name || 'Unknown',
         location: item.user?.location || 'Unknown',
         image: item.photoUrl || item.videoUrl || null,
-        likes: item.likes || 0,
-        comments: item.comments || 0,
-        shares: item.shares || 0,
-        avatar: item.user?.userProfile || 'https://i.pravatar.cc/150',
+        likes: item.likesCount ?? item.likes ?? 0,
+        comments: item.commentsCount ?? item.comments ?? 0,
+        shares: item.sharesCount ?? item.shares ?? 0,
+        avatar: item.user?.userProfile || item.user?.profileImageUrl || 'https://i.pravatar.cc/150',
         contentText: item.contentText || '',
         createdAt: item.createdAt,
+        isLiked: !!item.isLiked,
+        isShared: !!item.isShared,
       }));
 
       setPosts(formatted);
     } catch (err) {
       console.error('Error fetching posts:', err);
+    } finally {
+      setRefreshing(false);
     }
-  }
+  }, [currentUserId]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadPosts();
+  }, [loadPosts]);
 
   useEffect(() => {
-    getPosts();
+    loadPosts();
   }, []);
 
   // ✅ Filter posts by search text (username, location, content)
@@ -108,6 +117,7 @@ const MainDashboard = () => {
         if (index === 0) {
           return (
             <Pressable style={styles.addTile} onPress={() => {}}>
+              <User size={36} color="#fff" fill="#fff" />
               <View style={styles.addPlus}>
                 <Plus size={18} color={colors.DARK_BLACK} />
               </View>
@@ -140,37 +150,60 @@ const MainDashboard = () => {
         rightNav1="Notifications"
         rightNav2="Chat"
       />
-<View style={[st.pd_H20, st.mt_B10]}>
-  <SearchInput
-    value={searchText}
-    onChangeText={setSearchText}
-    placeholder={APP_TEXT.SEARCH}
-  />
-</View>
-      <View style={[st.pd_H20, st.mt_B10]}>
-      <StoriesRow />
-      </View>
-      <View style={[{paddingBottom:320}]}>
-      <FlatList
-        data={filteredPosts}
-        keyExtractor={item => item.id}
-        style={[st.pd_H20,{paddingBottom:90}]}
-        renderItem={({ item }) => (
-          <PostCard
-            userName={item.userName}
-            location={item.location}
-            image={item.image}
-            likes={item.likes}
-            comments={item.comments}
-            shares={item.shares}
-            avatar={item.avatar}
-            contentText={item.contentText}
+
+      <View style={styles.content}>
+        <View style={[st.pd_H20, st.mt_B10]}>
+          <SearchInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder={APP_TEXT.SEARCH}
+            editable={false}
+            onPress={() => navigation.navigate('SearchScreen')}
           />
-        )}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[st.pdB20]}
-        keyboardShouldPersistTaps="handled"
-      />
+        </View>
+        <View style={[st.pd_H20, st.mt_B10]}>
+          <StoriesRow />
+        </View>
+        <FlatList
+          data={filteredPosts}
+          keyExtractor={item => item.id}
+          style={styles.postList}
+          contentContainerStyle={[st.pd_H20, st.pdB20, { paddingBottom: 90 }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.PRIMARY_BUTTON]}
+              tintColor={colors.PRIMARY_BUTTON}
+            />
+          }
+          renderItem={({ item }) => (
+            <PostCard
+              postId={item.postId}
+              authorUserId={item.authorUserId}
+              currentUserId={currentUserId}
+              userName={item.userName}
+              location={item.location}
+              image={item.image}
+              likes={item.likes}
+              comments={item.comments}
+              shares={item.shares}
+              avatar={item.avatar}
+              contentText={item.contentText}
+              initialIsLiked={item.isLiked}
+              initialIsShared={item.isShared}
+              onLikeChange={(newLiked, newCount) => {
+                setPosts(prev =>
+                  prev.map(p =>
+                    p.postId === item.postId ? { ...p, isLiked: newLiked, likes: newCount } : p
+                  )
+                );
+              }}
+            />
+          )}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
       </View>
     </SafeAreaView>
   );
@@ -180,7 +213,12 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.white,
-   // marginBottom:90
+  },
+  content: {
+    flex: 1,
+  },
+  postList: {
+    flex: 1,
   },
 
   // ✅ Stories row styles

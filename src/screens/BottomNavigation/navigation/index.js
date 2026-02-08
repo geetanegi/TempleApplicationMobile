@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, getFocusedRouteNameFromRoute} from '@react-navigation/native';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -45,13 +45,15 @@ import PostScreen from '../../dashboard/posts';
 import VideoPlayer from '../../../components/VideoPlayer';
 import SubCategoryPage from '../../dashboard/jeevani/subCategory';
 import JevaaniScreen from '../../dashboard/jeevani';
-import SerachPage from '../../dashboard/search';
+import SearchScreen from '../../dashboard/search';
 import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import ImageScreen from '../../dashboard/Main/imageScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
 import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
 import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
+import TempleList from '../../dashboard/TempleList';
+import TempleDetails from '../../dashboard/TempleList/TempleDetails';
 import {
   Home,
   BookOpen,
@@ -67,7 +69,6 @@ const HomeStack = createStackNavigator();
 const JeevaniStack = createStackNavigator();
 
 
-import LinearGradient from 'react-native-linear-gradient';
 import ProfileScreen from '../../dashboard/Profile/Profilepage';
 
 
@@ -152,6 +153,11 @@ const HomeStackScreens = () => (
       component={ImageScreen}
     />
     <HomeStack.Screen
+      name="SearchScreen"
+      options={{headerShown: false}}
+      component={SearchScreen}
+    />
+    <HomeStack.Screen
       name="Profiles"
       options={{headerShown: false}}
       component={ProfilePage}
@@ -187,6 +193,20 @@ const HomeStackScreens = () => (
       }}
       component={NotificationScreen}
     />
+    <HomeStack.Screen
+      name="TempleList"
+      options={{
+        headerShown: false,
+      }}
+      component={TempleList}
+    />
+  </HomeStack.Navigator>
+);
+
+const TempleListStack = () => (
+  <HomeStack.Navigator screenOptions={{headerShown: false}}>
+    <HomeStack.Screen name="TempleList" component={TempleList} />
+    <HomeStack.Screen name="TempleDetails" component={TempleDetails} />
   </HomeStack.Navigator>
 );
 
@@ -210,10 +230,7 @@ const JeevaniScreenStack = () => {
       <JeevaniStack.Screen
         name="ViewPDF"
         options={{
-          headerShown: true,
-          title: 'PDF Viewer',
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
+          headerShown: false,
         }}
         component={ViewPdf}
       />
@@ -241,22 +258,19 @@ const renderTabIcon =
   ({focused}) => {
     if (focused) {
       return (
-        <LinearGradient
-          colors={['rgba(248,175,83,1)', 'rgba(192,108,75,1)']}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 1}}
+        <View
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
             justifyContent: 'center',
             alignItems: 'center',
+            backgroundColor: colors.PRIMARY_BUTTON,
           }}>
           <Icon size={20} color="#fff" strokeWidth={2} />
-        </LinearGradient>
+        </View>
       );
     }
-
     return <Icon size={22} color="#B5B5B5" strokeWidth={2} />;
   };
 
@@ -281,6 +295,21 @@ const renderTabImage =
 
 const Tab = createBottomTabNavigator();
 
+const FLOATING_TAB_BAR_STYLE = {
+  position: 'absolute',
+  bottom: 20,
+  left: 20,
+  right: 20,
+  elevation: 5,
+  backgroundColor: '#fff',
+  borderRadius: 15,
+  height: 64,
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowOffset: {width: 0, height: 5},
+  shadowRadius: 10,
+};
+
 export default function BottomNavigation() {
   const navigation = useNavigation();
 
@@ -290,48 +319,44 @@ export default function BottomNavigation() {
         tabBarShowLabel: false,
         headerShown: true,
         tabBarActiveTintColor: colors.PRIMARY_BUTTON,
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
-          elevation: 5,
-          backgroundColor: '#fff',
-          borderRadius: 15,
-          height: 64,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowOffset: {width: 0, height: 5},
-          shadowRadius: 10,
-        },
+        tabBarStyle: FLOATING_TAB_BAR_STYLE,
       }}>
       <Tab.Screen
         name="Home"
         component={HomeStackScreens}
-        options={{
-          tabBarIcon: renderTabIcon(Home),
-          headerShown: false,
+        options={({route}) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
+          const hideBar = routeName === 'YouTubePlayer';
+          return {
+            tabBarIcon: renderTabIcon(Home),
+            headerShown: false,
+            tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
+          };
         }}
       />
       <Tab.Screen
         name="Jevaani"
         component={JeevaniScreenStack}
-        options={{
-          tabBarIcon: renderTabIcon(BookOpen),
-          headerShown: false,
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
+        options={({route}) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'Jevaani';
+          const hideBar = routeName === 'ViewPDF';
+          return {
+            tabBarIcon: renderTabIcon(BookOpen),
+            headerShown: false,
+            headerTitleAlign: 'center',
+            headerTitleStyle: {fontSize: 18},
+            tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
+          };
         }}
       />
 
-<Tab.Screen
-        name="Jevaaeni"
-        component={JeevaniScreenStack}
+      <Tab.Screen
+        name="Temples"
+        component={TempleListStack}
         options={{
           tabBarIcon: renderTabIcon(MapPin),
           headerShown: false,
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
+          tabBarStyle: FLOATING_TAB_BAR_STYLE,
         }}
       />
 
@@ -356,6 +381,7 @@ export default function BottomNavigation() {
         options={{
           tabBarIcon: renderTabIcon(PlayCircle),
           headerShown: false,
+          tabBarStyle: FLOATING_TAB_BAR_STYLE,
         }}
       />
 
@@ -377,6 +403,7 @@ export default function BottomNavigation() {
           ),
           headerTitleAlign: 'center',
           headerTitleStyle: {fontSize: 18},
+          tabBarStyle: FLOATING_TAB_BAR_STYLE,
         }}
       />
     </Tab.Navigator>

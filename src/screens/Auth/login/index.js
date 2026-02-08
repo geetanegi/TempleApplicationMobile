@@ -5,9 +5,12 @@ import {
   ScrollView,
   Pressable,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { colors, APP_TEXT, NAVIGATION } from '../../../global/theme';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
 import AdminInput from '../../../components/adminInput';
 import TransparentHeader from '../../../components/TransparentHeader';
 import ApplicationButton from '../../../components/ApplicationButton';
@@ -104,14 +107,19 @@ const Login = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Cream Header */}
-      <View style={styles.topBg} />
+      {/* Cream to White Gradient Header */}
+      <LinearGradient
+        colors={['#F5D19A', '#FFFFFF']}
+        style={styles.topBg}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <TransparentHeader />
 
         {/* App Logo */}
-        <Text style={styles.brand}>JainSansaar</Text>
+        <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
 
         {/* White Sheet */}
         <View style={styles.card}>
@@ -123,6 +131,10 @@ const Login = ({ navigation }) => {
             value={inputs.username}
             error={errors.username}
             onChangeText={t => handleChange(t, 'username')}
+            inputBackgroundColor="#FFF"
+            inputTextColor="#000"
+            placeholderColor="#6B7280"
+            inputFontSize={12}
           />
 
           <View style={styles.gap} />
@@ -134,15 +146,21 @@ const Login = ({ navigation }) => {
             value={inputs.password}
             error={errors.password}
             onChangeText={t => handleChange(t, 'password')}
+            inputBackgroundColor="#FFF"
+            inputTextColor="#000"
+            placeholderColor="#6B7280"
+            inputFontSize={12}
           />
 
           {/* Remember me */}
           <View style={styles.row}>
-            <Checkbox
-              isChecked={isChecked}
-              onClick={() => setIsChecked(!isChecked)}
-              checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
-            />
+            <View style={styles.checkboxWrap}>
+              <Checkbox
+                isChecked={isChecked}
+                onClick={() => setIsChecked(!isChecked)}
+                checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
+              />
+            </View>
             <Text style={styles.remember}>Remember me?</Text>
           </View>
 
@@ -150,7 +168,10 @@ const Login = ({ navigation }) => {
             label="Login"
             backgroundColor={colors.PRIMARY_BUTTON}
             onButtonPress={onLogin}
-            icon="send"
+            icon="login"
+            iconSet="MaterialCommunityIcons"
+            labelFontSize={10}
+            style={styles.loginButton}
           />
 
           {/* Links */}
@@ -177,6 +198,7 @@ const Login = ({ navigation }) => {
 
       {/* Bottom Swipe Section */}
       <View style={styles.bottomSwipe}>
+        <MaterialCommunityIcons name="arrow-up-circle" size={18} color="#000" style={styles.swipeIcon} />
         <Text style={styles.swipeText}>New User? Swipe Up</Text>
       </View>
 
@@ -211,11 +233,11 @@ const styles = StyleSheet.create({
     paddingBottom: 160,
   },
 
-  brand: {
-    textAlign: 'center',
-    fontSize: 26,
-    fontWeight: '700',
-    marginVertical: 20,
+  logo: {
+    width: 180,
+    height: 48,
+    alignSelf: 'center',
+    marginVertical: 60,
   },
 
   card: {
@@ -225,16 +247,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFF',
     padding: 18,
+    marginTop: 28,
   },
 
   title: {
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 24,
+    color: '#000',
+    textAlign: 'center',
   },
 
   gap: {
-    height: 14,
+    height: 10,
   },
 
   row: {
@@ -245,14 +270,20 @@ const styles = StyleSheet.create({
 
   remember: {
     marginLeft: 10,
-    fontSize: 14,
+    fontSize: 10,
+    color: '#000',
+  },
+
+  loginButton: {
+    alignSelf: 'center',
+    width: '90%',
   },
 
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
+    color: '#000',
+    marginBottom: 4,
     letterSpacing: 0.4,
   },
 
@@ -263,12 +294,14 @@ const styles = StyleSheet.create({
   },
 
   linkText: {
-    fontSize: 13,
+    fontSize: 11,
+    color: '#000',
   },
 
   link: {
     color: colors.PRIMARY_BUTTON,
     fontWeight: '600',
+    fontSize: 11,
   },
 
   bottomSwipe: {
@@ -284,8 +317,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  swipeIcon: {
+    marginBottom: 6,
+  },
+
   swipeText: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '600',
+    color: '#000',
+  },
+  checkboxWrap: {
+    transform: [{ scale: 0.52 }],
+    marginLeft: -2,
   },
 });

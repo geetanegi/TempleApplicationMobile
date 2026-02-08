@@ -1,4 +1,4 @@
-import React, {useState, useMemo} from 'react';
+import React, {useState, useMemo, useCallback} from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   StatusBar,
   Linking,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -182,6 +183,13 @@ const gridItems = [
 export default function VideosReelsScreen() {
   const nav = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setSelectedCategory('All');
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
   
   // Process videos to generate thumbnails from URLs if not provided
   const processedVideos = videosData.map(video => ({
@@ -339,6 +347,14 @@ export default function VideosReelsScreen() {
           renderItem={renderVideoCard}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.orange]}
+              tintColor={COLORS.orange}
+            />
+          }
           ListHeaderComponent={() => (
             <View style={styles.gridContainer}>
               <FlatList

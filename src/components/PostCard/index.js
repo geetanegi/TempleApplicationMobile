@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useState} from 'react';
+import React, {useMemo, useRef, useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   Animated,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import {
   Heart,
   MessageCircle,
@@ -20,11 +20,20 @@ import {
   Archive,
   Clock3,
 } from 'lucide-react-native';
+import { colors } from '../../global/theme';
 import Share from 'react-native-share';
 import CommentScreen from '../../screens/dashboard/comment';
-
-const ORANGE_1 = 'rgba(248,175,83,1)';
-const ORANGE_2 = 'rgba(192,108,75,1)';
+import {
+  likePost,
+  unlikePost,
+  sharePost,
+  unsharePost,
+  follow,
+  unfollow,
+  isFollowing,
+  getComments,
+  commentOnPost,
+} from '../../utils/apicalls/socialHandler';
 
 const PostCard = ({
   userName = 'Camila',
@@ -39,11 +48,28 @@ const PostCard = ({
   shareUrl, // optional: pass actual url from parent
   onDelete, // optional callbacks
   onArchive,
+  // Social API: when set, like/follow/comment call backend
+  postId,
+  authorUserId,
+  currentUserId,
+  onLikeChange, // (newLiked, newCount) after like/unlike
+  onFollowChange, // (newFollowing) after follow/unfollow
+  initialIsLiked = false,
+  initialIsShared = false,
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
 
   const [visible, setVisible] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [likeCount, setLikeCount] = useState(likes);
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [commentList, setCommentList] = useState(Array.isArray(comments) ? comments : []);
+  const [shareCount, setShareCount] = useState(shares);
+  const [isShared, setIsShared] = useState(initialIsShared);
+  const commentsFetched = useRef(false);
+  const isFollowingFetched = useRef(false);
+  const lastLikePressRef = useRef(0);
 
   const menuBtnRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,8 +78,91 @@ const PostCard = ({
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const likeCount = likes + (isLiked ? 1 : 0);
-  const commentCount = comments?.length ?? 0;
+  const displayLikeCount = likeCount;
+  const commentCount = typeof comments === 'number'
+    ? (commentList.length > 0 ? commentList.length : comments)
+    : (commentList?.length ?? (Array.isArray(comments) ? comments.length : 0));
+  const displayShareCount = shareCount;
+
+  const lastSyncedPostIdRef = useRef(null);
+
+  // Sync from parent only when postId changes (different post). Stops initialIsLiked from overwriting user's unlike.
+  React.useEffect(() => {
+    if (lastSyncedPostIdRef.current !== postId) {
+      lastSyncedPostIdRef.current = postId;
+      setLikeCount(likes);
+      setShareCount(shares);
+      setIsLiked(!!initialIsLiked);
+      setIsShared(!!initialIsShared);
+    }
+  }, [postId, likes, shares, initialIsLiked, initialIsShared]);
+
+  // Fetch is-following state when we have author + current user
+  React.useEffect(() => {
+    if (authorUserId == null || currentUserId == null || authorUserId === currentUserId) return;
+    if (isFollowingFetched.current) return;
+    isFollowingFetched.current = true;
+    isFollowing(currentUserId, authorUserId)
+      .then(res => {
+        const data = res?.data;
+        setIsFollowingAuthor(!!data);
+      })
+      .catch(() => {});
+  }, [authorUserId, currentUserId]);
+
+  const handleFollow = useCallback(async () => {
+    if (authorUserId == null || currentUserId == null || authorUserId === currentUserId || followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowingAuthor) {
+        await unfollow(currentUserId, authorUserId);
+        setIsFollowingAuthor(false);
+        onFollowChange?.(false);
+      } else {
+        await follow(currentUserId, authorUserId);
+        setIsFollowingAuthor(true);
+        onFollowChange?.(true);
+      }
+    } catch (e) {
+      console.warn('Follow API error:', e);
+    } finally {
+      setFollowLoading(false);
+    }
+  }, [authorUserId, currentUserId, isFollowingAuthor, followLoading, onFollowChange]);
+
+  const normalizeComment = useCallback((c) => ({
+    ...c,
+    text: c.content != null ? c.content : c.text,
+    user: typeof c.user === 'object' ? (c.user?.username || c.user?.name || 'User') : (c.user || 'User'),
+    avatar: typeof c.user === 'object' ? c.user?.userProfile || c.user?.profileImageUrl : undefined,
+  }));
+
+  const openComments = useCallback(() => {
+    if (postId != null && currentUserId != null && !commentsFetched.current) {
+      commentsFetched.current = true;
+      getComments(postId).then(res => {
+        const data = res?.data;
+        const list = Array.isArray(data) ? data.map(normalizeComment) : [];
+        setCommentList(list);
+      }).catch(() => {});
+    } else if (!postId) {
+      setCommentList(comments ?? []);
+    }
+    setVisible(true);
+  }, [postId, currentUserId, comments, normalizeComment]);
+
+  const handleSubmitComment = useCallback(async (content) => {
+    if (!content?.trim() || postId == null || currentUserId == null) return;
+    try {
+      await commentOnPost(postId, currentUserId, content.trim());
+      const res = await getComments(postId);
+      const data = res?.data;
+      const list = Array.isArray(data) ? data.map(normalizeComment) : [];
+      setCommentList(list);
+    } catch (e) {
+      console.warn('Comment API error:', e);
+    }
+  }, [postId, currentUserId, normalizeComment]);
 
   const shortText = useMemo(() => {
     if (!contentText) return '';
@@ -61,8 +170,20 @@ const PostCard = ({
     return contentText.slice(0, 90).trim();
   }, [contentText]);
 
-  const handleLike = () => {
-    setIsLiked(prev => !prev);
+  const handleLike = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastLikePressRef.current < 500) return;
+    lastLikePressRef.current = now;
+
+    const nextLiked = !isLiked;
+    const prevLiked = isLiked;
+    const prevCount = likeCount;
+
+    // Optimistic update: change UI immediately
+    setIsLiked(nextLiked);
+    const newCount = nextLiked ? likeCount + 1 : Math.max(0, likeCount - 1);
+    setLikeCount(newCount);
+    onLikeChange?.(nextLiked, newCount);
 
     Animated.spring(scaleAnim, {
       toValue: 1.12,
@@ -77,18 +198,29 @@ const PostCard = ({
         tension: 120,
       }).start();
     });
-  };
+
+    if (postId != null && currentUserId != null) {
+      try {
+        if (nextLiked) await likePost(postId, currentUserId);
+        else await unlikePost(postId, currentUserId);
+      } catch (e) {
+        const status = e?.status ?? e?.response?.status;
+        const msg = e?.message ?? e?.response?.data?.message;
+        console.warn('Like/Unlike API error:', { action: nextLiked ? 'like' : 'unlike', status, message: msg, fullError: e });
+        // Revert on failure
+        setIsLiked(prevLiked);
+        setLikeCount(prevCount);
+        onLikeChange?.(prevLiked, prevCount);
+      }
+    }
+  }, [isLiked, postId, currentUserId, likeCount, onLikeChange, scaleAnim]);
 
   const ActionPill = ({icon, count}) => {
     return (
-      <LinearGradient
-        colors={[ORANGE_1, ORANGE_2]}
-        start={{x: 0, y: 0}}
-        end={{x: 1, y: 1}}
-        style={styles.pill}>
+      <View style={styles.pill}>
         {icon}
         <Text style={styles.pillText}>{count}</Text>
-      </LinearGradient>
+      </View>
     );
   };
 
@@ -116,22 +248,29 @@ const PostCard = ({
     });
   };
 
-  const share = async url => {
+  const handleShare = useCallback(async () => {
+    const url = shareUrl || 'https://example.com';
     try {
-      const options = {
+      await Share.open({
         title: 'Share',
-        message: 'Check this out',
-        url: url,
-      };
-      const res = await Share.open(options);
-      console.log('Share result:', res);
+        message: contentText || 'Check this out',
+        url,
+      });
+      if (postId != null && currentUserId != null && !isShared) {
+        try {
+          await sharePost(postId, currentUserId);
+          setIsShared(true);
+          setShareCount(c => c + 1);
+        } catch (e) {
+          console.warn('Share API error:', e);
+        }
+      }
     } catch (err) {
-      // User cancelled share => ignore
       if (err?.message !== 'User did not share') {
         console.log('Share error:', err);
       }
     }
-  };
+  }, [shareUrl, contentText, postId, currentUserId, isShared]);
 
   return (
     <>
@@ -161,15 +300,21 @@ const PostCard = ({
 
           <View style={styles.headerRight}>
             {/* Follow button */}
-            <Pressable>
-              <LinearGradient
-                colors={[ORANGE_1, ORANGE_2]}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 1}}
-                style={styles.followBtn}>
-                <Text style={styles.followText}>Follow</Text>
-              </LinearGradient>
-            </Pressable>
+            {authorUserId != null && currentUserId != null && authorUserId !== currentUserId && (
+              <Pressable onPress={handleFollow} disabled={followLoading}>
+                <View
+                  style={[
+                    styles.followBtn,
+                    {backgroundColor: isFollowingAuthor ? '#888' : colors.PRIMARY_BUTTON},
+                  ]}>
+                  {followLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.followText}>{isFollowingAuthor ? 'Following' : 'Follow'}</Text>
+                  )}
+                </View>
+              </Pressable>
+            )}
 
             {/* Menu button (3 dots) */}
             <Pressable ref={menuBtnRef} hitSlop={12} onPress={openMenuNextToButton}>
@@ -236,13 +381,13 @@ const PostCard = ({
           <View style={styles.actionCol}>
             <Pressable onPress={handleLike}>
               <ActionPill
-                count={formatCount(likeCount)}
+                count={formatCount(displayLikeCount)}
                 icon={
                   <Animated.View style={{transform: [{scale: scaleAnim}]}}>
                     <Heart
-                      size={18}
-                      color="#fff"
-                      fill={isLiked ? '#fff' : 'transparent'}
+                      size={20}
+                      color={isLiked ? '#ef4444' : colors.PRIMARY_DARK}
+                      fill={isLiked ? '#ef4444' : 'transparent'}
                     />
                   </Animated.View>
                 }
@@ -251,19 +396,19 @@ const PostCard = ({
           </View>
 
           <View style={styles.actionCol}>
-            <Pressable onPress={() => setVisible(true)}>
+            <Pressable onPress={openComments}>
               <ActionPill
                 count={formatCount(commentCount)}
-                icon={<MessageCircle size={18} color="#fff" />}
+                icon={<MessageCircle size={20} color={colors.PRIMARY_DARK} />}
               />
             </Pressable>
           </View>
 
           <View style={styles.actionCol}>
-            <Pressable onPress={() => share(shareUrl || 'https://example.com')}>
+            <Pressable onPress={handleShare}>
               <ActionPill
-                count={formatCount(shares)}
-                icon={<Send size={18} color="#fff" />}
+                count={formatCount(displayShareCount)}
+                icon={<Send size={20} color={colors.PRIMARY_DARK} />}
               />
             </Pressable>
           </View>
@@ -274,7 +419,8 @@ const PostCard = ({
       <CommentScreen
         visible={visible}
         setVisible={setVisible}
-        comment={comments}
+        comment={commentList}
+        onSendComment={postId != null && currentUserId != null ? handleSubmitComment : undefined}
       />
     </>
   );
@@ -297,11 +443,13 @@ const styles = StyleSheet.create({
     padding: 16,
     marginVertical: 12,
 
+    // Box shadow in all directions (iOS)
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: {width: 0, height: 6},
-    elevation: 2,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    // Android
+    elevation: 8,
   },
 
   header: {
@@ -415,8 +563,9 @@ const styles = StyleSheet.create({
   },
 
   pillText: {
-    color: '#fff',
-    fontSize: 15,
+    // color: '#fff',
+    color: colors.PRIMARY_DARK,
+    fontSize: 16,
     fontWeight: '900',
   },
 

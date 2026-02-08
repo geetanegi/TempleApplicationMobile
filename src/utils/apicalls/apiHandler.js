@@ -25,13 +25,11 @@ export const handleFailedResponse = (err, reject) => {
 };
 
 export const handleSuccessResponse = (res, resolve, reject) => {
-//  console.log('postApi res.status', res.data);
-  if (res.status === 200) {
-
-   // console.log('postApi res.status:200', res.data);
+  const status = res?.status ?? 0;
+  const is2xx = status >= 200 && status < 300;
+  if (is2xx) {
     resolve(res.data);
   } else {
-    //console.log('postApi res.status:failed', res.data);
-    reject({status: res.status, message: res.data?.message});
+    reject({ status, message: res?.data?.message });
   }
 };
