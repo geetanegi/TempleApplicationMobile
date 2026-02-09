@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Star, ChevronRight, Menu, Bell, MessageCircle } from 'lucide-react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -157,6 +157,12 @@ const TempleLocator = () => {
   useEffect(() => {
     fetchCurrentLocation();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCurrentLocation();
+    }, []),
+  );
 
   const filteredTemples = useMemo(() => {
     const q = searchText.trim().toLowerCase();

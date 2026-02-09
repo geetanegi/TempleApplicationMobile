@@ -1,48 +1,27 @@
 import {
   StyleSheet,
   Text,
-  Image,
-  Pressable,
-  KeyboardAvoidingView,
+  View,
   ScrollView,
   Keyboard,
-  Platform,
-  Linking,
   TouchableOpacity,
-  ImageBackground,
+  SafeAreaView,
+  Image,
 } from 'react-native';
 
-import React, {useState, useRef, useEffect} from 'react';
-import st from '../../../global/styles';
+import React, { useState } from 'react';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import {colors, images, APP_TEXT, NAVIGATION} from '../../../global/theme';
-import Button from '../../../components/button';
-import {useDispatch, useSelector} from 'react-redux';
-import {setLogin} from '../../../redux/reducers/Login';
-import LoginImg from '../../../components/loginImage';
 import {API} from '../../../utils/endpoints';
 import Loader from '../../../components/loader';
-import {
-  ValidateMobile,
-  ValueEmpty,
-  ValidatePassword,
-  ValidateUserName,
-} from '../../../utils/helperfunctions/validations';
-import {View} from 'react-native-animatable';
+import {ValidatePassword} from '../../../utils/helperfunctions/validations';
 import AdminInput from '../../../components/adminInput';
 import ApplicationButton from '../../../components/ApplicationButton';
 import Toast from 'react-native-simple-toast';
-import DeviceInfo from 'react-native-device-info';
-import {setLogindata} from '../../../redux/reducers/Logindata';
 import PopUpMessage from '../../../components/popup';
-import {onLogin} from '../../../utils/helperfunctions/tiggerfunction';
-import {requestLocationPermission} from '../../../utils/helperfunctions/location';
 import {postNoAuth} from '../../../utils/apicalls/postApi';
-import {storeTokenData} from '../../../utils/apicalls/tokenApi';
-import useNetworkStatus from '../../../hooks/networkStatus';
-import {environment} from '../../../utils/constant';
-import PrivacyPolicy from '../../../components/PrivacyPolicy';
-import Background from '../../../components/backgroundimg';
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import TransparentHeader from '../../../components/TransparentHeader';
 
 const INITIALINPUT = {
   password: '',
@@ -53,30 +32,21 @@ const ChangePassword = ({navigation, route}) => {
   const [inputs, setInputs] = useState(INITIALINPUT);
   const [errors, setErrors] = useState(INITIALINPUT);
   const [isLoading, setIsLoading] = useState(false);
-  const [myDeviceInfo, setMyDeviceInfo] = useState('');
   const [title, setTitle] = useState();
   const [subtitle, setSubtitle] = useState('');
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
   const [warning, setWarning] = useState(false);
-  const isConnected = useNetworkStatus();
-  const dispatch = useDispatch();
 
   const handleOnchange = (text, input) => {
-    if (input == 'password') {
+    if (input === 'password') {
       const validPassword = ValidatePassword(text);
-      if (validPassword == 'success') {
-        handleError('', 'password');
-      } else {
-        handleError(validPassword, 'password');
-        isValid = false;
-      }
-    } else if (input == 'confirmPassword') {
-      if (inputs.password != text) {
+      handleError(validPassword === 'success' ? '' : validPassword, 'password');
+    } else if (input === 'confirmPassword') {
+      if (inputs.password !== text) {
         handleError(
           'The passwords do not match. Please ensure both password fields are identical',
           'confirmPassword',
         );
-        isValid = false;
       } else {
         handleError('', 'confirmPassword');
       }
@@ -116,10 +86,17 @@ const ChangePassword = ({navigation, route}) => {
   };
 
   const handleSubmitPress = async () => {
+    const resetToken = route?.params?.item?.token;
+    if (!resetToken) {
+      setTitle('Error');
+      setSubtitle('Invalid session. Please request a new OTP.');
+      setPopupMessageVisibility(true);
+      return;
+    }
     const url = API.RESET_PASSWORD;
     const params = {
       password: inputs?.password,
-      token: route?.params?.item.token,
+      token: resetToken,
     };
     setIsLoading(true);
     postNoAuth(url, params)
@@ -155,18 +132,6 @@ const ChangePassword = ({navigation, route}) => {
       });
   };
 
-  const getInfoHandle = async () => {
-    let deviceId = DeviceInfo.getDeviceId();
-    const deviceName = await DeviceInfo.getDeviceName();
-    const data = {
-      deviceId,
-      deviceName,
-    };
-    setMyDeviceInfo(data);
-    await requestLocationPermission();
-  };
-
-  useEffect(() => {}, []);
 
   const isEmpty = str => {
     return !str || str.trim() === '';
@@ -206,120 +171,152 @@ const ChangePassword = ({navigation, route}) => {
   };
 
   return (
-    <ImageBackground style={{flex: 1}} source={images.loginBG}>
-      <ScrollView keyboardShouldPersistTaps={'handled'}>
-        <View style={[st.card, st.mt_t300, styles.container]}>
-          {/* <LoginImg /> */}
-          <View
-            style={{
-              width: '100%',
-              paddingVertical: 30,
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                color: colors.PRIMARY_DARK,
-                lineHeight: 19.1,
-                padding: 5,
-                fontSize: 24,
-                textAlign: 'center',
-              }}>
-              {APP_TEXT.RESET_YOUR_PASSWORD}
-            </Text>
-          </View>
-          <View style={[st.fcardsty, st.shadowProp]}>
-            <View>
-              <AdminInput
-                isRequired
-                holderName={APP_TEXT.LOGIN_PASSWORD}
-                onChangeText={text => {
-                  handleOnchange(text, 'password');
-                }}
-                onFocus={() => handleError(null, 'password')}
-                error={errors?.password}
-                value={inputs?.password}
-                iconName={''}
-                label={''}
-              />
-            </View>
-            <View style={st.mt_t20}>
-              <AdminInput
-                isRequired
-                holderName={APP_TEXT.CONFIRM_PASSWORD}
-                onChangeText={text => {
-                  handleOnchange(text, 'confirmPassword');
-                }}
-                onFocus={() => handleError(null, 'confirmPassword')}
-                error={errors?.confirmPassword}
-                value={inputs?.confirmPassword}
-                iconName={''}
-                label={''}
-              />
-            </View>
+    <SafeAreaView style={styles.safe}>
+      <LinearGradient
+        colors={['#F5D19A', '#FFFFFF']}
+        style={styles.topBg}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+        <TransparentHeader />
+        <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
 
-            <View style={[st.mt_B10]}>
-              <ApplicationButton
-                backgroundColor={colors.PRIMARY_BUTTON}
-                label={APP_TEXT.RESET_BUTTON}
-                onButtonPress={() => {
-                  validation();
-                }}
-              />
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate(NAVIGATION.TO_LOGIN);
-              }}>
-              <Text
-                style={[
-                  styles.txtSignUp,
-                  {
-                    color: colors.PRIMARY_BLUE_TEXT,
-                    alignSelf: 'center',
-                    lineHeight: 19.1,
-                    padding: 5,
-                  },
-                ]}>
-                {APP_TEXT.BACK_TO_LOGIN}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.card}>
+          <Text style={styles.title}>{APP_TEXT.RESET_YOUR_PASSWORD}</Text>
+          <Text style={styles.subtitle}>Enter your new password below.</Text>
+
+          <Text style={styles.fieldLabel}>NEW PASSWORD</Text>
+          <AdminInput
+            isRequired
+            holderName={APP_TEXT.LOGIN_PASSWORD}
+            onChangeText={text => handleOnchange(text, 'password')}
+            onFocus={() => handleError(null, 'password')}
+            error={errors?.password}
+            value={inputs?.password}
+            password
+            inputBackgroundColor="#FFF"
+            inputTextColor="#000"
+            placeholderColor="#6B7280"
+            inputFontSize={12}
+          />
+          <View style={styles.gap} />
+          <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
+          <AdminInput
+            isRequired
+            holderName={APP_TEXT.CONFIRM_PASSWORD}
+            onChangeText={text => handleOnchange(text, 'confirmPassword')}
+            onFocus={() => handleError(null, 'confirmPassword')}
+            error={errors?.confirmPassword}
+            value={inputs?.confirmPassword}
+            password
+            inputBackgroundColor="#FFF"
+            inputTextColor="#000"
+            placeholderColor="#6B7280"
+            inputFontSize={12}
+          />
+
+          <ApplicationButton
+            backgroundColor={colors.PRIMARY_BUTTON}
+            label={APP_TEXT.RESET_BUTTON}
+            onButtonPress={() => validation()}
+            icon="lock-reset"
+            iconSet="MaterialCommunityIcons"
+            labelFontSize={10}
+            style={styles.resetButton}
+          />
+
+          <TouchableOpacity onPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)} style={styles.backWrap}>
+            <Text style={styles.backLink}>{APP_TEXT.BACK_TO_LOGIN}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <View style={styles.bottomSwipe}>
+        <MaterialCommunityIcons name="arrow-up-circle" size={18} color="#000" style={styles.swipeIcon} />
+        <Text style={styles.swipeText}>{APP_TEXT.BACK_TO_LOGIN}</Text>
+      </View>
+
       {isLoading && <Loader />}
       {show_alert_msg()}
-    </ImageBackground>
+    </SafeAreaView>
   );
 };
 
 export default ChangePassword;
 
 const styles = StyleSheet.create({
-  gustBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: colors.white,
-    borderRadius: 8,
+  safe: { flex: 1, backgroundColor: '#FFF' },
+  topBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
   },
-  logincon: {
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    backgroundColor: colors.white,
-    padding: 20,
-    flex: 1,
+  scrollContent: { paddingBottom: 120 },
+  logo: {
+    width: 180,
+    height: 48,
+    alignSelf: 'center',
+    marginVertical: 32,
   },
-  container: {
+  card: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    borderWidth: 1,
+    borderColor: '#FFFF',
+    padding: 18,
+    marginTop: 12,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 6,
+    color: '#000',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+    letterSpacing: 0.4,
+  },
+  gap: { height: 10 },
+  resetButton: {
+    alignSelf: 'center',
+    width: '90%',
+    marginTop: 20,
+  },
+  backWrap: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  backLink: {
+    fontSize: 11,
+    color: colors.PRIMARY_BUTTON,
+    fontWeight: '600',
+  },
+  bottomSwipe: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+    backgroundColor: '#F5D19A',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 10,
-    marginHorizontal: 16,
   },
-  txtSignUp: {
-    fontSize: 14,
-    color: colors.PRIMARY_SOLID_TEXT,
-    // fontFamily: family.semibold,
-    textAlign: 'center',
-    // letterSpacing: 0.6,
-  },
+  swipeIcon: { marginBottom: 6 },
+  swipeText: { fontSize: 10, fontWeight: '600', color: '#000' },
 });

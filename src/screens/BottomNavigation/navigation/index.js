@@ -46,9 +46,11 @@ import VideoPlayer from '../../../components/VideoPlayer';
 import SubCategoryPage from '../../dashboard/jeevani/subCategory';
 import JevaaniScreen from '../../dashboard/jeevani';
 import SearchScreen from '../../dashboard/search';
-import ProfileEditScreen from '../../dashboard/editProfile/editProfile';
+import EditProfileScreen from '../../dashboard/Profile/EditProfileScreen';
 import ViewPdf from '../../dashboard/Pdf/ViewPdf';
 import ImageScreen from '../../dashboard/Main/imageScreen';
+import StoryUploadScreen from '../../dashboard/Main/StoryUploadScreen';
+import StoryViewScreen from '../../dashboard/Main/StoryViewScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
 import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
 import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
@@ -59,7 +61,6 @@ import {
   BookOpen,
   MapPin,
   PlayCircle,
-  User,
 } from 'lucide-react-native';
 
 // --------------------------------
@@ -70,6 +71,10 @@ const JeevaniStack = createStackNavigator();
 
 
 import ProfileScreen from '../../dashboard/Profile/Profilepage';
+import PostPreviewScreen from '../../dashboard/Profile/PostPreviewScreen';
+import FollowListScreen from '../../dashboard/Profile/FollowListScreen';
+import ChatListScreen from '../../dashboard/chat/ChatListScreen';
+import ChatScreen from '../../dashboard/chat/ChatScreen';
 
 
 
@@ -102,6 +107,19 @@ const ProfileStack = () => (
       name="AllLeaderBoardVedio"
       component={AllLeaderBoardVedio}
     />
+  </HomeStack.Navigator>
+);
+
+/** Stack for Profile tab: profile screen + followers/following list. FollowList has no stack header (custom header inside screen). */
+const ProfileTabStack = () => (
+  <HomeStack.Navigator screenOptions={{headerShown: false}}>
+    <HomeStack.Screen name="ProfileMain" component={ProfileScreen} />
+    <HomeStack.Screen
+      name="FollowList"
+      options={{ headerShown: false }}
+      component={FollowListScreen}
+    />
+    <HomeStack.Screen name="Profiles" component={ProfileScreen} />
   </HomeStack.Navigator>
 );
 
@@ -158,6 +176,16 @@ const HomeStackScreens = () => (
       component={SearchScreen}
     />
     <HomeStack.Screen
+      name="StoryUploadScreen"
+      options={{headerShown: false}}
+      component={StoryUploadScreen}
+    />
+    <HomeStack.Screen
+      name="StoryViewScreen"
+      options={{headerShown: false}}
+      component={StoryViewScreen}
+    />
+    <HomeStack.Screen
       name="Profiles"
       options={{headerShown: false}}
       component={ProfilePage}
@@ -165,7 +193,12 @@ const HomeStackScreens = () => (
     <HomeStack.Screen
       name="EditProfileScreen"
       options={{headerShown: true, title: 'Edit Profile'}}
-      component={ProfileEditScreen}
+      component={EditProfileScreen}
+    />
+    <HomeStack.Screen
+      name="CreatePost"
+      options={{headerShown: true, title: 'New Post'}}
+      component={ImagePicker}
     />
     <HomeStack.Screen name="Posts" component={PostScreen} />
     <HomeStack.Screen
@@ -178,6 +211,31 @@ const HomeStackScreens = () => (
       component={VideoPlayer}
     />
     <HomeStack.Screen
+      name="PostPreview"
+      options={{ headerShown: false }}
+      component={PostPreviewScreen}
+    />
+    <HomeStack.Screen
+      name="FollowList"
+      options={({ route }) => ({
+        headerShown: true,
+        title: route.params?.listType === 'following' ? 'Following' : 'Followers',
+        headerTitleAlign: 'center',
+        headerTitleStyle: { fontSize: 18, fontWeight: '700' },
+      })}
+      component={FollowListScreen}
+    />
+    <HomeStack.Screen
+      name="Chat"
+      options={{ headerShown: true, title: 'Messages', headerTitleAlign: 'center' }}
+      component={ChatListScreen}
+    />
+    <HomeStack.Screen
+      name="ChatScreen"
+      options={{ headerShown: true, headerTitleAlign: 'center' }}
+      component={ChatScreen}
+    />
+    <HomeStack.Screen
       name="YouTubePlayer"
       options={{
         headerShown: false,
@@ -188,7 +246,7 @@ const HomeStackScreens = () => (
       name="Notifications"
       options={{
         headerTitleAlign: 'center',
-        headerTitle: 'Video Player',
+        headerTitle: 'Notifications',
         headerTitleStyle: {fontSize: 18},
       }}
       component={NotificationScreen}
@@ -265,7 +323,7 @@ const renderTabIcon =
             borderRadius: 20,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: colors.PRIMARY_BUTTON,
+            backgroundColor: colors.orange,
           }}>
           <Icon size={20} color="#fff" strokeWidth={2} />
         </View>
@@ -318,7 +376,7 @@ export default function BottomNavigation() {
       screenOptions={{
         tabBarShowLabel: false,
         headerShown: true,
-        tabBarActiveTintColor: colors.PRIMARY_BUTTON,
+        tabBarActiveTintColor: colors.orange,
         tabBarStyle: FLOATING_TAB_BAR_STYLE,
       }}>
       <Tab.Screen
@@ -326,7 +384,7 @@ export default function BottomNavigation() {
         component={HomeStackScreens}
         options={({route}) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
-          const hideBar = routeName === 'YouTubePlayer';
+          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'ChatScreen';
           return {
             tabBarIcon: renderTabIcon(Home),
             headerShown: false,
@@ -387,9 +445,34 @@ export default function BottomNavigation() {
 
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: renderTabIcon(User),
+        component={ProfileTabStack}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
+          const hideBar = routeName === 'FollowList' || routeName === 'Profiles';
+          const isFollowList = routeName === 'FollowList';
+          return {
+          headerShown: !isFollowList,
+          tabBarIcon: ({focused}) => {
+            const color = focused ? '#fff' : '#B5B5B5';
+            const bg = focused ? colors.orange : 'transparent';
+            return (
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: bg,
+                }}>
+                <MaterialCommunityIcons
+                  name={focused ? 'account' : 'account-outline'}
+                  size={22}
+                  color={color}
+                />
+              </View>
+            );
+          },
           headerLeft: () => (
             <Pressable
               onPress={() => navigation.goBack()}
@@ -403,7 +486,8 @@ export default function BottomNavigation() {
           ),
           headerTitleAlign: 'center',
           headerTitleStyle: {fontSize: 18},
-          tabBarStyle: FLOATING_TAB_BAR_STYLE,
+          tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
+        };
         }}
       />
     </Tab.Navigator>

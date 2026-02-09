@@ -21,6 +21,7 @@ import VideoPlayerComp from '../screens/dashboard/videoPlayer';
 import BottomNavigator from '../screens/BottomNavigation/navigation';
 import CourceCart from '../screens/dashboard/betCentral/TeeScreen';
 import DrawerScreen from '../screens/dashboard/Profile/DrawerScreen';
+import PlaceholderScreen from '../screens/dashboard/Profile/PlaceholderScreen';
 import CourceDetails from '../screens/dashboard/betCentral/HoleScreen';
 import EnterQueueHome from '../screens/dashboard/EnterQueue/EnterQueueHome';
 import HighlightHub from '../screens/dashboard/HighlightHub';
@@ -111,6 +112,37 @@ const DrawerStack = () => {
           headerShown: false,
           drawerItemStyle: {height: 0},
         }}
+      />
+
+      <Drawer.Screen
+        name="AccountScreen"
+        component={PlaceholderScreen}
+        initialParams={{ title: 'Account' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="SupportScreen"
+        component={PlaceholderScreen}
+        initialParams={{ title: 'Support' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="PrivacyPolicyScreen"
+        component={PlaceholderScreen}
+        initialParams={{ title: 'Privacy Policy' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="TermsAndConditionScreen"
+        component={PlaceholderScreen}
+        initialParams={{ title: 'Terms & Condition' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="ConfigurationScreen"
+        component={PlaceholderScreen}
+        initialParams={{ title: 'Configuration' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
       />
 
       {/* // drawerContent={props => <CustomSidebarMenu {...props} />}> */}

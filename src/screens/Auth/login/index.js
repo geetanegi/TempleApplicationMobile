@@ -6,8 +6,9 @@ import {
   Pressable,
   SafeAreaView,
   Image,
+  PanResponder,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
@@ -44,6 +45,22 @@ const Login = ({ navigation }) => {
   const [subtitle, setSubtitle] = useState('');
 
   const dispatch = useDispatch();
+
+  const swipeUpToRegister = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, { dy }) => Math.abs(dy) > 15,
+        onPanResponderRelease: (_, { dy, dx }) => {
+          const isSwipeUp = dy < -30;
+          const isTap = Math.abs(dx) < 15 && Math.abs(dy) < 15;
+          if (isSwipeUp || isTap) {
+            navigation.navigate(NAVIGATION.TO_SIGNUP);
+          }
+        },
+      }),
+    [navigation],
+  );
 
   useEffect(() => {
     loadSavedCredentials();
@@ -134,7 +151,7 @@ const Login = ({ navigation }) => {
             inputBackgroundColor="#FFF"
             inputTextColor="#000"
             placeholderColor="#6B7280"
-            inputFontSize={12}
+            inputFontSize={15}
           />
 
           <View style={styles.gap} />
@@ -149,7 +166,7 @@ const Login = ({ navigation }) => {
             inputBackgroundColor="#FFF"
             inputTextColor="#000"
             placeholderColor="#6B7280"
-            inputFontSize={12}
+            inputFontSize={15}
           />
 
           {/* Remember me */}
@@ -170,7 +187,7 @@ const Login = ({ navigation }) => {
             onButtonPress={onLogin}
             icon="login"
             iconSet="MaterialCommunityIcons"
-            labelFontSize={10}
+            labelFontSize={14}
             style={styles.loginButton}
           />
 
@@ -196,9 +213,9 @@ const Login = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Bottom Swipe Section */}
-      <View style={styles.bottomSwipe}>
-        <MaterialCommunityIcons name="arrow-up-circle" size={18} color="#000" style={styles.swipeIcon} />
+      {/* Bottom Swipe Section - swipe up or tap to go to Register */}
+      <View style={styles.bottomSwipe} {...swipeUpToRegister.panHandlers}>
+        <MaterialCommunityIcons name="arrow-up-circle" size={24} color="#000" style={styles.swipeIcon} />
         <Text style={styles.swipeText}>New User? Swipe Up</Text>
       </View>
 
@@ -251,7 +268,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 24,
     color: '#000',
@@ -269,8 +286,8 @@ const styles = StyleSheet.create({
   },
 
   remember: {
-    marginLeft: 10,
-    fontSize: 10,
+    marginLeft: 12,
+    fontSize: 14,
     color: '#000',
   },
 
@@ -280,7 +297,7 @@ const styles = StyleSheet.create({
   },
 
   fieldLabel: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '600',
     color: '#000',
     marginBottom: 4,
@@ -294,14 +311,14 @@ const styles = StyleSheet.create({
   },
 
   linkText: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#000',
   },
 
   link: {
     color: colors.PRIMARY_BUTTON,
     fontWeight: '600',
-    fontSize: 11,
+    fontSize: 14,
   },
 
   bottomSwipe: {
@@ -322,12 +339,12 @@ const styles = StyleSheet.create({
   },
 
   swipeText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '600',
     color: '#000',
   },
   checkboxWrap: {
-    transform: [{ scale: 0.52 }],
+    transform: [{ scale: 0.95 }],
     marginLeft: -2,
   },
 });

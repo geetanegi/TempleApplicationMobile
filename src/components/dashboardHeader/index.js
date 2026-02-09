@@ -18,6 +18,7 @@ const HeaderDashboard = ({
   onLeftPress,
   onRightPress1,
   onRightPress2,
+  rightIcon1BadgeCount,
 }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -71,7 +72,16 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onRightPress1 ? onRightPress1 : () => handleNav(rightNav1)}
           >
-            <RightIcon1 size={22} color={colors.DARK_BLACK} fill={colors.white} />
+            <View style={styles.iconWrap}>
+              <RightIcon1 size={22} color={colors.DARK_BLACK} fill={colors.white} />
+              {rightIcon1BadgeCount != null && rightIcon1BadgeCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {rightIcon1BadgeCount > 99 ? '99+' : rightIcon1BadgeCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />
@@ -141,6 +151,26 @@ const styles = StyleSheet.create({
   logo: {
     height: 34,
     width: 170,
+  },
+  iconWrap: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#E53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
 

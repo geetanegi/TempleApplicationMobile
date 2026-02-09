@@ -7,9 +7,12 @@ import {
   Keyboard,
   BackHandler,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import React, { useState } from 'react';
-import { colors, APP_TEXT, NAVIGATION } from '../../../global/theme';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
 import AdminInput from '../../../components/adminInput';
 import TransparentHeader from '../../../components/TransparentHeader';
 import FullScreenLoader from '../../../components/FullScreenLoader';
@@ -93,9 +96,12 @@ const Signup = ({ navigation }) => {
           navigation.navigate(NAVIGATION.TO_OTP_SCREEN, { item: data });
         } else {
           setIsLoading(false);
-          setTitle('Oops!');
+          setTitle('Registration failed');
           setWarning(false);
-          setSubtitle(result?.description);
+          setSubtitle(
+            result?.description ||
+              'Something went wrong. Please try again.',
+          );
           setPopupMessageVisibility(true);
         }
       })
@@ -105,10 +111,17 @@ const Signup = ({ navigation }) => {
           setTitle('Warning!');
           setWarning(true);
         } else {
-          setTitle('Oops!');
+          setTitle('Registration failed');
           setWarning(false);
         }
-        setSubtitle(err?.message);
+        const msg =
+          err?.message ||
+          (typeof err?.response?.data === 'string'
+            ? err.response.data
+            : null) ||
+          (err?.response?.data?.description || err?.response?.data?.message) ||
+          'Something went wrong. Please try again.';
+        setSubtitle(msg);
         setPopupMessageVisibility(true);
       })
       .finally(() => {
@@ -274,8 +287,12 @@ const Signup = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Top cream section like Figma */}
-      <View style={styles.topBg} />
+      <LinearGradient
+        colors={['#F5D19A', '#FFFFFF']}
+        style={styles.topBg}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
 
       {loading && <FullScreenLoader visible={loading} />}
 
@@ -286,63 +303,81 @@ const Signup = ({ navigation }) => {
       >
         <TransparentHeader />
 
-        {/* White rounded card like screenshot */}
+        <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
+
         <View style={styles.card}>
           <Text style={styles.title}>Create your Account</Text>
 
           <View style={styles.form}>
+            <Text style={styles.fieldLabel}>FIRST NAME</Text>
             <AdminInput
               holderName={APP_TEXT.FIRST_NAME}
               isRequired
               onChangeText={text => handleOnchange(text, 'firstName')}
               error={errors?.firstName}
               value={inputs?.firstName}
-              iconName={''}
-              label={''}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>LAST NAME</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.LAST_NAME}
               onChangeText={text => handleOnchange(text, 'lastName')}
               error={errors?.lastName}
               value={inputs?.lastName}
-              iconName={''}
-              label={''}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>USERNAME</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.USER_NAME}
               onChangeText={text => handleOnchange(text, 'username')}
               error={errors?.username}
               value={inputs?.username}
-              iconName={''}
-              label={''}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>PASSWORD</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.LOGIN_PASSWORD}
               onChangeText={text => handleOnchange(text, 'password')}
               error={errors?.password}
               password
-              label={''}
               value={inputs?.password}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.CONFIRM_PASSWORD}
               onChangeText={text => handleOnchange(text, 'confirmPassword')}
               error={errors?.confirmPassword}
               password
-              label={''}
               value={inputs?.confirmPassword}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
@@ -356,50 +391,59 @@ const Signup = ({ navigation }) => {
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>EMAIL</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.EMAIL}
               onChangeText={text => handleOnchange(text, 'emailId')}
               error={errors?.emailId}
               value={inputs?.emailId}
-              iconName={''}
-              label={''}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>PHONE</Text>
             <AdminInput
               isRequired
               holderName={APP_TEXT.PHONE}
               onChangeText={text => handleOnchange(text, 'mobile')}
               error={errors?.mobile}
               value={inputs?.mobile}
-              iconName={''}
-              label={''}
               keyboardType={'numeric'}
+              inputBackgroundColor="#FFF"
+              inputTextColor="#000"
+              placeholderColor="#6B7280"
+              inputFontSize={15}
             />
 
-            {/* Keep your existing extras (remove if not needed) */}
             <View style={[styles.row, { marginTop: 14 }]}>
-              <Checkbox
-                isChecked={isCheckedTemple}
-                error={errors?.Terms}
-                onClick={() => setIsCheckedTemple(!isCheckedTemple)}
-                checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
-              />
+              <View style={styles.checkboxWrap}>
+                <Checkbox
+                  isChecked={isCheckedTemple}
+                  onClick={() => setIsCheckedTemple(!isCheckedTemple)}
+                  checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
+                />
+              </View>
               <Text style={styles.checkboxText}>{APP_TEXT.REGISTER_AS_TEMPLE}</Text>
             </View>
 
             {isCheckedTemple ? (
               <>
                 <View style={styles.gap} />
+                <Text style={styles.fieldLabel}>TEMPLE NAME</Text>
                 <AdminInput
                   isRequired
                   holderName={APP_TEXT.TEMPLE_NAME}
                   onChangeText={text => handleOnchange(text, 'templeName')}
                   error={errors?.templeName}
                   value={inputs?.templeName}
-                  iconName={''}
-                  label={''}
+                  inputBackgroundColor="#FFF"
+                  inputTextColor="#000"
+                  placeholderColor="#6B7280"
+                  inputFontSize={15}
                 />
               </>
             ) : null}
@@ -414,13 +458,13 @@ const Signup = ({ navigation }) => {
                 }
               >
                 <View style={styles.row}>
-                  <Checkbox
-                    isChecked={isChecked}
-                    error={errors?.Terms}
-                    onClick={() => setIsChecked(!isChecked)}
-                    checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
-                  />
-
+                  <View style={styles.checkboxWrap}>
+                    <Checkbox
+                      isChecked={isChecked}
+                      onClick={() => setIsChecked(!isChecked)}
+                      checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
+                    />
+                  </View>
                   <Text style={styles.termsText}>
                     {APP_TEXT.AGREEING_TO}{' '}
                     <Text style={styles.termsLink}>{APP_TEXT.TERMS_AND_CONDITION}</Text>
@@ -433,25 +477,19 @@ const Signup = ({ navigation }) => {
               ) : null}
             </View>
 
-            <Pressable
-              onPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
-              style={styles.alreadyAcc}
-            >
-              <Text style={styles.accountCreate}>{APP_TEXT.ALREADY_HAVE_ACCOUNT}</Text>
-              <Text style={styles.loginLink}>{APP_TEXT.LOGIN_LOGIN}</Text>
-            </Pressable>
+            <ApplicationButton
+              backgroundColor={colors.PRIMARY_BUTTON}
+              label="Get Started"
+              onButtonPress={validation}
+              icon="account-plus"
+              iconSet="MaterialCommunityIcons"
+              labelFontSize={14}
+              style={styles.signupButton}
+            />
+
           </View>
         </View>
       </ScrollView>
-
-      {/* Bottom button */}
-      <View style={styles.bottomBtnWrap}>
-        <ApplicationButton
-          backgroundColor={colors.PRIMARY_BUTTON}
-          label={'GET STARTED'}
-          onButtonPress={validation}
-        />
-      </View>
 
       {isLoading && <Loader />}
       {show_alert_msg()}
@@ -464,7 +502,7 @@ export default Signup;
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
   },
 
   topBg: {
@@ -472,90 +510,108 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 170,
-    backgroundColor: '#F5D19A', // cream like screenshot
+    height: 200,
   },
 
   scrollContent: {
-    paddingBottom: 10, // space for fixed button
+    paddingBottom: 40,
+  },
+
+  logo: {
+    width: 180,
+    height: 48,
+    alignSelf: 'center',
+    marginVertical: 24,
   },
 
   card: {
-    marginTop: 30,
- //   marginHorizontal: 18,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    paddingTop: 22,
-    // paddingHorizontal: 18,
-  //  paddingBottom: 22,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    borderWidth: 1,
+    borderColor: '#FFFF',
+    padding: 18,
+    marginTop: 12,
   },
 
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0B1B3A',
+    marginBottom: 20,
+    color: '#000',
     textAlign: 'center',
-    marginBottom: 16,
   },
 
-  form: { paddingTop: 6 ,padding:35},
+  form: {
+    paddingHorizontal: 18,
+    paddingTop: 6,
+  },
 
-  gap: { height: 14 },
+  gap: { height: 10 },
+
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+    letterSpacing: 0.4,
+  },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
 
+  checkboxWrap: {
+    transform: [{ scale: 0.95 }],
+    marginLeft: -2,
+  },
+
   checkboxText: {
-    marginLeft: 8,
+    marginLeft: 12,
     color: colors.PRIMARY_DARK,
-    fontSize: 13,
+    fontSize: 14,
   },
 
   termsText: {
-    marginLeft: 8,
+    marginLeft: 12,
     color: colors.PRIMARY_DARK,
-    fontSize: 12,
+    fontSize: 14,
     flex: 1,
   },
 
   termsLink: {
     color: colors.PRIMARY_BLUE_TEXT,
     textDecorationLine: 'underline',
-    fontSize: 12,
+    fontSize: 14,
   },
 
   errorText: {
     color: colors.danger,
-    fontSize: 12,
-    marginTop: 6,
+    fontSize: 13,
+    marginTop: 4,
   },
 
-  bottomBtnWrap: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    bottom: 22,
+  signupButton: {
+    alignSelf: 'center',
+    width: '90%',
+    marginTop: 16,
   },
 
-  alreadyAcc: {
+  links: {
     marginTop: 16,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
   },
 
-  accountCreate: {
+  linkText: {
     fontSize: 14,
-    color: colors.PRIMARY_DARK,
-    fontWeight: '400',
+    color: '#000',
   },
 
-  loginLink: {
-    fontSize: 14,
-    color: colors.PRIMARY_BLUE_TEXT,
-    marginLeft: 6,
+  link: {
+    color: colors.PRIMARY_BUTTON,
     fontWeight: '600',
+    fontSize: 14,
   },
 });

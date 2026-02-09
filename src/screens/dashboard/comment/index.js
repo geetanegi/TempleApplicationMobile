@@ -12,44 +12,102 @@ import {
   Modal,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 
 const {height: SCREEN_H} = Dimensions.get('window');
 
-const AVATAR = 'https://randomuser.me/api/portraits/men/31.jpg';
+const AVATAR = 'https://i.pravatar.cc/150?img=3';
+
+/** Current user avatar URI – same pattern as FollowListScreen (profile picture by userId). */
+function getMyAvatarUri(userId) {
+  if (userId == null) return AVATAR;
+  const url = getProfilePictureUrlByUserId(userId);
+  const resolved = resolveProfilePictureUrl(url || '');
+  if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
+    return resolved;
+  }
+  return AVATAR;
+}
 
 const SHEET_HEIGHT = Math.round(SCREEN_H * 0.78); // tweak 0.72 - 0.85
 
-const DRAG_CLOSE_THRESHOLD = 80;
-const VELOCITY_CLOSE_THRESHOLD = 400;
+const DRAG_CLOSE_THRESHOLD = 70;
+const VELOCITY_CLOSE_THRESHOLD = 350;
+const SCROLL_AT_TOP_THRESHOLD = 10;
 
-const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
+/** Flatten nested replies into a single array (API may return comment.replies = []). */
+function flattenComments(input) {
+  if (!Array.isArray(input) || input.length === 0) return [];
+  const out = [];
+  input.forEach((c) => {
+    const { replies, ...rest } = c;
+    out.push(rest);
+    if (Array.isArray(replies) && replies.length > 0) {
+      replies.forEach((r) => out.push({ ...r, parentCommentId: r.parentCommentId ?? c.id }));
+    }
+  });
+  return out;
+}
+
+/** Build flat list: top-level comments first, then their replies in order. No tree UI. */
+function buildCommentListWithReplies(flatList) {
+  const list = flattenComments(flatList ?? []);
+  if (list.length === 0) return [];
+  const topLevel = list.filter((c) => !c.parentCommentId);
+  const byParent = new Map();
+  list.forEach((c) => {
+    if (c.parentCommentId != null) {
+      const arr = byParent.get(c.parentCommentId) || [];
+      arr.push(c);
+      byParent.set(c.parentCommentId, arr);
+    }
+  });
+  const result = [];
+  topLevel.forEach((parent) => {
+    result.push({ ...parent, isReply: false });
+    (byParent.get(parent.id) || []).forEach((r) => result.push({ ...r, isReply: true }));
+  });
+  return result;
+}
+
+const CommentScreen = ({
+  visible,
+  setVisible,
+  comment,
+  onSendComment,
+  onSendReply,
+  onDeleteComment,
+  currentUserId,
+}) => {
   const [input, setInput] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
 
-  const data = useMemo(() => comment ?? [], [comment]);
+  const data = useMemo(() => buildCommentListWithReplies(comment ?? []), [comment]);
 
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
-
+  const scrollAtTop = useRef(true);
   const runCloseAnimation = useRef(() => {
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: SHEET_HEIGHT,
-        duration: 200,
+        duration: 260,
         useNativeDriver: true,
       }),
       Animated.timing(dragY, {
         toValue: 0,
-        duration: 200,
+        duration: 260,
         useNativeDriver: true,
       }),
       Animated.timing(backdropOpacity, {
         toValue: 0,
-        duration: 160,
+        duration: 220,
         useNativeDriver: true,
       }),
     ]).start(() => setVisible(false));
@@ -59,17 +117,17 @@ const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
     Animated.spring(dragY, {
       toValue: 0,
       useNativeDriver: true,
-      damping: 20,
-      stiffness: 300,
+      damping: 22,
+      stiffness: 320,
     }).start();
   }).current;
 
   const panGesture = useRef(
     Gesture.Pan()
-      .activeOffsetY(5)
-      .failOffsetY(-20)
+      .activeOffsetY(8)
+      .failOffsetY(-15)
       .onUpdate((e) => {
-        if (e.translationY > 0) {
+        if (scrollAtTop.current && e.translationY > 0) {
           dragY.setValue(e.translationY);
         }
       })
@@ -86,16 +144,24 @@ const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
   ).current;
 
   useEffect(() => {
+    if (!visible) {
+      setReplyingTo(null);
+    }
+  }, [visible]);
+
+  useEffect(() => {
     if (visible) {
+      dragY.setValue(0);
+      scrollAtTop.current = true;
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 180,
+          duration: 200,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 220,
+          duration: 280,
           useNativeDriver: true,
         }),
       ]).start();
@@ -103,46 +169,98 @@ const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 0,
-          duration: 160,
+          duration: 200,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: SHEET_HEIGHT,
-          duration: 200,
+          duration: 240,
           useNativeDriver: true,
         }),
       ]).start();
     }
   }, [visible, backdropOpacity, translateY]);
 
-  const close = () => setVisible(false);
+  const close = () => {
+    runCloseAnimation();
+  };
+
+  const cancelReply = () => setReplyingTo(null);
 
   const onSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    if (typeof onSendComment === 'function') {
+    if (replyingTo != null && typeof onSendReply === 'function') {
+      await onSendReply(replyingTo.id, trimmed);
+      setReplyingTo(null);
+    } else if (typeof onSendComment === 'function') {
       await onSendComment(trimmed);
     }
     setInput('');
   };
 
+  const getAvatarUri = (item) => {
+    const v = item?.avatar;
+    if (typeof v === 'string' && v.trim()) return resolveProfilePictureUrl(v) || v;
+    if (v && typeof v === 'object' && typeof v.imageUrl === 'string') return resolveProfilePictureUrl(v.imageUrl) || v.imageUrl;
+    return getProfilePictureUrlByUserId(item?.userId) || AVATAR;
+  };
+
+  const handleDeletePress = (item) => {
+    if (typeof onDeleteComment !== 'function') return;
+    Alert.alert(
+      'Delete comment',
+      'Are you sure you want to delete this comment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteComment(item.id),
+        },
+      ],
+    );
+  };
+
   const renderItem = ({item}) => {
+    const isReply = item.isReply === true;
+    const avatarUri = getAvatarUri(item);
+    const canDelete = typeof onDeleteComment === 'function' && currentUserId != null && String(item?.userId) === String(currentUserId);
     return (
-      <View style={styles.row}>
-        <Image style={styles.avatar} source={{uri: item?.avatar || AVATAR}} />
+      <View style={[styles.row, isReply && styles.replyRow]}>
+        <Image
+          style={styles.avatar}
+          source={{ uri: avatarUri }}
+          resizeMode="cover"
+        />
 
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
             <Text style={styles.nameText}>{item?.user ?? 'User'}</Text>
             <Text style={styles.timeText}>  •  19h</Text>
+            {canDelete && (
+              <Pressable
+                hitSlop={10}
+                style={styles.deleteIconWrap}
+                onPress={() => handleDeletePress(item)}
+              >
+                <FontAwesome name="trash-o" size={16} color="#8E8E8E" />
+              </Pressable>
+            )}
           </View>
 
           <Text style={styles.bodyText}>{item?.text ?? ''}</Text>
 
-          <Pressable hitSlop={10} style={styles.replyBtn}>
-            <Text style={styles.replyText}>Reply</Text>
-          </Pressable>
+          {!isReply && (
+            <Pressable
+              hitSlop={10}
+              style={styles.replyBtn}
+              onPress={() => setReplyingTo({ id: item.id, user: item?.user ?? 'User' })}
+            >
+              <Text style={styles.replyText}>Reply</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     );
@@ -162,65 +280,82 @@ const CommentScreen = ({visible, setVisible, comment, onSendComment}) => {
         />
       </Pressable>
 
-      {/* Bottom Sheet */}
-      <Animated.View
-        style={[
-          styles.sheetWrap,
-          {
-            transform: [{translateY: Animated.add(translateY, dragY)}],
-          },
-        ]}>
-        <LinearGradient
-          colors={['#E9D3A3', '#F6F2E6', '#F6F2E6']}
-          start={{x: 0.5, y: 0}}
-          end={{x: 0.5, y: 1}}
-          style={styles.sheet}>
-          {/* handle + header: drag down to close */}
-          <GestureDetector gesture={panGesture}>
+      {/* Bottom Sheet - whole sheet swipeable down to close */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            styles.sheetWrap,
+            {
+              transform: [{translateY: Animated.add(translateY, dragY)}],
+            },
+          ]}>
+          <LinearGradient
+            colors={['#E9D3A3', '#F6F2E6', '#F6F2E6']}
+            start={{x: 0.5, y: 0}}
+            end={{x: 0.5, y: 1}}
+            style={styles.sheet}>
+            {/* handle + header */}
             <View style={styles.dragArea} collapsable={false}>
               <View style={styles.handleWrap}>
                 <View style={styles.handle} />
               </View>
               <Text style={styles.headerTitle}>Comments</Text>
             </View>
-          </GestureDetector>
 
-          <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
+            <KeyboardAvoidingView
+              style={styles.flex}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
             <FlatList
               data={data}
-              keyExtractor={(_, i) => String(i)}
+              keyExtractor={(item, index) => `comment-${item?.id ?? item?.parentCommentId ?? index}-${index}`}
               renderItem={renderItem}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            />
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onScroll={(e) => {
+                  const y = e.nativeEvent.contentOffset.y;
+                  scrollAtTop.current = y <= SCROLL_AT_TOP_THRESHOLD;
+                }}
+                scrollEventThrottle={16}
+              />
 
-            {/* Fixed input (like your reference) */}
+            {/* Fixed input – current user's profile avatar (same API as FollowListScreen) */}
             <View style={styles.inputDock}>
-              <Image style={styles.meAvatar} source={{uri: AVATAR}} />
+              <Image style={styles.meAvatar} source={{ uri: getMyAvatarUri(currentUserId) }} />
 
-              <View style={styles.inputPill}>
-                <TextInput
-                  value={input}
-                  onChangeText={setInput}
-                  placeholder="Add a comment"
-                  placeholderTextColor="#8E8E8E"
-                  style={styles.input}
-                  returnKeyType="send"
-                  onSubmitEditing={onSend}
-                />
+              <View style={styles.inputWrap}>
+                {replyingTo != null && (
+                  <View style={styles.replyingToRow}>
+                    <Text style={styles.replyingToText} numberOfLines={1}>
+                      Replying to @{replyingTo.user}
+                    </Text>
+                    <Pressable hitSlop={8} onPress={cancelReply}>
+                      <Text style={styles.cancelReplyText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                )}
+                <View style={styles.inputPill}>
+                  <TextInput
+                    value={input}
+                    onChangeText={setInput}
+                    placeholder={replyingTo ? 'Write a reply...' : 'Add a comment'}
+                    placeholderTextColor="#8E8E8E"
+                    style={styles.input}
+                    returnKeyType="send"
+                    onSubmitEditing={onSend}
+                  />
 
-                <Pressable onPress={onSend} hitSlop={10} style={styles.actionBtn}>
-                  <FontAwesome name="send" size={16} color="#FFFFFF" />
-                </Pressable>
+                  <Pressable onPress={onSend} hitSlop={10} style={styles.actionBtn}>
+                    <FontAwesome name="send" size={16} color="#FFFFFF" />
+                  </Pressable>
+                </View>
               </View>
             </View>
           </KeyboardAvoidingView>
         </LinearGradient>
       </Animated.View>
+    </GestureDetector>
     </Modal>
   );
 };
@@ -287,6 +422,9 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
   },
+  replyRow: {
+    paddingLeft: 56,
+  },
 
   avatar: {
     width: 44,
@@ -304,6 +442,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+
+  deleteIconWrap: {
+    marginLeft: 'auto',
+    padding: 6,
   },
 
   nameText: {
@@ -357,6 +500,28 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 999,
     backgroundColor: '#DDD',
+  },
+
+  inputWrap: {
+    flex: 1,
+  },
+  replyingToRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  replyingToText: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    fontWeight: '600',
+    flex: 1,
+  },
+  cancelReplyText: {
+    fontSize: 12,
+    color: '#111',
+    fontWeight: '700',
   },
 
   inputPill: {

@@ -3,220 +3,135 @@ import {
   Text,
   View,
   ScrollView,
-  Pressable,
   SafeAreaView,
-  TouchableOpacity,
+  Image,
+  Keyboard,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { colors, APP_TEXT, NAVIGATION } from '../../../global/theme';
+import React, { useState } from 'react';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
 import AdminInput from '../../../components/adminInput';
 import TransparentHeader from '../../../components/TransparentHeader';
 import ApplicationButton from '../../../components/ApplicationButton';
-import Checkbox from 'react-native-check-box';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  ValidatePassword,
-  ValidateUserName,
-} from '../../../utils/helperfunctions/validations';
-import { setLogin } from '../../../redux/reducers/Login';
-import { storeTokenData } from '../../../utils/apicalls/tokenApi';
+import { ValidateUserName } from '../../../utils/helperfunctions/validations';
 import { API } from '../../../utils/endpoints';
-import { setLogindata } from '../../../redux/reducers/Logindata';
 import { postNoAuth } from '../../../utils/apicalls/postApi';
 import Loader from '../../../components/loader';
 import PopUpMessage from '../../../components/popup';
-import { useDispatch } from 'react-redux';
-import st from '../../../global/styles';
+
 const INITIALINPUT = {
   username: '',
-  password: '',
 };
 
-const Verifyemail = ({navigation}) => {
+const Verifyemail = ({ navigation }) => {
   const [inputs, setInputs] = useState(INITIALINPUT);
   const [errors, setErrors] = useState(INITIALINPUT);
-  const [isChecked, setIsChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
 
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    loadSavedCredentials();
-  }, []);
-
-  const loadSavedCredentials = async () => {
-    const u = await AsyncStorage.getItem('username');
-    const p = await AsyncStorage.getItem('password');
-    if (u && p) {
-      setInputs({ username: u, password: p });
-      setIsChecked(true);
-    }
-  };
-
   const handleChange = (text, field) => {
     setInputs(prev => ({ ...prev, [field]: text }));
-
     if (field === 'username') {
       const v = ValidateUserName(text);
       setErrors(prev => ({ ...prev, username: v === 'success' ? '' : v }));
     }
-
-    if (field === 'password') {
-      const v = ValidatePassword(text);
-      setErrors(prev => ({ ...prev, password: v === 'success' ? '' : v }));
-    }
   };
 
-  const onLogin = async () => {
-    if (errors.username || errors.password) return;
-
-    if (isChecked) {
-      await AsyncStorage.setItem('username', inputs.username);
-      await AsyncStorage.setItem('password', inputs.password);
+  const sendOtp = () => {
+    Keyboard.dismiss();
+    if (errors.username) return;
+    if (!inputs.username || !inputs.username.trim()) {
+      setErrors(prev => ({ ...prev, username: 'Email or username is required' }));
+      return;
     }
 
     setIsLoading(true);
-    postNoAuth(API.LOGIN_AUTH, {
-      username: inputs.username,
-      password: inputs.password,
-      mode: 'Mobile',
+    postNoAuth(API.FORGET_PASSWORD, {
+      username: inputs.username.trim(),
     })
       .then(res => {
         if (!res?.error) {
-          storeTokenData(res?.data?.token);
-          dispatch(setLogindata(res?.data));
-          dispatch(setLogin(true));
+          navigation.navigate(NAVIGATION.TO_OTP_SCREEN, {
+            item: {
+              username: inputs.username.trim(),
+              emailId: (res?.data && res.data.email) ? res.data.email : inputs.username.trim(),
+              message: res?.description,
+            },
+          });
         } else {
           setTitle('Oops!');
-          setSubtitle(res?.description);
+          setSubtitle(res?.description || 'User not found. Please check and try again.');
           setPopupMessageVisibility(true);
         }
       })
       .catch(err => {
         setTitle('Error');
-        setSubtitle(err?.message || 'Something went wrong');
+        setSubtitle(err?.message || 'Something went wrong. Please try again.');
         setPopupMessageVisibility(true);
       })
       .finally(() => setIsLoading(false));
   };
 
-
-  const validation = () => {
-    
-  };
-
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Cream Header */}
-      <View style={styles.topBg} />
+      <LinearGradient
+        colors={['#F5D19A', '#FFFFFF']}
+        style={styles.topBg}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
 
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <TransparentHeader />
-      <View style={styles.card}>
-          {/* <LoginImg /> */}
-          <View
-            style={{
-              width: '100%',
-              paddingVertical: 30,
-              alignItems: 'center',
-            }}>
+
+        <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
+
+        <View style={styles.card}>
+          <Text style={styles.title}>Forgot Password</Text>
+          <Text style={styles.subtitle}>
+            Enter your email or username and we’ll send you an OTP to reset your password.
+          </Text>
+
+          <Text style={styles.fieldLabel}>EMAIL OR USERNAME</Text>
+          <AdminInput
+            holderName="Email or Username"
+            isRequired
+            value={inputs.username}
+            error={errors.username}
+            onChangeText={t => handleChange(t, 'username')}
+            inputBackgroundColor="#FFF"
+            inputTextColor="#000"
+            placeholderColor="#6B7280"
+            inputFontSize={15}
+          />
+
+          <ApplicationButton
+            label="Send OTP"
+            backgroundColor={colors.PRIMARY_BUTTON}
+            onButtonPress={sendOtp}
+            icon="email-send"
+            iconSet="MaterialCommunityIcons"
+            labelFontSize={14}
+            style={styles.sendButton}
+          />
+
+          <View style={styles.links}>
             <Text
-              style={{
-                color: colors.PRIMARY_DARK,
-                lineHeight: 19.1,
-                padding: 5,
-                fontSize: 24,
-                textAlign: 'center',
-              }}>
-              {APP_TEXT.RESET_PASSWORD}
+              style={styles.link}
+              onPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
+            >
+              Back to Login
             </Text>
-          </View>
-
-          <View
-            style={{
-              width: '100%',
-              paddingVertical: 1,
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                color: colors.PRIMARY_DARK,
-                lineHeight: 19.1,
-                padding: 5,
-                fontSize: 15,
-                textAlign: 'center',
-              }}>
-              {APP_TEXT.RESET_2}
-            </Text>
-          </View>
-
-   <View style={styles.form}>
-  
-          </View>
-
-
-          <View style={styles.form}>
-            <AdminInput
-               isRequired
-               holderName={APP_TEXT.LOGIN_USERNAME}
-               onChangeText={text => {
-                 handleOnchange(text, 'username');
-               }}
-               onFocus={() => handleError(null, 'username')}
-               error={errors?.username}
-               value={inputs?.username}
-               iconName={''}
-               label={''}
-            />
-            <View style={styles.gap} />
-            </View>
-
-          <View style={[st.fcardsty, st.shadowProp]}>
-
-{/* 
-            <View style={[st.mt_B10]}>
-              <ApplicationButton
-                backgroundColor={colors.PRIMARY_BUTTON}
-                label={APP_TEXT.SEND_OTP}
-                onButtonPress={() => {
-                  validation();
-                }}
-              />
-            </View> */}
-            {/* <TouchableOpacity
-              onPress={() => {
-                navigation.navigate(NAVIGATION.TO_LOGIN);
-              }}>
-              <Text
-                style={[
-                  styles.txtSignUp,
-                  {
-                    color: colors.PRIMARY_BLUE_TEXT,
-                    alignSelf: 'center',
-                    lineHeight: 19.1,
-                    padding: 5,
-                  },
-                ]}>
-                {APP_TEXT.BACK_TO_LOGIN}
-              </Text>
-            </TouchableOpacity> */}
           </View>
         </View>
       </ScrollView>
 
-      <View style={styles.bottomBtnWrap}>
-        <ApplicationButton
-          backgroundColor={colors.PRIMARY_BUTTON}
-          label={APP_TEXT.SEND_OTP}
-          onButtonPress={validation}
-        />
+      <View style={styles.bottomSwipe}>
+        <MaterialCommunityIcons name="arrow-up-circle" size={24} color="#000" style={styles.swipeIcon} />
+        <Text style={styles.swipeText}>Remember your password? Back to Login</Text>
       </View>
 
       {isLoading && <Loader />}
@@ -244,76 +159,68 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
-    backgroundColor: '#F5D19A',
   },
 
   scroll: {
-    paddingBottom: 160,
+    paddingBottom: 120,
   },
 
-  brand: {
-    textAlign: 'center',
-    fontSize: 26,
-    fontWeight: '700',
-    marginVertical: 20,
+  logo: {
+    width: 180,
+    height: 48,
+    alignSelf: 'center',
+    marginVertical: 48,
   },
 
   card: {
-    marginTop: 30,
-    //   marginHorizontal: 18,
-       backgroundColor: '#FFFFFF',
-       borderTopLeftRadius: 28,
-       paddingTop: 22,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    borderWidth: 1,
+    borderColor: '#FFFF',
+    padding: 18,
+    marginTop: 12,
   },
-  container: { justifyContent: 'center', alignItems: 'center', flex: 1, paddingHorizontal: 10, marginHorizontal: 5, },
+
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 8,
+    color: '#000',
+    textAlign: 'center',
   },
 
-  gap: {
-    height: 14,
-  },
-
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  form: { paddingTop: 6 ,padding:35},
-  remember: {
-    marginLeft: 10,
-    fontSize: 14,
+  subtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 8,
   },
 
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
+    color: '#000',
+    marginBottom: 4,
     letterSpacing: 0.4,
+  },
+
+  sendButton: {
+    alignSelf: 'center',
+    width: '90%',
+    marginTop: 20,
   },
 
   links: {
     marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-
-  linkText: {
-    fontSize: 13,
+    alignItems: 'center',
   },
 
   link: {
     color: colors.PRIMARY_BUTTON,
     fontWeight: '600',
-  },
-  bottomBtnWrap: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    bottom: 22,
+    fontSize: 14,
   },
 
   bottomSwipe: {
@@ -329,10 +236,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  swipeIcon: {
+    marginBottom: 6,
+  },
+
   swipeText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#000',
   },
-  txtSignUp: { fontSize: 14, color: colors.PRIMARY_SOLID_TEXT, // fontFamily: family.semibold, textAlign: 'center', // letterSpacing: 0.6, 
-    },
 });

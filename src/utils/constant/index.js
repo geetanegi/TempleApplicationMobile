@@ -10,4 +10,13 @@
 // };
 export const environment = {
   baseUrl: 'http://13.203.150.178:8080/jain-app/api/',
+  // WebSocket base: same host as API but path /ws (no /api)
+  get wsBaseUrl() {
+    const u = this.baseUrl.replace(/\/api\/?$/, '');
+    return u.replace(/^http/, 'ws');
+  },
+  // Use localhost when app runs on same machine (e.g. iOS Simulator / web)
+  // baseUrl: 'http://localhost:8080/',
+  // Use 10.0.2.2 when testing on Android Emulator (points to host machine)
+  // baseUrl: 'http://10.0.2.2:8080/api/',
 };

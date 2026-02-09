@@ -1,4 +1,4 @@
-package com.jainApp
+package com.jainsansaar.jainapp
 
 import android.app.Application
 import com.facebook.react.PackageList

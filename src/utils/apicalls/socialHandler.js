@@ -1,6 +1,9 @@
 import { API } from '../endpoints';
 import { getAuth, getAuthWithParams } from './getApi';
 import { postAuth } from './postApi';
+import { putAuth } from './putApi';
+import { deleteAuthWithParams } from './deleteApi';
+import { uploadApi } from './index';
 
 /**
  * Build URL with query string from params object.
@@ -53,6 +56,35 @@ export const isFollowing = async (followerId, followingId) => {
 
 // ----------- Posts (return likesCount, commentsCount, sharesCount, isLiked, isShared when currentUserId passed) -----------
 
+/**
+ * Create a post with photo or video. Compression is done on the backend.
+ * @param {number|string} userId
+ * @param {string} text - Caption/content text
+ * @param {string} fileUri - Local file URI (image or video)
+ * @param {'photo'|'video'} mediaType - Whether the file is a photo or video
+ * @param {{ onUploadProgress?: (percent: number) => void }} options - Optional; onUploadProgress(0-100) for progress bar
+ */
+export const createPost = async (userId, text, fileUri, mediaType, options = {}) => {
+  const formData = new FormData();
+  formData.append('userId', String(userId));
+  if (text != null && text.trim() !== '') formData.append('text', text.trim());
+  const isVideo = mediaType === 'video';
+  const filename = fileUri.split('/').pop() || (isVideo ? 'video.mp4' : 'photo.jpg');
+  formData.append(isVideo ? 'video' : 'photo', {
+    uri: fileUri,
+    type: isVideo ? 'video/mp4' : 'image/jpeg',
+    name: filename,
+  });
+  const uploadOptions = {};
+  if (options.onUploadProgress) {
+    uploadOptions.onUploadProgress = (e) => {
+      const percent = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
+      options.onUploadProgress(percent);
+    };
+  }
+  return uploadApi(API.SOCIAL_POST_CREATE, formData, uploadOptions);
+};
+
 export const getAllPosts = async (currentUserId = null) => {
   const base = API.SOCIAL_POSTS;
   const url = currentUserId != null ? urlWithParams(base, { currentUserId }) : base;
@@ -72,6 +104,11 @@ export const getPostById = async (postId, currentUserId = null) => {
 export const getPostsByTemple = async (templeId, page = 0, size = 10, currentUserId = null) => {
   const url = urlWithParams(`${API.SOCIAL_POSTS_BY_TEMPLE(templeId)}?page=${page}&size=${size}`, { currentUserId });
   return getAuth(url);
+};
+
+export const deletePost = async (postId, userId) => {
+  const url = API.SOCIAL_POST_DELETE(postId);
+  return deleteAuthWithParams(url, { userId });
 };
 
 // ----------- Likes -----------
@@ -108,6 +145,16 @@ export const commentOnPost = async (postId, userId, content) => {
   return postAuth(url, {});
 };
 
+/** Reply to a comment. Same endpoint as comment with parentCommentId. */
+export const replyToComment = async (postId, userId, parentCommentId, content) => {
+  const url = urlWithParams(API.SOCIAL_POST_COMMENT(postId), {
+    userId,
+    content,
+    parentCommentId,
+  });
+  return postAuth(url, {});
+};
+
 export const getComments = async (postId) => {
   const url = API.SOCIAL_POST_COMMENTS(postId);
   return getAuth(url);
@@ -121,6 +168,11 @@ export const getCommentsCount = async (postId) => {
 export const getCommentsByUser = async (userId) => {
   const url = API.SOCIAL_COMMENTS_BY_USER(userId);
   return getAuth(url);
+};
+
+export const deleteComment = async (postId, commentId, userId) => {
+  const url = API.SOCIAL_DELETE_COMMENT(postId, commentId);
+  return deleteAuthWithParams(url, { userId });
 };
 
 // ----------- Shares -----------
@@ -143,4 +195,75 @@ export const getSharesCount = async (postId) => {
 export const hasUserShared = async (postId, userId) => {
   const url = API.SOCIAL_POST_IS_SHARED(postId);
   return getAuthWithParams(url, { userId });
+};
+
+// ----------- Stories -----------
+
+export const getStoriesFeed = async (currentUserId) => {
+  const url = urlWithParams(API.SOCIAL_STORY_FEED, { currentUserId });
+  return getAuth(url);
+};
+
+export const getStoriesByUser = async (userId, currentUserId = null) => {
+  const url = urlWithParams(API.SOCIAL_STORY_BY_USER(userId), { currentUserId });
+  return getAuth(url);
+};
+
+export const addStoryView = async (storyId, viewerId) => {
+  const url = urlWithParams(API.SOCIAL_STORY_ADD_VIEW(storyId), { viewerId });
+  return postAuth(url, {});
+};
+
+export const deleteStory = async (storyId, userId) => {
+  const url = urlWithParams(API.SOCIAL_STORY_DELETE(storyId), { userId });
+  return deleteAuthWithParams(url, { userId });
+};
+
+export const createStory = async (userId, mediaType, fileUri) => {
+  const formData = new FormData();
+  formData.append('userId', String(userId));
+  formData.append('mediaType', mediaType.toUpperCase());
+  formData.append('file', {
+    uri: fileUri,
+    type: mediaType.toUpperCase() === 'VIDEO' ? 'video/mp4' : 'image/jpeg',
+    name: mediaType.toUpperCase() === 'VIDEO' ? 'story.mp4' : 'story.jpg',
+  });
+  return uploadApi(API.SOCIAL_STORY_CREATE, formData);
+};
+
+// ----------- Chat -----------
+
+export const getChatThreads = async (userId) => {
+  return getAuth(API.SOCIAL_CHAT_THREADS(userId));
+};
+
+export const createOrGetChatThread = async (user1Id, user2Id) => {
+  const url = urlWithParams(API.SOCIAL_CHAT_THREAD_CREATE(), { user1Id, user2Id });
+  return postAuth(url, {});
+};
+
+export const getChatMessages = async (threadId, page = 0, size = 50) => {
+  return getAuth(API.SOCIAL_CHAT_THREAD_MESSAGES(threadId, page, size));
+};
+
+export const sendChatMessage = async (threadId, senderId, clientMessageId, content, contentType = 'text') => {
+  const url = API.SOCIAL_CHAT_SEND_MESSAGE();
+  return postAuth(
+    urlWithParams(url, { threadId, senderId, clientMessageId, contentType, content: content ?? '' }),
+    {}
+  );
+};
+
+// ----------- Notifications -----------
+
+export const getNotifications = async (userId, page = 0, size = 20) => {
+  return getAuth(API.SOCIAL_NOTIFICATIONS(userId, page, size));
+};
+
+export const getNotificationsCount = async (userId) => {
+  return getAuth(API.SOCIAL_NOTIFICATIONS_COUNT(userId));
+};
+
+export const markNotificationsSeen = async (notificationIds) => {
+  return putAuth(API.SOCIAL_NOTIFICATIONS_SEEN(), notificationIds ?? []);
 };

@@ -2,47 +2,31 @@ import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  LayoutAnimation,
   Platform,
   UIManager,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
-import {APP_TEXT, colors} from '../../../global/theme';
-import {
-  size,
-  family,
-  BORDERWIDTH,
-  PADDING,
-  MARGIN,
-  WIDTH,
-  RADIUS,
-  WEIGHT,
-  ELEVATION,
-  FONTSIZE,
-  SIZES,
-} from '../../../global/fonts';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
+import { colors } from '../../../global/theme';
 import st from '../../../global/styles';
 import FloatingInput from '../../../components/floating_Input';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useFocusEffect } from '@react-navigation/native';
-import MyPicker from '../../../components/picker';
-import {API} from '../../../utils/endpoints';
-import {postAuth} from '../../../utils/apicalls/postApi';
-import Toast from 'react-native-simple-toast';
 import {
   AlternativeValidateMail,
   ValidateCity,
-  ValidateGHIN,
-  Validatehdcp,
   ValidateLocation,
   ValidateMobile,
+  ValidateGHIN,
+  Validatehdcp,
 } from '../../../utils/helperfunctions/validations';
-
-import AntDesign from 'react-native-vector-icons/AntDesign';
+import { updateProfile, updateProfilePicture, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import Toast from 'react-native-simple-toast';
+import ImageCropPicker from 'react-native-image-crop-picker';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental &&
@@ -53,297 +37,116 @@ if (Platform.OS === 'android') {
 const INITIALINPUT = {
   firstName: '',
   lastName: '',
-  activeStatus: '',
   email: '',
   id: null,
   address: '',
   alternateEmail: '',
-  ball: '',
   city: '',
-  clubs: '',
-  code: '',
   contactNumber: '',
   dateOfBirth: '',
-  ghin: '',
-  handicap: '',
+  description: '',
   imageUrl: '',
   location: '',
-  transactionId: '',
   username: '',
-  cardNo: '',
-  cardName: '',
-  CVV: '',
-  expiryDate: '',
-  courseIds: '',
 };
 
-const EditProfileScreen = ({item, course}) => {
+const EditProfileScreen = () => {
+  const route = useRoute();
+  const navigation = useNavigation();
+  const item = route.params?.profile ?? null;
+
   const [inputs, setInputs] = useState(INITIALINPUT);
-  const [errors, setErrors] = useState(INITIALINPUT);
-  const [isVisible, setIsVisible] = useState(false);
+  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [title, setTitle] = useState();
-  const [subtitle, setSubtitle] = useState('');
-  const [dropDownCourceValue, setDropDownCourceValue] = useState('');
-  const [courseIds, setCourseIds] = useState('');
-
-  const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState();
-  const minDate = new Date();
-  const maxDate = new Date();
-  const handleModalOpen = () => {
-    setIsVisible(true);
-  };
-  // const course = useSelector(state => state.course?.data?.data);
-
-  const [expandedIndex, setExpandedIndex] = useState(null);
-
-  const [show, setShow] = useState(false);
-
-  const onPressCourseSelect = () => {
-    // alert("call")
-    setShow(!show);
-  };
-
-  const handlePress = index => {
-    // alert(expandedIndex)
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedIndex(index === expandedIndex ? null : index);
-  };
+  const [newPictureUri, setNewPictureUri] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
-      if (item && item.userProfile) {
-
-        const utcDate = new Date(item.userProfile.dateOfBirth);
-  
-        // Convert it to the local date string
-        const localDate = utcDate.toLocaleString();
-        const year = utcDate.getFullYear();
-        const month = String(utcDate.getMonth() + 1).padStart(2, '0');
-        const day = String(utcDate.getDate()).padStart(2, '0');
-        // Update each input value individually
-        setInputs(prevInputs => ({
-          ...prevInputs,
-          email: item.email || '',
-          phone: item.userProfile.phone || '',
-          firstName: item.firstName || '',
-          lastName: item.lastName || '',
-          username: item.username || '',
-          email: item.email || '',
-          id: item.id || '',
-          address: item.userProfile.email || '',
-          alternateEmail: item.userProfile.alternateEmail || '',
-          ball: item.userProfile.ball || '',
-          city: item.userProfile.city || '',
-          clubs: item.userProfile.clubs || '',
-          code: '+1',
-          contactNumber: item.userProfile.contactNumber || '',
-          dateOfBirth: `${year}-${month}-${day}` || '',
-          ghin: item.userProfile.ghin || '',
-          handicap: item.userProfile.handicap || '',
-          imageUrl: item.userProfile.imageUrl || '',
-          location: item.userProfile.location || '',
+      if (item) {
+        const up = item.userProfile || {};
+        let dateOfBirth = '';
+        if (up.dateOfBirth) {
+          try {
+            const d = new Date(up.dateOfBirth);
+            dateOfBirth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          } catch (_) {}
+        }
+        setInputs(prev => ({
+          ...prev,
+          id: item.id ?? null,
+          firstName: item.firstName ?? '',
+          lastName: item.lastName ?? '',
+          username: item.username ?? '',
+          email: item.email ?? '',
+          contactNumber: up.contactNumber ?? up.phone ?? '',
+          alternateEmail: up.alternateEmail ?? '',
+          city: up.city ?? '',
+          location: up.location ?? '',
+          description: up.description ?? item.bio ?? item.description ?? '',
+          imageUrl: up.imageUrl ?? item.avatar ?? '',
+          dateOfBirth,
         }));
       }
-      return () => {
-        // Perform any cleanup actions if necessary
-     //   console.log('Screen unfocused, cleaning up Edit..');
-      };
-
-      //    console.log('---------useEffect-----edit profile screen ---', item);
+      return () => {};
     }, [item]),
   );
 
-  const handleModalClose = () => {
-    setIsVisible(false);
-  };
-
-  const isEmpty = str => {
-    return !str || str.trim() === '';
-  };
+  const isEmpty = str => !str || (typeof str === 'string' && str.trim() === '');
 
   const handleSave = () => {
-  //  console.log('----inuourysss', inputs);
-
-
-    // if (isEmpty(inputs.alternateEmail)) {
-    //   const validNumber = AlternativeValidateMail(null);
-    //   handleError(validNumber, 'alternateEmail');
-    // }
-    // if (isEmpty(inputs.location)) {
-    //   const validNumber = ValidateLocation(null);
-    //   handleError(validNumber, 'location');
-    // }
-    // if (isEmpty(inputs.city)) {
-    //   const validNumber = ValidateCity(null);
-    //   handleError(validNumber, 'city');
-    // }
-    // if (isEmpty(inputs.ghin)) {
-    //   const validNumber = ValidateGHIN(null);
-    //   handleError(validNumber, 'ghin');
-    // }
-    // if (isEmpty(inputs.clubs)) {
-    //   const validNumber = ValidateClubs(null);
-    //   handleError(validNumber, 'clubs');
-    // }
-    // if (isEmpty(inputs.ball)) {
-    //   const validNumber = ValidateBall(null);
-    //   handleError(validNumber, 'ball');
-    // }
-    // if (isEmpty(inputs.clubs)) {
-    //   const validNumber = ValidateClubs(null);
-    //   handleError(validNumber, 'clubs');
-    // }
-    // if (isEmpty(inputs.contactNumber)) {
-    //   const validNumber = ValidateMobile(null);
-    //   handleError(validNumber, 'contactNumber');
-    // }
-    // if (isEmpty(inputs.cardNo)) {
-    //   const validNumber = ValidateCardNumber(null);
-    //   handleError(validNumber, 'cardNo');
-    // }
-    // if (isEmpty(inputs.CVV)) {
-    //   const validNumber = ValidateCVV(null);
-    //   handleError(validNumber, 'CVV');
-    // }
-
-    if (
-      isEmpty(errors.contactNumber) &&
-      isEmpty(errors.alternateEmail) &&
-      isEmpty(errors.location) &&
-      isEmpty(errors.city) &&
-      isEmpty(errors.ghin) &&
-      isEmpty(errors.cardNo) &&
-      isEmpty(errors.CVV) &&
-      isEmpty(errors.handicap)
-    ) {
-    //  console.log('LOGIN_AUTH finally');
-      handleSubmitPress();
+    if (!inputs.id) {
+      Toast.show('Profile data not loaded.');
+      return;
     }
-    //   syncUpdateProfile()
-
-    // Handle save logic
-    //    setIsVisible(false);
-  };
-
-  const onPopupMessageModalClick = value => {
-    if (warning == true) {
-      handleSubmitPress();
-      setPopupMessageVisibility(value);
-    } else {
-      setPopupMessageVisibility(value);
-    }
-  };
-
-  const show_alert_msg = value => {
-    return (
-      <PopUpMessage
-        display={popupMessageVisibility}
-        titleMsg={title}
-        subTitle={subtitle}
-        onModalClick={value => {
-          onPopupMessageModalClick(value);
-        }}
-        twoButton={warning ? true : false}
-        onPressNoBtn={() => {
-          setWarning(false);
-          setPopupMessageVisibility(false);
-        }}
-      />
-    );
+    const errKeys = ['contactNumber', 'alternateEmail', 'location', 'city'];
+    const hasErr = errKeys.some(k => !isEmpty(errors[k]));
+    if (hasErr) return;
+    handleSubmitPress();
   };
 
   const handleSubmitPress = async () => {
-    const url = API.UPDATE_PROFILE;
-    const params = {
-      firstName: inputs.firstName,
-      lastName: inputs.lastName,
-      email: inputs.email,
-      selectedUserId: inputs.id,
-      address: inputs.address,
-      alternateEmail: inputs.alternateEmail,
-      ball: inputs.ball,
-      city: inputs.city,
-      clubs: inputs.clubs,
-      contactNumber: inputs.contactNumber,
-      dateOfBirth: inputs.dateOfBirth,
-      courseIds:courseIds,
-      ghin: inputs.ghin,
-      handicap: inputs.handicap,
-      imageUrl: inputs.imageUrl,
-      location: inputs.location,
-      username: inputs.username,
-    };
     setIsLoading(true);
-    postAuth(url, params)
-      .then(result => {
-        if (!result?.error) {
-        //  console.log('-----------result?.data?.message---',result?.data?.message)
-          setIsLoading(false);
-          Toast.show(result?.data?.message);
-          setIsVisible(false);
-        } else {
-          setIsLoading(false);
-          setIsVisible(false);
-        }
-      })
-      .catch(err => {
-        //console.log('LOGIN_AUTH catch', err);
-        setIsLoading(false);
-        setIsVisible(false);
-      })
-      .finally(() => {
-        //console.log('LOGIN_AUTH finally');
-        setIsLoading(false);
-        setIsVisible(false);
+    try {
+      const userId = inputs.id;
+      await updateProfile(userId, {
+        username: inputs.username,
+        firstName: inputs.firstName,
+        lastName: inputs.lastName,
+        description: inputs.description,
+        location: inputs.location,
+        city: inputs.city,
+        contactNumber: inputs.contactNumber,
+        alternateEmail: inputs.alternateEmail,
       });
+      if (newPictureUri) {
+        await updateProfilePicture(userId, newPictureUri);
+        setNewPictureUri(null);
+      }
+      Toast.show('Profile updated.');
+      navigation.goBack();
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Update failed';
+      Toast.show(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleCancel = () => {
-    setSelectedLanguage(null)
-    setInputs(prevInputs => ({
-      ...prevInputs,
-      phone: '',
-      id: '',
-      address: '',
-      alternateEmail: '',
-      ball: '',
-      city: '',
-      clubs: '',
-      code: '+1',
-      contactNumber: '',
-      dateOfBirth: '',
-      ghin: '',
-      cardNo: '',
-      cardName: '',
-      CVV: '',
-      expiryDate: '',
-      location: '',
-    }));
-
-    setErrors(prevInputs => ({
-      ...prevInputs,
-      phone: '',
-      id: '',
-      address: '',
-      alternateEmail: '',
-      ball: '',
-      city: '',
-      clubs: '',
-      contactNumber: '',
-      dateOfBirth: '',
-      ghin: '',
-      cardNo: '',
-      cardName: '',
-      CVV: '',
-      expiryDate: '',
-      location: '',
-    }));
-
-      setDropDownCourceValue('')
-    setIsVisible(false);
-    // navigation.goBack(); // Go back to the previous screen
+  const handleChangePicture = () => {
+    ImageCropPicker.openPicker({
+      width: 400,
+      height: 400,
+      cropping: true,
+      cropperCircleOverlay: true,
+      mediaType: 'photo',
+    })
+      .then(asset => {
+        const uri = asset.path || asset.sourceURL;
+        if (uri) setNewPictureUri(uri);
+      })
+      .catch(e => {
+        if (e?.code !== 'E_PICKER_CANCELLED') Toast.show('Could not open photo.');
+      });
   };
 
   const handleOnchange = (text, input) => {
@@ -507,6 +310,8 @@ const EditProfileScreen = ({item, course}) => {
     setInputs(prevState => ({ ...prevState, [input]: text }));
   };
 
+  const avatarUri = newPictureUri || resolveProfilePictureUrl(inputs.imageUrl);
+
   const handleError = (error, input) => {
     setErrors(prevState => ({ ...prevState, [input]: error }));
   };
@@ -518,347 +323,264 @@ const EditProfileScreen = ({item, course}) => {
     }));
   };
 
-  const renderHeader = () => {
-    return (
-      <View style={[styles.metricBox, {marginBottom: -48}]}>
-        <Text style={styles.clubTitle}>Select Cource</Text>
-      </View>
-    );
-  };
-
-  const AccordionItem = ({item, onPress, expanded, index, expandedIndex}) => {
-    return (
-      <View style={{marginHorizontal: MARGIN.MARGIN_10}}>
-        <TouchableOpacity
-          onPress={() => _selectCource(item, index, expandedIndex)}
-          style={styles.metricBoxInside}>
-          <Text style={[styles.clubTitle, {marginHorizontal: 15}]}>
-            {item.courseName}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  const _selectCource = (item, index, expandedIndex) => {
-    setShow(!show);
-    setCourseIds(item.id);
-    setDropDownCourceValue(item.courseName);
-    setExpandedIndex(index === expandedIndex ? null : index);
-  };
-
   return (
-    <View>
-      <TouchableOpacity style={styles.editIcon} onPress={handleModalOpen}>
-        <Feather name="edit" size={24} color="white" />
-      </TouchableOpacity>
-
-      <Modal visible={isVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalContainer}>
-          <View style={styles.formContainer}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                width: '100%',
-                justifyContent: 'space-between',
-              }}>
-              <Text style={styles.title}>Edit Profile</Text>
-              <TouchableOpacity onPress={handleCancel}>
-                <MaterialIcons
-                  name="cancel"
-                  size={24}
-                  color="rgba(0, 0, 0, 0.5)"
-                />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={[st.modalcardsty, st.shadowProp]}>
-                <View style={[st.mt_t20, st.row, st.justify_S]}>
-                  <View style={[st.wdh45]}>
-                    <FloatingInput
-                      label={'First Name'}
-                      onChangeText={text => handleOnchange(text, 'firstName')}
-                      onFocus={() => handleError(null, 'firstName')}
-                      error={errors?.firstName}
-                      value={inputs.firstName}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      disable={false}
-                      editableField={false}
-                    />
-                  </View>
-                  <View style={[st.wdh45]}>
-                    <FloatingInput
-                      label={'Last Name'}
-                      onChangeText={text => handleOnchange(text, 'lastName')}
-                      onFocus={() => handleError(null, 'lastName')}
-                      error={errors?.lastName}
-                      value={inputs.lastName}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      disable={false}
-                      editableField={false}
-                    />
-                  </View>
-                </View>
-                <View style={[st.mt_t7]}>
-                  <FloatingInput
-                    label={'Username'}
-                    onChangeText={text => handleOnchange(text, 'username')}
-                    error={errors?.username}
-                    value={inputs.username}
-                    inputsty={st.inputsty}
-                    placeholderTextColor={'#fff'}
-                    disable={false}
-                    editableField={false}
-                  />
-                </View>
-                <View style={[st.mt_t7]}>
-                  <FloatingInput
-                    label={'Date of Birth'}
-                    onChangeText={text => handleOnchange(text, 'dateOfBirth')}
-                    error={errors?.dateOfBirth}
-                    value={inputs.dateOfBirth}
-                    inputsty={st.inputsty}
-                    placeholderTextColor={'#fff'}
-                    disable={false}
-                    editableField={false}
-                  />
-                </View>
-                <View style={[st.mt_t7, st.row, st.justify_S]}>
-                  <View style={[st.wdh45]}>
-                    <FloatingInput
-                      label={'Location'}
-                      onChangeText={text => handleOnchange(text, 'location')}
-                      error={errors?.location}
-                      value={inputs.location}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      editableField={true}
-                    />
-                  </View>
-                  <View style={[st.wdh45]}>
-                    <FloatingInput
-                      label={'City'}
-                      onChangeText={text =>
-                        handleOnchange(text, 'city')
-                      }
-                      error={errors?.city}
-                      value={inputs.city}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      editableField={true}
-                    />
-                  </View>
-                </View>
-                {/* <View style={[st.mt_t7, st.row, st.justify_S]}> */}
-                  {/* <View style={[st.wdh30]}>
-                    <FloatingInput
-                      label={'Code'}
-                      onChangeText={text => handleOnchange(text, 'code')}
-                      error={errors?.code}
-                      value={inputs.code}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      editableField={true}
-                    />
-                  </View> */}
-                   <View style={[st.mt_t7]}>
-                   <FloatingInput
-                      label={'Phone Number'}
-                      onChangeText={text =>
-                        handleOnchange(text, 'contactNumber')
-                      }
-                      error={errors?.contactNumber}
-                      value={inputs.contactNumber}
-                      inputsty={st.inputsty}
-                      placeholderTextColor={'#fff'}
-                      editableField={true}
-                    />
-                  </View>
-                {/* </View> */}
-                <View style={[st.mt_t7]}>
-                  <FloatingInput
-                    label={'Primary Email Address'}
-                    onChangeText={text => handleOnchange(text, 'email')}
-                    error={errors?.email}
-                    value={inputs.email}
-                    inputsty={st.inputsty}
-                    placeholderTextColor={'#fff'}
-                    disable={false}
-                    editableField={false}
-                  />
-                </View>
-              
-                <View style={[st.mt_t7]}>
-                  <FloatingInput
-                    label={'Alternate Email address'}
-                    onChangeText={text =>
-                      handleOnchange(text, 'alternateEmail')
-                    }
-                    error={errors?.alternateEmail}
-                    value={inputs.alternateEmail}
-                    inputsty={st.inputsty}
-                    placeholderTextColor={'#fff'}
-                    editableField={true}
-                  />
-                </View>
-              
-        
-
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={handleCancel}>
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.saveButton}
-                    onPress={handleSave}>
-                    <Text style={styles.buttonText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Profile picture – prominent and changeable */}
+        <View style={styles.avatarSection}>
+          <TouchableOpacity
+            onPress={handleChangePicture}
+            style={styles.avatarTouch}
+            activeOpacity={0.85}
+          >
+            <View style={styles.avatarWrap}>
+              <Image
+                source={{ uri: avatarUri || 'https://i.pravatar.cc/150?img=3' }}
+                style={styles.avatar}
+              />
+              <View style={styles.cameraOverlay}>
+                <Feather name="camera" size={28} color="#fff" />
               </View>
-            </ScrollView>
-          </View>
+            </View>
+            <Text style={styles.changePhotoLabel}>Tap to change photo</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </View>
+
+        {/* Basic info */}
+        <Text style={styles.sectionTitle}>Basic info</Text>
+        <View style={styles.formCard}>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <FloatingInput
+                label="First Name"
+                value={inputs.firstName}
+                onChangeText={t => handleOnchange(t, 'firstName')}
+                onFocus={() => handleError('', 'firstName')}
+                error={errors.firstName}
+                editableField={true}
+                placeholderTextColor={colors.DARK_GREY}
+              />
+            </View>
+            <View style={styles.half}>
+              <FloatingInput
+                label="Last Name"
+                value={inputs.lastName}
+                onChangeText={t => handleOnchange(t, 'lastName')}
+                onFocus={() => handleError('', 'lastName')}
+                error={errors.lastName}
+                editableField={true}
+                placeholderTextColor={colors.DARK_GREY}
+              />
+            </View>
+          </View>
+
+          <FloatingInput
+            label="Username"
+            value={inputs.username}
+            onChangeText={t => handleOnchange(t, 'username')}
+            editableField={true}
+            placeholderTextColor={colors.DARK_GREY}
+          />
+
+          <FloatingInput
+            label="Bio"
+            value={inputs.description}
+            onChangeText={t => handleOnchange(t, 'description')}
+            editableField={true}
+            placeholderTextColor={colors.DARK_GREY}
+          />
+        </View>
+
+        {/* Contact & location */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Contact & location</Text>
+        <View style={[styles.formCard, { marginTop: 8 }]}>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <FloatingInput
+                label="Location"
+                value={inputs.location}
+                onChangeText={t => handleOnchange(t, 'location')}
+                error={errors.location}
+                editableField={true}
+                placeholderTextColor={colors.DARK_GREY}
+              />
+            </View>
+            <View style={styles.half}>
+              <FloatingInput
+                label="City"
+                value={inputs.city}
+                onChangeText={t => handleOnchange(t, 'city')}
+                error={errors.city}
+                editableField={true}
+                placeholderTextColor={colors.DARK_GREY}
+              />
+            </View>
+          </View>
+
+          <FloatingInput
+            label="Phone Number"
+            value={inputs.contactNumber}
+            onChangeText={t => handleOnchange(t, 'contactNumber')}
+            error={errors.contactNumber}
+            editableField={true}
+            placeholderTextColor={colors.DARK_GREY}
+          />
+
+          <FloatingInput
+            label="Primary Email"
+            value={inputs.email}
+            onChangeText={t => handleOnchange(t, 'email')}
+            editableField={true}
+            placeholderTextColor={colors.DARK_GREY}
+          />
+
+          <FloatingInput
+            label="Alternate Email"
+            value={inputs.alternateEmail}
+            onChangeText={t => handleOnchange(t, 'alternateEmail')}
+            error={errors.alternateEmail}
+            editableField={true}
+            placeholderTextColor={colors.DARK_GREY}
+          />
+        </View>
+
+        {/* Actions */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, isLoading && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default EditProfileScreen;
 
+const THEME = {
+  primary: '#D48A4A',
+  primaryDark: '#B07C57',
+  bg: '#F5F5F7',
+  card: '#FFFFFF',
+  text: '#1B1B1B',
+  textMuted: '#7A7A7A',
+  border: '#E7E0DA',
+};
+
 const styles = StyleSheet.create({
-  modalContainer: {
+  safe: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // backgroundColor:'red',
-    // height:"50%",
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // For dimmed background
+    backgroundColor: THEME.bg,
   },
-  icon: {
-    position: 'absolute',
-    paddingTop: 13,
-    right: 10, // Adjust the position as needed
-    pointerEvents: 'none', // Ensure the icon doesn't interfere with Picker interaction
-  },
-  formContainer: {
-    width: '90%',
-    height: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
+  scroll: { flex: 1 },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 48,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  avatarTouch: {
     alignItems: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '400',
-    color: '#000000',
-    // marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
+  avatarWrap: {
+    position: 'relative',
     marginBottom: 10,
-    flex: 1,
-    marginRight: 10,
   },
+  avatar: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: THEME.border,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: THEME.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: THEME.card,
+  },
+  changePhotoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: THEME.primary,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  formCard: {
+    backgroundColor: THEME.card,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  half: { flex: 1 },
   buttonRow: {
-    // backgroundColor:'red',
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    width: '100%',
-    marginTop: 20,
-  },
-  editIcon: {
-    position: 'absolute',
-    top: -70,
-    right: '-50%',
-    // backgroundColor:'red',
-    backgroundColor: '#7EBE42',
-    borderRadius: 20,
-    padding: 5,
+    gap: 14,
+    marginTop: 28,
   },
   cancelButton: {
-    backgroundColor: '#7B7887',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 40,
-    borderRadius: 5,
-    width: 91,
-    right: 15,
-    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 26,
+    borderRadius: 12,
+    backgroundColor: THEME.textMuted,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    backgroundColor: THEME.primary,
+    minWidth: 110,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-    backgroundColor: '#95C11E',
-    borderRadius: 5,
-    width: 91,
-    alignItems: 'center',
   },
-  buttonText: {
+  buttonDisabled: { opacity: 0.7 },
+  saveButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    lineHeight: 19.1,
-  },
-  panelHeader: {
-    alignItems: 'center',
-  },
-  panelHandle: {
-    width: 40,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#00000040',
-    marginBottom: 10,
-  },
-  panelTitle: {
-    fontSize: 27,
-    height: 35,
-  },
-  panelSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 19.1,
-  },
-  metricBoxInside: {
-    justifyContent: 'space-between',
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: WIDTH.WIDTH_100,
-    height: SIZES.SIZES_50,
-    marginTop: MARGIN.MARGIN_8,
-    // marginHorizontal: MARGIN.MARGIN_10,
-    borderRadius: RADIUS.RADIUS_8,
-    backgroundColor: colors.white,
-    elevation: ELEVATION.ELEVATION_8,
-  },
-  clubTitle: {
-    color: colors.PRIMARY_LIGHT_TEXT,
-    fontSize: FONTSIZE.FONTSIZE_14,
-    fontFamily: family.regular,
-    fontWeight: WEIGHT.WEIGHT_400,
-  },
-  metricBox: {
-    justifyContent: 'space-between',
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: WIDTH.WIDTH_100,
-    paddingHorizontal: PADDING.PADDING_15,
-    height: SIZES.SIZES_48,
-  },
-  imageContainer: {
-    borderWidth: 1,
-    borderColor: colors.grey,
-    borderRadius: 8,
-    marginTop: 5,
   },
 });

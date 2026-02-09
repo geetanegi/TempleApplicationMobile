@@ -10,33 +10,34 @@ import {
   ActivityIndicator,
   StyleSheet,
   AppState,
+  TextInput,
+  Alert,
+  ScrollView,
+  Modal,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import ImageCropPicker from 'react-native-image-crop-picker';
-import {Camera} from 'lucide-react-native';
-import {Play} from 'lucide-react-native';
-// import {ProcessingManager} from 'react-native-video-processing';
+import {Camera, Play} from 'lucide-react-native';
+import {getUserId} from '../../redux/store/getState';
+import {createPost} from '../../utils/apicalls/socialHandler';
 
+const isVideoUri = uri => {
+  if (!uri || typeof uri !== 'string') return false;
+  const u = uri.toLowerCase();
+  return u.includes('.mp4') || u.includes('.mov') || u.includes('video');
+};
+
+// Gallery item: string (legacy 'camera') or { uri, type: 'photo'|'video' }
 const InstaGallery = () => {
-  const [photos, setPhotos] = useState(['camera']); // first cell = camera
+  const navigation = useNavigation();
+  const [photos, setPhotos] = useState(['camera']);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedIsVideo, setSelectedIsVideo] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // 0-100 when uploading, null otherwise
   const [loading, setLoading] = useState(true);
-
-  const handleVideoCrop = async videoUri => {
-    // try {
-    //   const result = await ProcessingManager.trim(videoUri, {
-    //     startTime: 0, // seconds
-    //     endTime: 10, // seconds
-    //     quality: 'high', // 'low' | 'medium' | 'high'
-    //     saveToCameraRoll: true,
-    //   });
-    //   console.log('Trimmed video path:', result);
-    //   setSelectedPhoto(result); // show trimmed video
-    // } catch (err) {
-    //   console.log('Video trim failed:', err);
-    // }
-    console.log(videoUri);
-  };
 
   // 📍 Request permission to access photos
   const requestPhotoPermission = async () => {
@@ -59,7 +60,7 @@ const InstaGallery = () => {
             PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
             {
               title: 'Storage Permission',
-              message: 'App needs access to your photos',
+              message: 'App needs access to your photos and videos to create posts',
               buttonPositive: 'OK',
             },
           );
@@ -73,40 +74,106 @@ const InstaGallery = () => {
     return true;
   };
 
-  // 📷 Open camera directly
+  // Cropping only; compression is done on the backend (Java).
+  const cropOptions = { width: 1080, height: 1080 };
+
+  // 📷 Open camera (photo or video). cropping: false so video capture is allowed.
   const openCamera = async () => {
     try {
-      const image = await ImageCropPicker.openCamera({
+      const result = await ImageCropPicker.openCamera({
         width: 1080,
         height: 1080,
-        cropping: true,
+        cropping: false,
         mediaType: 'any',
       });
-
-      setSelectedPhoto(image.path);
+      let path = result.path || result.sourceURL || '';
+      let isVideo = isVideoUri(path) || result.mime?.includes('video');
+      if (!isVideo && path) {
+        try {
+          const cropped = await ImageCropPicker.openCropper({
+            path,
+            ...cropOptions,
+            cropping: true,
+            freeStyleCropEnabled: true,
+          });
+          path = cropped.path;
+        } catch (e) {
+          if (e?.message !== 'User cancelled') console.log('Crop after camera:', e);
+        }
+      }
+      setSelectedIsVideo(!!isVideo);
+      setSelectedPhoto(path);
     } catch (err) {
       console.log('Camera error:', err);
     }
   };
 
-  // 🖼️ Fetch photos from device gallery
+  const clearSelection = () => {
+    setSelectedPhoto(null);
+    setSelectedIsVideo(false);
+    setCaption('');
+  };
+
+  const handlePost = async () => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'You must be logged in to post.');
+      return;
+    }
+    if (!selectedPhoto) return;
+    setPosting(true);
+    setUploadProgress(0);
+    try {
+      await createPost(userId, caption, selectedPhoto, selectedIsVideo ? 'video' : 'photo', {
+        onUploadProgress: (percent) => setUploadProgress(percent),
+      });
+      clearSelection();
+      navigation.goBack();
+    } catch (e) {
+      console.warn('Create post error:', e);
+      Alert.alert('Error', e?.data?.message || e?.message || 'Failed to create post.');
+    } finally {
+      setPosting(false);
+      setUploadProgress(null);
+    }
+  };
+
+  // 🖼️ Fetch photos and videos from device gallery (both shown in grid)
   const fetchPhotos = async () => {
     try {
-      const photosResult = await CameraRoll.getPhotos({
-        first: 100,
-        assetType: 'Photos',
-      });
-      const videosResult = await CameraRoll.getPhotos({
-        first: 100,
-        assetType: 'Videos',
-      });
+      const items = ['camera'];
+      const seen = new Set();
 
-      const uris = [
-        ...photosResult.edges.map(edge => edge.node.image.uri),
-        ...videosResult.edges.map(edge => edge.node.image.uri),
-      ];
+      const addFromEdges = (edges, defaultType) => {
+        if (!Array.isArray(edges)) return;
+        edges.forEach(edge => {
+          const node = edge?.node;
+          const uri = node?.image?.uri;
+          if (!uri || seen.has(uri)) return;
+          seen.add(uri);
+          const nodeType = (node.type || '').toLowerCase();
+          const isVideo = defaultType === 'video' || nodeType === 'video' || isVideoUri(uri);
+          items.push({ uri, type: isVideo ? 'video' : 'photo' });
+        });
+      };
 
-      setPhotos(['camera', ...uris]);
+      try {
+        const result = await CameraRoll.getPhotos({
+          first: 150,
+          assetType: 'All',
+        });
+        addFromEdges(result?.edges, null);
+      } catch (allError) {
+        console.log('getPhotos(All) failed, trying Photos + Videos separately:', allError?.message);
+        const [photosResult, videosResult] = await Promise.all([
+          CameraRoll.getPhotos({ first: 100, assetType: 'Photos' }),
+          CameraRoll.getPhotos({ first: 100, assetType: 'Videos' }),
+        ]);
+        addFromEdges(photosResult?.edges, 'photo');
+        addFromEdges(videosResult?.edges, 'video');
+      }
+
+      setPhotos(items);
     } catch (error) {
       console.log('Error loading photos/videos:', error);
     } finally {
@@ -142,31 +209,71 @@ const InstaGallery = () => {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="gray" />
-        <Text style={{marginTop: 10}}>Loading photos...</Text>
+        <Text style={{marginTop: 10}}>Loading photos & videos...</Text>
       </View>
     );
   }
 
-  // 📱 Fullscreen preview with "Next"
+  // 📱 Preview with caption and Post
   if (selectedPhoto) {
     return (
-      <View style={styles.fullscreen}>
-        <Image
-          source={{uri: selectedPhoto}}
-          style={styles.previewImage}
-          resizeMode="contain"
-        />
-        <TouchableOpacity
-          onPress={() => setSelectedPhoto(null)}
-          style={styles.nextButton}>
-          <Text style={{color: '#000', fontWeight: '600'}}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setSelectedPhoto(null)}
-          style={{...styles.nextButton, right: 0}}>
-          <Text style={{color: '#000', fontWeight: '600'}}>Next</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        <View style={styles.previewRoot}>
+          <ScrollView style={styles.previewScroll} contentContainerStyle={styles.previewScrollContent}>
+            {selectedIsVideo ? (
+              <View style={styles.videoPreviewBox}>
+                <Image source={{uri: selectedPhoto}} style={styles.previewThumb} resizeMode="cover" />
+                <View style={styles.playOverlay}>
+                  <Play size={40} color="#fff" />
+                </View>
+                <Text style={styles.mediaLabel}>Video</Text>
+              </View>
+            ) : (
+              <View style={styles.photoPreviewBox}>
+                <Image source={{uri: selectedPhoto}} style={styles.previewImage} resizeMode="contain" />
+                <Text style={styles.mediaLabel}>Photo</Text>
+              </View>
+            )}
+            <Text style={styles.captionLabel}>Caption (optional)</Text>
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Write a caption..."
+              placeholderTextColor="#999"
+              value={caption}
+              onChangeText={setCaption}
+              multiline
+              maxLength={500}
+            />
+            <View style={styles.previewActions}>
+              <TouchableOpacity onPress={clearSelection} style={styles.previewBtn}>
+                <Text style={styles.previewBtnText}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handlePost}
+                disabled={posting}
+                style={[styles.previewBtn, styles.postBtn]}>
+                {posting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[styles.previewBtnText, styles.postBtnText]}>Post</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+
+        <Modal visible={posting} transparent animationType="fade">
+          <View style={styles.progressOverlay}>
+            <View style={styles.progressCard}>
+              <Text style={styles.progressTitle}>Publishing...</Text>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${uploadProgress ?? 0}%` }]} />
+              </View>
+              <Text style={styles.progressPercent}>{uploadProgress ?? 0}%</Text>
+            </View>
+          </View>
+        </Modal>
+      </>
     );
   }
 
@@ -177,7 +284,7 @@ const InstaGallery = () => {
 
       <FlatList
         data={photos}
-        keyExtractor={(item, index) => index.toString()}
+        keyExtractor={(item, index) => (item === 'camera' ? 'camera' : (item.uri || '') + index)}
         numColumns={3}
         renderItem={({item}) => {
           if (item === 'camera') {
@@ -188,40 +295,37 @@ const InstaGallery = () => {
             );
           }
 
-          const isVideo =
-            item.includes('.mp4') ||
-            item.includes('.mov') ||
-            item.includes('video');
-          console.log(item);
+          const uri = typeof item === 'object' && item?.uri ? item.uri : item;
+          const isVideo = (typeof item === 'object' && item?.type === 'video') || isVideoUri(uri);
 
           return (
             <TouchableOpacity
               style={styles.imageContainer}
               onPress={async () => {
                 if (isVideo) {
-                  handleVideoCrop(item); // For now just preview video
+                  setSelectedIsVideo(true);
+                  setSelectedPhoto(uri);
                 } else {
                   try {
                     const cropped = await ImageCropPicker.openCropper({
-                      path: item,
-                      width: 1080,
-                      height: 1080,
+                      path: uri,
+                      ...cropOptions,
                       cropping: true,
                       freeStyleCropEnabled: true,
                     });
+                    setSelectedIsVideo(false);
                     setSelectedPhoto(cropped.path);
                   } catch (err) {
                     console.log('Crop cancelled or failed:', err);
                   }
                 }
               }}>
+              <Image source={{uri}} style={styles.image} resizeMode="cover" />
               {isVideo ? (
                 <View style={styles.playIcon}>
                   <Play size={32} color="#fff" />
                 </View>
-              ) : (
-                <Image source={{uri: item}} style={styles.image} />
-              )}
+              ) : null}
             </TouchableOpacity>
           );
         }}
@@ -265,6 +369,8 @@ const styles = StyleSheet.create({
     margin: '1%',
     borderRadius: 8,
     backgroundColor: '#c3c3c3ff',
+    overflow: 'hidden',
+    position: 'relative',
   },
   image: {
     width: '100%',
@@ -275,18 +381,99 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  previewRoot: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  previewScroll: {
+    flex: 1,
+  },
+  previewScrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  videoPreviewBox: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#111',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  previewThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  photoPreviewBox: {
+    width: '100%',
+    minHeight: 280,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    position: 'relative',
+  },
   previewImage: {
     width: '100%',
-    height: '90%',
+    minHeight: 280,
+    aspectRatio: 1,
   },
-  nextButton: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    margin: 12,
-    borderRadius: 8,
+  mediaLabel: {
     position: 'absolute',
-    bottom: 110,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  captionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  captionInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+    color: '#000',
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  previewBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+  },
+  previewBtnText: {
+    color: '#333',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  postBtn: {
+    backgroundColor: '#D48A4A',
+  },
+  postBtnText: {
+    color: '#fff',
   },
   center: {
     flex: 1,
@@ -300,5 +487,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 30,
     padding: 6,
+  },
+  progressOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 260,
+    alignItems: 'center',
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  progressBarBg: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#D48A4A',
+    borderRadius: 4,
+  },
+  progressPercent: {
+    fontSize: 14,
+    color: '#666',
   },
 });

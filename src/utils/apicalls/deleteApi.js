@@ -6,6 +6,8 @@ import {
 } from './apiHandler';
 
 export const deleteAuth = (url) => deleteApi(url, true);
+/** DELETE with query params (e.g. story delete: userId) */
+export const deleteAuthWithParams = (url, params) => deleteApiWithParams(url, params, true);
 
 const deleteApi = async (url, needToken = true) => {
   const config = await getApiHeader(needToken);
@@ -13,11 +15,24 @@ const deleteApi = async (url, needToken = true) => {
     axios
       .delete(url, config)
       .then(res => {
-        //console.log('post api', url, 'then', res)
         handleSuccessResponse(res, resolve, reject);
       })
       .catch(err => {
-        //console.log('post api', url, 'catch', err)
+        handleFailedResponse(err, reject);
+      });
+  });
+};
+
+const deleteApiWithParams = async (url, params = {}, needToken = true) => {
+  const config = await getApiHeader(needToken);
+  const fullConfig = { ...config, params };
+  return new Promise((resolve, reject) => {
+    axios
+      .delete(url, fullConfig)
+      .then(res => {
+        handleSuccessResponse(res, resolve, reject);
+      })
+      .catch(err => {
         handleFailedResponse(err, reject);
       });
   });

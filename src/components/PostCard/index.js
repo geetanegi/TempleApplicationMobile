@@ -19,7 +19,9 @@ import {
   Trash2,
   Archive,
   Clock3,
+  Play,
 } from 'lucide-react-native';
+import VideoPlayer from 'react-native-video-player';
 import { colors } from '../../global/theme';
 import Share from 'react-native-share';
 import CommentScreen from '../../screens/dashboard/comment';
@@ -33,13 +35,36 @@ import {
   isFollowing,
   getComments,
   commentOnPost,
+  replyToComment,
+  deleteComment,
 } from '../../utils/apicalls/socialHandler';
+import { resolveProfilePictureUrl, getProfilePictureUrlByUserId } from '../../utils/apicalls/profileHandler';
+
+/** Format date as "1 hour ago", "2 days ago", etc. */
+function formatTimeAgo(createdAt) {
+  if (createdAt == null) return '';
+  const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  if (diffWeeks < 4) return `${diffWeeks} ${diffWeeks === 1 ? 'week' : 'weeks'} ago`;
+  return date.toLocaleDateString();
+}
 
 const PostCard = ({
   userName = 'Camila',
-  location = 'Mexico City, Mexico',
-  timeText = '55m',
+  createdAt,
+  timeText,
   image,
+  videoUrl,
   likes = 5400,
   comments = [],
   shares = 100,
@@ -56,6 +81,7 @@ const PostCard = ({
   onFollowChange, // (newFollowing) after follow/unfollow
   initialIsLiked = false,
   initialIsShared = false,
+  onAuthorPress, // (authorUserId) when user taps author name to open profile
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
 
@@ -77,7 +103,9 @@ const PostCard = ({
   const [expanded, setExpanded] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
+  const displayTimeAgo = createdAt != null ? formatTimeAgo(createdAt) : (timeText || '');
   const displayLikeCount = likeCount;
   const commentCount = typeof comments === 'number'
     ? (commentList.length > 0 ? commentList.length : comments)
@@ -130,12 +158,29 @@ const PostCard = ({
     }
   }, [authorUserId, currentUserId, isFollowingAuthor, followLoading, onFollowChange]);
 
-  const normalizeComment = useCallback((c) => ({
-    ...c,
-    text: c.content != null ? c.content : c.text,
-    user: typeof c.user === 'object' ? (c.user?.username || c.user?.name || 'User') : (c.user || 'User'),
-    avatar: typeof c.user === 'object' ? c.user?.userProfile || c.user?.profileImageUrl : undefined,
-  }));
+  const normalizeComment = useCallback((c) => {
+    const userObj = typeof c.user === 'object' ? c.user : null;
+    const profile = userObj?.userProfile;
+    const avatarUrl =
+      userObj?.avatarUrl ||
+      (typeof profile === 'string' ? profile : null) ||
+      profile?.imageUrl ||
+      profile?.directImageUrl ||
+      (typeof userObj?.profileImageUrl === 'string' ? userObj.profileImageUrl : null);
+    const displayName = userObj
+      ? (userObj.name || userObj.username || [userObj.firstName, userObj.lastName].filter(Boolean).join(' ') || 'User')
+      : (c.user || 'User');
+    const resolvedAvatar = resolveProfilePictureUrl(avatarUrl) || getProfilePictureUrlByUserId(userObj?.id);
+    return {
+      ...c,
+      id: c.id,
+      parentCommentId: c.parentCommentId ?? null,
+      text: c.content != null ? c.content : c.text,
+      user: displayName,
+      userId: userObj?.id,
+      avatar: resolvedAvatar || undefined,
+    };
+  });
 
   const openComments = useCallback(() => {
     if (postId != null && currentUserId != null && !commentsFetched.current) {
@@ -161,6 +206,32 @@ const PostCard = ({
       setCommentList(list);
     } catch (e) {
       console.warn('Comment API error:', e);
+    }
+  }, [postId, currentUserId, normalizeComment]);
+
+  const handleSubmitReply = useCallback(async (parentCommentId, content) => {
+    if (!content?.trim() || postId == null || currentUserId == null || !parentCommentId) return;
+    try {
+      await replyToComment(postId, currentUserId, parentCommentId, content.trim());
+      const res = await getComments(postId);
+      const data = res?.data;
+      const list = Array.isArray(data) ? data.map(normalizeComment) : [];
+      setCommentList(list);
+    } catch (e) {
+      console.warn('Reply API error:', e);
+    }
+  }, [postId, currentUserId, normalizeComment]);
+
+  const handleDeleteComment = useCallback(async (commentId) => {
+    if (postId == null || currentUserId == null) return;
+    try {
+      await deleteComment(postId, commentId, currentUserId);
+      const res = await getComments(postId);
+      const data = res?.data;
+      const list = Array.isArray(data) ? data.map(normalizeComment) : [];
+      setCommentList(list);
+    } catch (e) {
+      console.warn('Delete comment API error:', e);
     }
   }, [postId, currentUserId, normalizeComment]);
 
@@ -275,26 +346,31 @@ const PostCard = ({
   return (
     <>
       <View style={styles.card}>
+        {/* Content above actions: light grey */}
+        <View style={styles.cardContentAboveActions}>
         {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.userInfo}>
             <Image
-              source={{uri: avatar || 'https://i.pravatar.cc/150?img=12'}}
+              source={{uri: resolveProfilePictureUrl(avatar) || avatar || 'https://i.pravatar.cc/150?img=12'}}
               style={styles.avatar}
             />
 
             <View style={{flex: 1}}>
-              <Text style={styles.userName} numberOfLines={1}>
-                {userName}
-              </Text>
-              <Text style={styles.location} numberOfLines={1}>
-                {location}
-              </Text>
-
-              <View style={styles.timeRow}>
-                <Text style={styles.timeText}>{timeText}</Text>
-                <Clock3 size={12} color="#777" style={{marginLeft: 6}} />
-              </View>
+              <Pressable
+                onPress={() => authorUserId != null && onAuthorPress?.(authorUserId)}
+                style={({pressed}) => ({ opacity: pressed && authorUserId ? 0.7 : 1 })}
+              >
+                <Text style={styles.userName} numberOfLines={1}>
+                  {userName}
+                </Text>
+              </Pressable>
+              {displayTimeAgo ? (
+                <View style={styles.timeRow}>
+                  <Clock3 size={12} color="#777" style={{marginRight: 4}} />
+                  <Text style={styles.timeText}>{displayTimeAgo}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -316,46 +392,50 @@ const PostCard = ({
               </Pressable>
             )}
 
-            {/* Menu button (3 dots) */}
-            <Pressable ref={menuBtnRef} hitSlop={12} onPress={openMenuNextToButton}>
-              <MoreVertical size={20} color="#111" />
-            </Pressable>
+            {/* Menu (3 dots) - only for current user's post */}
+            {authorUserId != null && currentUserId != null && authorUserId === currentUserId && (
+              <Pressable ref={menuBtnRef} hitSlop={12} onPress={openMenuNextToButton}>
+                <MoreVertical size={20} color="#111" />
+              </Pressable>
+            )}
           </View>
         </View>
 
-        {/* MENU DROPDOWN */}
-        <Modal
-          transparent
-          visible={menuOpen}
-          animationType="fade"
-          onRequestClose={() => setMenuOpen(false)}>
-          <Pressable
-            style={styles.menuBackdrop}
-            onPress={() => setMenuOpen(false)}
-          />
+        {/* MENU DROPDOWN - only shown for own post */}
+        {authorUserId != null && currentUserId != null && authorUserId === currentUserId && (
+          <Modal
+            transparent
+            visible={menuOpen}
+            animationType="fade"
+            onRequestClose={() => setMenuOpen(false)}>
+            <Pressable
+              style={styles.menuBackdrop}
+              onPress={() => setMenuOpen(false)}
+            />
 
-          <View style={[styles.menuBox, {top: menuPos.top, left: menuPos.left}]}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuOpen(false);
-                onDelete?.();
-              }}>
-              <Trash2 size={16} color="#666" />
-              <Text style={styles.menuText}>Delete</Text>
-            </TouchableOpacity>
+            <View style={[styles.menuBox, {top: menuPos.top, left: menuPos.left}]}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  onDelete?.();
+                }}>
+                <Trash2 size={16} color="#666" />
+                <Text style={styles.menuText}>Delete</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuOpen(false);
-                onArchive?.();
-              }}>
-              <Archive size={16} color="#666" />
-              <Text style={styles.menuText}>Archive</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  onArchive?.();
+                }}>
+                <Archive size={16} color="#666" />
+                <Text style={styles.menuText}>Archive</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
+        )}
 
         {/* CAPTION */}
         {!!contentText && (
@@ -369,12 +449,53 @@ const PostCard = ({
           </Text>
         )}
 
-        {/* IMAGE CARD */}
-        {!!image && (
+        {/* MEDIA: image or video (thumbnail + play overlay; tap plays inline) */}
+        {!!videoUrl && (
           <View style={styles.imageWrap}>
-            <Image source={{uri: image}} style={styles.postImage} />
+            {videoPlaying ? (
+              <View style={styles.videoContainer}>
+                <VideoPlayer
+                  source={{ uri: String(videoUrl || '') }}
+                  style={styles.postImage}
+                  resizeMode="contain"
+                  autoplay
+                  showDuration
+                  controlsTimeout={4000}
+                  onEnd={() => setVideoPlaying(false)}
+                  onError={(e) => {
+                    if (__DEV__) console.warn('PostCard video error', e);
+                    setVideoPlaying(false);
+                  }}
+                />
+                <Pressable
+                  style={styles.videoCloseOverlay}
+                  onPress={() => setVideoPlaying(false)}
+                >
+                  <Text style={styles.videoCloseText}>✕</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable style={styles.videoThumbWrap} onPress={() => setVideoPlaying(true)}>
+                <Image
+                  source={{ uri: videoUrl }}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.videoPlayOverlay}>
+                  <View style={styles.videoPlayCircle}>
+                    <Play size={48} color="#fff" fill="#fff" />
+                  </View>
+                </View>
+              </Pressable>
+            )}
           </View>
         )}
+        {!videoUrl && !!image && (
+          <View style={styles.imageWrap}>
+            <Image source={{uri: image}} style={styles.postImage} resizeMode="cover" />
+          </View>
+        )}
+        </View>
 
         {/* ACTIONS */}
         <View style={styles.actionsRow}>
@@ -421,6 +542,9 @@ const PostCard = ({
         setVisible={setVisible}
         comment={commentList}
         onSendComment={postId != null && currentUserId != null ? handleSubmitComment : undefined}
+        onSendReply={postId != null && currentUserId != null ? handleSubmitReply : undefined}
+        onDeleteComment={postId != null && currentUserId != null ? handleDeleteComment : undefined}
+        currentUserId={currentUserId}
       />
     </>
   );
@@ -452,6 +576,17 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
+  cardContentAboveActions: {
+    backgroundColor: '#f2f2f2',
+    marginHorizontal: -16,
+    marginTop: -16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 2,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,13 +612,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#111',
-  },
-
-  location: {
-    fontSize: 13,
-    color: '#7B7B7B',
-    marginTop: 2,
-    fontWeight: '600',
   },
 
   timeRow: {
@@ -538,7 +666,50 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: 340,
-    backgroundColor: '#eee',
+    backgroundColor: '#1a1a1a',
+  },
+
+  videoThumbWrap: {
+    position: 'relative',
+    width: '100%',
+    height: 340,
+    backgroundColor: '#1a1a1a',
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  videoPlayCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 340,
+  },
+  videoCloseOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  videoCloseText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
   },
 
   actionsRow: {

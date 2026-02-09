@@ -45,7 +45,13 @@ export const postApi = async (api, data) => {
   });
 };
 
-export const uploadApi = async (api, data) => {
+/**
+ * Upload with optional progress callback.
+ * @param {string} api - URL
+ * @param {FormData} data - Form data
+ * @param {{ onUploadProgress?: (e: { loaded: number, total?: number }) => void }} options - Optional; onUploadProgress(percentEvent) for progress bar
+ */
+export const uploadApi = async (api, data, options = {}) => {
   const mytoken = await retrieveData();
   const config = {
     headers: {
@@ -54,6 +60,9 @@ export const uploadApi = async (api, data) => {
       Authorization: 'Bearer ' + mytoken,
     },
   };
+  if (options.onUploadProgress) {
+    config.onUploadProgress = options.onUploadProgress;
+  }
 
   return new Promise((resolve, reject) => {
     axios
