@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import st from '../../../global/styles';
-import { Menu, Bell, MessageCircle, Plus } from 'lucide-react-native';
+import { Menu, Bell, MessageCircle, Plus, User } from 'lucide-react-native';
 import { APP_TEXT, colors } from '../../../global/theme';
 import HeaderDashboard from '../../../components/dashboardHeader';
 import PostCard from '../../../components/PostCard';
@@ -23,14 +23,14 @@ import { getUserId } from '../../../redux/store/getState';
 import { connectWebSocket } from '../../../utils/services/websocketService';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 
-/** Same avatar resolution as FollowListScreen: profile picture by userId, then placeholder */
+/** Same avatar resolution as FollowListScreen: profile picture by userId, or null for no photo */
 function getAvatarUriForUserId(userId) {
   const url = getProfilePictureUrlByUserId(userId);
   const resolved = resolveProfilePictureUrl(url || '');
   if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
     return resolved;
   }
-  return 'https://i.pravatar.cc/150?img=3';
+  return null;
 }
 
 /** Group story feed by user for lookup */
@@ -257,20 +257,32 @@ const MainDashboard = () => {
                       style={styles.storyGradientBorderLayer}
                     />
                     <View style={[styles.storyImgInner, { zIndex: 1 }]}>
-                      <Image
-                        source={{ uri: myAvatar }}
-                        style={styles.storyImgInGradient}
-                        resizeMode="cover"
-                      />
+                      {myAvatar ? (
+                        <Image
+                          source={{ uri: myAvatar }}
+                          style={styles.storyImgInGradient}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.storyImgInGradient, styles.storyIconWrap]}>
+                          <User size={28} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+                        </View>
+                      )}
                     </View>
                   </View>
                 ) : (
                   <View style={styles.storyImgInnerFull}>
-                    <Image
-                      source={{ uri: myAvatar }}
-                      style={styles.storyImg}
-                      resizeMode="cover"
-                    />
+                    {myAvatar ? (
+                      <Image
+                        source={{ uri: myAvatar }}
+                        style={styles.storyImg}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.storyImg, styles.storyIconWrap]}>
+                        <User size={28} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+                      </View>
+                    )}
                   </View>
                 )}
               </Pressable>
@@ -313,20 +325,32 @@ const MainDashboard = () => {
                     style={styles.storyGradientBorderLayer}
                   />
                   <View style={[styles.storyImgInner, { zIndex: 1 }]}>
-                    <Image
-                      source={{ uri: profilePic }}
-                      style={styles.storyImgInGradient}
-                      resizeMode="cover"
-                    />
+                    {profilePic ? (
+                      <Image
+                        source={{ uri: profilePic }}
+                        style={styles.storyImgInGradient}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.storyImgInGradient, styles.storyIconWrap]}>
+                        <User size={28} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+                      </View>
+                    )}
                   </View>
                 </View>
               ) : (
                 <View style={styles.storyImgInnerFull}>
-                  <Image
-                    source={{ uri: profilePic }}
-                    style={styles.storyImg}
-                    resizeMode="cover"
-                  />
+                  {profilePic ? (
+                    <Image
+                      source={{ uri: profilePic }}
+                      style={styles.storyImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.storyImg, styles.storyIconWrap]}>
+                      <User size={28} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+                    </View>
+                  )}
                 </View>
               )}
             </Pressable>
@@ -536,6 +560,10 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 15,
     backgroundColor: '#eee',
+  },
+  storyIconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

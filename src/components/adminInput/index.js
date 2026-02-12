@@ -21,6 +21,7 @@ const AdminInput = ({
   inputTextColor,
   placeholderColor,
   inputFontSize,
+  inputMinHeight,
   ...props
 }) => {
 //  alert(props.value)
@@ -55,6 +56,7 @@ const AdminInput = ({
             style.inputContainer,
             inputsty,
             {paddingLeft: iconName ? 80 : 8},
+            inputMinHeight != null ? { minHeight: inputMinHeight, height: inputMinHeight } : null,
           ]}>
          {((!isFocused && value?.trim() === '') || value == undefined )&& (
           <View style={style.placeholderContainer}>
@@ -116,20 +118,15 @@ const style = StyleSheet.create({
   },
 
   inputContainer: {
-    // backgroundColor: colors.white,
     flexDirection: 'row',
     paddingLeft: 40,
-    paddingRight:15,
+    paddingRight: 15,
     borderRadius: 7,
     alignItems: 'center',
-    position:'relative',
+    position: 'relative',
     marginTop: 10,
-  //  borderWidth:1.5, 
-  //  borderColor:colors.white,
-   // backgroundColor: colors.PRIMARY_TRANSPARENT_BLACK,
-   //       opacity: 0.6,
-    
-    height:40,
+    minHeight: 40,
+    height: 40,
   },
   inputtxt:{
     fontSize: size.subtitle,

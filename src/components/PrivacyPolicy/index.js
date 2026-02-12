@@ -5,11 +5,13 @@ import { environment } from '../../utils/constant';
 
 const PrivacyPolicy = () => {
   const openPrivacyPolicy = () => {
-    // Linking.openURL(environment.Privacy_policy);
+    if (environment.Privacy_policy) {
+      Linking.openURL(environment.Privacy_policy);
+    }
   };
   return (
     <Pressable onPress={() => openPrivacyPolicy()}>
-      <Text style={styles.privacyTxt}>© 2024 AceCam. All rights reserved Terms & Conditions and Privacy Policy</Text>
+      <Text style={styles.privacyTxt}>© 2025 Jainsansaar. All rights reserved. Terms & Conditions and Privacy Policy</Text>
     </Pressable>
   );
 };

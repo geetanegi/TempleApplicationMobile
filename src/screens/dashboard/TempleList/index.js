@@ -13,13 +13,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Star, ChevronRight, Menu, Bell, MessageCircle } from 'lucide-react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Callout } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import { colors } from '../../../global/theme';
 import SearchInput from '../Main/SearchInput';
 import HeaderDashboard from '../../../components/dashboardHeader';
+import { getTempleList } from '../../../utils/apicalls/templeHandler';
 import { DUMMY_TEMPLES } from './dummyTemples';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,7 +30,6 @@ const RIGHT_BUTTON_WIDTH = CARD_WIDTH * 0.1;
 
 const TAB_OPTIONS = [
   { key: 'mandir', label: 'Mandir' },
-  { key: 'dharmshala', label: 'Dharmshala' },
 ];
 
 const DEFAULT_REGION = {
@@ -77,14 +77,47 @@ const TempleCard = ({ item, onPress }) => {
   );
 };
 
+const IMG_FALLBACK = [
+  'https://images.unsplash.com/photo-1548013146-72479768bada?w=200&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=200&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&auto=format&fit=crop&q=60',
+];
+
+const toTempleItem = (t, index) => ({
+  id: String(t.id ?? index),
+  name: t.name || 'Temple',
+  location: t.location || t.address || '—',
+  rating: 4.5,
+  distance: '— km away',
+  image: t.profileImage?.url ?? t.image ?? IMG_FALLBACK[index % IMG_FALLBACK.length],
+  type: t.type || 'mandir',
+  latitude: t.latitude,
+  longitude: t.longitude,
+  views: t.views ?? 0,
+});
+
 const TempleLocator = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const mapRef = useRef(null);
+  const focusTemple = route.params?.focusTemple;
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('mandir');
-  const [initialRegion, setInitialRegion] = useState(DEFAULT_REGION);
+  const [initialRegion, setInitialRegion] = useState(() => {
+    if (focusTemple?.latitude != null && focusTemple?.longitude != null) {
+      return {
+        latitude: focusTemple.latitude,
+        longitude: focusTemple.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+    }
+    return DEFAULT_REGION;
+  });
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState(null);
+  const [temples, setTemples] = useState([]);
+  const [templesLoading, setTemplesLoading] = useState(true);
 
   const requestLocationPermission = async () => {
     if (Platform.OS !== 'android') return true;
@@ -154,41 +187,80 @@ const TempleLocator = () => {
     });
   };
 
-  useEffect(() => {
-    fetchCurrentLocation();
+  const loadTemples = useCallback(async () => {
+    setTemplesLoading(true);
+    try {
+      const list = await getTempleList();
+      const withCoords = (Array.isArray(list) ? list : []).filter(
+        t => t.latitude != null && t.longitude != null,
+      );
+      setTemples(withCoords.map(toTempleItem));
+    } catch {
+      setTemples([]);
+    } finally {
+      setTemplesLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (focusTemple?.latitude != null && focusTemple?.longitude != null) {
+      setLocationLoading(false);
+      setLocationError(null);
+      const region = {
+        latitude: focusTemple.latitude,
+        longitude: focusTemple.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+      setInitialRegion(region);
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(region, 500);
+      }, 300);
+    } else {
+      fetchCurrentLocation();
+    }
+  }, [focusTemple?.latitude, focusTemple?.longitude]);
+
+  useEffect(() => {
+    loadTemples();
+  }, [loadTemples]);
 
   useFocusEffect(
     useCallback(() => {
       fetchCurrentLocation();
-    }, []),
+      loadTemples();
+    }, [loadTemples]),
   );
 
+  const templesWithFallback = temples.length > 0 ? temples : DUMMY_TEMPLES;
+
+  // Search bar shows only temple users (results from temple list only)
   const filteredTemples = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     if (!q) return [];
-    return DUMMY_TEMPLES.filter(
+    return templesWithFallback.filter(
       t =>
         t.name.toLowerCase().includes(q) ||
         t.location.toLowerCase().includes(q)
     );
-  }, [searchText]);
+  }, [searchText, templesWithFallback]);
 
   const mapMarkers = useMemo(() => {
     if (activeTab === 'mandir') {
-      return DUMMY_TEMPLES.filter(t => t.type === 'mandir');
+      return templesWithFallback.filter(t => t.type === 'mandir' || !t.type);
     }
     if (activeTab === 'dharmshala') {
-      return DUMMY_TEMPLES.filter(t => t.type === 'dharmshala');
+      return templesWithFallback.filter(t => t.type === 'dharmshala');
     }
     return [];
-  }, [activeTab]);
+  }, [activeTab, templesWithFallback]);
 
   const showSearchResults = searchText.trim().length > 0;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+      <View style={styles.content}>
       <HeaderDashboard
         title="Temple Locator"
         LeftIcon={Menu}
@@ -280,11 +352,30 @@ const TempleLocator = () => {
                 }}
                 title={place.name}
                 description={place.location}
-              />
+                onPress={() => navigation.navigate('TempleDetails', { temple: place })}
+              >
+                <Callout
+                  tooltip={false}
+                  onPress={() => navigation.navigate('TempleDetails', { temple: place })}
+                >
+                  <View style={styles.callout}>
+                    <Text style={styles.calloutTitle} numberOfLines={1}>
+                      {place.name}
+                    </Text>
+                    {place.location ? (
+                      <Text style={styles.calloutSub} numberOfLines={1}>
+                        {place.location}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.calloutAction}>Tap to view details</Text>
+                  </View>
+                </Callout>
+              </Marker>
             ))}
           </MapView>
         </View>
       )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -295,6 +386,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  content: {
+    flex: 1,
   },
   searchWrap: {
     paddingHorizontal: 20,
@@ -427,6 +521,28 @@ const styles = StyleSheet.create({
     color: colors.DARK_BLACK,
     textAlign: 'center',
     paddingHorizontal: 24,
+  },
+  callout: {
+    minWidth: 160,
+    maxWidth: 220,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  calloutTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.DARK_BLACK,
+    marginBottom: 2,
+  },
+  calloutSub: {
+    fontSize: 13,
+    color: colors.PRIMARY_LIGHT_TEXT,
+    marginBottom: 6,
+  },
+  calloutAction: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.PRIMARY_BUTTON,
   },
   retryButton: {
     marginTop: 12,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   TextInput,
   Modal,
   FlatList,
+  Linking,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { recordTempleView } from '../../../utils/apicalls/templeHandler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ImagePlus, Check } from 'lucide-react-native';
+import { X, ImagePlus, Check, MapPin } from 'lucide-react-native';
 import { colors } from '../../../global/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -29,8 +31,19 @@ const DEFAULT_PHOTOS = [
 
 const TempleDetails = () => {
   const route = useRoute();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const temple = route.params?.temple || {};
+  const hasCoordinates = temple.latitude != null && temple.longitude != null;
+  const viewRecordedRef = useRef(false);
+
+  useEffect(() => {
+    const templeId = temple.id;
+    if (templeId && !viewRecordedRef.current) {
+      viewRecordedRef.current = true;
+      recordTempleView(templeId);
+    }
+  }, [temple.id]);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [captionText, setCaptionText] = useState('');
@@ -73,22 +86,56 @@ const TempleDetails = () => {
     }
   };
 
+  const openInGoogleMaps = () => {
+    const { latitude, longitude } = temple;
+    if (latitude == null || longitude == null) return;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    const url = `https://www.google.com/maps?q=${lat},${lng}`;
+    Linking.openURL(url).catch(() => {
+      const fallback = `https://maps.google.com/?q=${lat},${lng}`;
+      Linking.openURL(fallback);
+    });
+  };
+
   return (
     <View style={styles.screen}>
+      <Pressable
+        style={[styles.closeBtnMain, { top: insets.top + 10 }]}
+        onPress={() => navigation.goBack()}
+      >
+        <X size={28} color="#fff" strokeWidth={2.5} />
+      </Pressable>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Image
-          source={{ uri: photos[0] }}
-          style={styles.mainImage}
-          resizeMode="cover"
-        />
+        <View style={styles.mainImageWrap}>
+          <Image
+            source={{ uri: photos[0] }}
+            style={styles.mainImage}
+            resizeMode="cover"
+          />
+        </View>
 
         <View style={styles.body}>
           <Text style={styles.templeName}>{temple.name || 'Temple'}</Text>
+          <Text style={styles.viewsText}>
+            Viewed by {temple.views ?? 0} {temple.views === 1 ? 'user' : 'users'}
+          </Text>
           <Text style={styles.description}>{description}</Text>
+
+          {hasCoordinates && (
+            <Pressable
+              style={styles.locateOnMapRow}
+              onPress={openInGoogleMaps}
+            >
+              <MapPin size={22} color={colors.PRIMARY_BUTTON} />
+              <Text style={styles.locateOnMapText}>View on map</Text>
+            </Pressable>
+          )}
 
           <Text style={styles.sectionTitle}>More photos</Text>
           <ScrollView
@@ -190,10 +237,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
+  mainImageWrap: {
+    position: 'relative',
+  },
   mainImage: {
     width: SCREEN_WIDTH,
     height: MAIN_IMAGE_HEIGHT,
     backgroundColor: colors.BACKGROUD_ICON_COLOR,
+  },
+  closeBtnMain: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 22,
   },
   body: {
     paddingHorizontal: 20,
@@ -203,13 +264,33 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.DARK_BLACK,
+    marginBottom: 4,
+  },
+  viewsText: {
+    fontSize: 14,
+    color: colors.PRIMARY_LIGHT_TEXT,
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
     color: colors.PRIMARY_LIGHT_TEXT,
     lineHeight: 22,
+    marginBottom: 16,
+  },
+  locateOnMapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     marginBottom: 24,
+    backgroundColor: colors.BACKGROUD_ICON_COLOR,
+    borderRadius: 12,
+  },
+  locateOnMapText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.DARK_BLACK,
   },
   sectionTitle: {
     fontSize: 18,

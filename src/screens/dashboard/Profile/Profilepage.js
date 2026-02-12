@@ -11,8 +11,9 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { ChevronLeft, User } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
@@ -45,10 +46,12 @@ const TABS = [
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const currentUserId = getUserId();
   const paramUserId = route.params?.userId;
   const userId = paramUserId != null ? paramUserId : currentUserId;
   const isOwnProfile = currentUserId != null && String(userId) === String(currentUserId);
+  const fromFollowList = route.params?.fromFollowList === true;
 
   const [profile, setProfile] = useState(null);
   const [followersCount, setFollowersCount] = useState(0);
@@ -213,22 +216,16 @@ export default function ProfileScreen() {
   }, [posts, activeTab]);
 
   const renderHeader = () => (
-    <View style={styles.headerWrap}>
-      {/* Top bar: only when viewing others' profile (back button) */}
-      {!isOwnProfile && (
-        <View style={styles.topBar}>
-          <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-          </Pressable>
-        </View>
-      )}
-
+    <View style={[styles.headerWrap, !isOwnProfile && styles.headerWrapCompact]}>
       {/* Profile row: avatar + stats */}
       <View style={styles.profileRow}>
-        <Image
-          source={{ uri: avatarUrl || 'https://i.pravatar.cc/150?img=3' }}
-          style={styles.avatar}
-        />
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarIconWrap]}>
+            <User size={36} color={COLORS.sub} strokeWidth={2} />
+          </View>
+        )}
         <View style={styles.profileRight}>
           <Text style={styles.name} numberOfLines={1}>
             {displayName}
@@ -318,6 +315,76 @@ export default function ProfileScreen() {
         <Text style={styles.bio}>{about || 'No description yet.'}</Text>
       </View>
 
+      {/* Temple section - for temple users */}
+      {profile?.isTempleMember && (
+        <View style={styles.templeSection}>
+          {profile?.temple?.latitude != null && profile?.temple?.longitude != null ? (
+            <>
+              <View style={styles.templeInfoRow}>
+                <View style={styles.templeInfo}>
+                  <Text style={styles.templeLabel}>My Temple</Text>
+                  <Text style={styles.templeName} numberOfLines={2}>
+                    {profile?.temple?.name || 'Temple'}
+                  </Text>
+                  {(profile?.temple?.location || profile?.temple?.address) ? (
+                    <Text style={styles.templeAddress} numberOfLines={2}>
+                      {profile?.temple?.location || profile?.temple?.address}
+                    </Text>
+                  ) : null}
+                </View>
+                <Pressable
+                  style={styles.viewOnMapBtn}
+                  onPress={() => {
+                    navigation.getParent()?.navigate('Temples', {
+                      screen: 'TempleList',
+                      params: {
+                        focusTemple: {
+                          id: profile.temple.id,
+                          name: profile.temple.name,
+                          location: profile.temple.location,
+                          latitude: profile.temple.latitude,
+                          longitude: profile.temple.longitude,
+                        },
+                      },
+                    });
+                  }}
+                >
+                  <MaterialCommunityIcons name="map-marker-radius" size={24} color={COLORS.orange} />
+                  <Text style={styles.viewOnMapText}>View on map</Text>
+                </Pressable>
+              </View>
+              {isOwnProfile && (
+                <TouchableOpacity
+                  style={styles.updateTempleRow}
+                  onPress={() => navigation.navigate('LocateTempleScreen', {
+                    templeName: profile?.temple?.name,
+                    location: profile?.temple?.location,
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.orange} />
+                  <Text style={styles.updateTempleText}>Update temple location</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : isOwnProfile ? (
+            <TouchableOpacity
+              style={styles.locateTempleRow}
+              onPress={() => navigation.navigate('LocateTempleScreen', {
+                templeName: profile?.temple?.name,
+                location: profile?.temple?.location,
+              })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.locateTempleIconWrap}>
+                <MaterialCommunityIcons name="map-marker" size={22} color="#fff" />
+              </View>
+              <Text style={styles.locateTempleText}>Locate your temple</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      )}
+
       {/* Create new post - only for own profile */}
       {isOwnProfile && (
         <TouchableOpacity
@@ -404,7 +471,30 @@ export default function ProfileScreen() {
 
   return (
     <View style={[st.flex, { backgroundColor: COLORS.bg }]}>
-      <SafeAreaView style={styles.container} edges={[]}>
+      <SafeAreaView
+        style={styles.container}
+        edges={isOwnProfile ? [] : ['bottom']}
+      >
+        {!isOwnProfile && (
+          <View
+            style={[
+              styles.fixedHeaderRowCompact,
+              !fromFollowList && { paddingTop: 8 + (insets.top || 0) },
+            ]}
+          >
+            <Pressable
+              hitSlop={12}
+              onPress={() => navigation.goBack()}
+              style={styles.backBtn}
+            >
+              <ChevronLeft size={24} color={COLORS.text} strokeWidth={2.5} />
+            </Pressable>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {displayName || 'Profile'}
+            </Text>
+            <View style={styles.backBtn} />
+          </View>
+        )}
         <FlatList
           data={filteredByTab}
           key={activeTab}
@@ -413,6 +503,13 @@ export default function ProfileScreen() {
           columnWrapperStyle={styles.columnWrap}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyTabWrap}>
+              <Text style={styles.emptyTabText}>
+                No {activeTab.toLowerCase()} yet
+              </Text>
+            </View>
+          }
           renderItem={renderItem}
           refreshControl={
             <RefreshControl
@@ -436,15 +533,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: GRID_PADDING_H,
     paddingBottom: 24,
   },
+  emptyTabWrap: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyTabText: {
+    fontSize: 15,
+    color: COLORS.sub,
+    fontWeight: '500',
+  },
   headerWrap: {
     paddingTop: 0,
     paddingBottom: 10,
   },
-  topBar: {
+  headerWrapCompact: {
+    paddingTop: 0,
+    paddingBottom: 6,
+  },
+  fixedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.line,
+  },
+  fixedHeaderRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
     paddingVertical: 8,
+    paddingTop: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.line,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
   backBtn: {
     width: 40,
@@ -487,7 +618,7 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 0,
     alignItems: 'center',
   },
   avatar: {
@@ -495,6 +626,10 @@ const styles = StyleSheet.create({
     height: 74,
     borderRadius: 37,
     backgroundColor: '#eee',
+  },
+  avatarIconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   profileRight: {
     flex: 1,
@@ -554,6 +689,85 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#1B1B1B',
     fontWeight: '500',
+  },
+  templeSection: {
+    marginTop: 14,
+  },
+  templeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+  },
+  templeInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  templeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.sub,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  templeName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  templeAddress: {
+    fontSize: 13,
+    color: COLORS.sub,
+    marginTop: 4,
+  },
+  viewOnMapBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  viewOnMapText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.orange,
+    marginTop: 4,
+  },
+  updateTempleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  updateTempleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.orange,
+  },
+  locateTempleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+  },
+  locateTempleIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.orange,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  locateTempleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
   },
   createPostRow: {
     flexDirection: 'row',

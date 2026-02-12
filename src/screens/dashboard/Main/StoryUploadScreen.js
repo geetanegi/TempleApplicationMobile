@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RNCamera } from 'react-native-camera';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import {
   X,
   Zap,
@@ -30,6 +31,7 @@ import {
   Pencil,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-simple-toast';
 import { colors } from '../../../global/theme';
 import { createStory } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
@@ -38,6 +40,16 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const RECENT_PHOTOS_COUNT = 20;
 const GALLERY_PHOTOS_COUNT = 100;
 const THUMB_SIZE = 64;
+
+/** Story crop options – 9:16 aspect, same cropper as profile */
+const STORY_CROP_OPTIONS = {
+  width: 720,
+  height: 1280,
+  cropping: true,
+  freeStyleCropEnabled: true,
+  cropperCircleOverlay: false,
+};
+
 
 const requestCameraPermission = async () => {
   if (Platform.OS !== 'android') return true;
@@ -169,6 +181,7 @@ const StoryUploadScreen = () => {
       }
     } catch (e) {
       console.warn('Capture failed', e);
+      Toast.show('Could not capture photo');
     } finally {
       setCapturing(false);
     }
@@ -185,6 +198,24 @@ const StoryUploadScreen = () => {
     setPreviewUri(null);
     setMode('camera');
     setCaptionText('');
+  }, []);
+
+  const handleCropPress = useCallback(async () => {
+    try {
+      const result = await ImageCropPicker.openPicker({
+        ...STORY_CROP_OPTIONS,
+        mediaType: 'photo',
+      });
+      const path = result?.path || result?.sourceURL;
+      if (path) {
+        const uri = path.startsWith('file://') ? path : `file://${path}`;
+        setPreviewUri(uri);
+      }
+    } catch (e) {
+      if (e?.code !== 'E_PICKER_CANCELLED') {
+        Toast.show('Could not open photo picker');
+      }
+    }
   }, []);
 
   const submitStory = useCallback(async () => {
@@ -244,7 +275,7 @@ const StoryUploadScreen = () => {
 
         <View style={[styles.previewTopBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.previewTopRight}>
-            <Pressable style={styles.iconBtn} onPress={() => {}}>
+            <Pressable style={styles.iconBtn} onPress={handleCropPress}>
               <Crop size={24} color="#fff" />
             </Pressable>
             <Pressable style={styles.iconBtn} onPress={() => {}}>

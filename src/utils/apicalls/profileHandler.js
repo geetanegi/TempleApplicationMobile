@@ -3,6 +3,7 @@ import {environment} from '../constant';
 import {API} from '../endpoints';
 import {getApiHeader} from './apiHandler';
 import {getAuth} from './getApi';
+import {postAuth} from './postApi';
 import {getFollowersCount, getFollowingCount} from './socialHandler';
 import {uploadApi} from './index';
 
@@ -113,4 +114,46 @@ export const updateProfilePicture = async (userId, fileUri) => {
     name: 'profile.jpg',
   });
   return uploadApi(API.SOCIAL_PROFILE_PICTURE, formData);
+};
+
+/**
+ * Search users by username or name (whole user master: normal + temple users).
+ * @param {string} query - Search string for username, firstName, or lastName
+ * @param {number} [page=0]
+ * @param {number} [size=30]
+ * @returns {Promise<Array<{ id, username, firstName, lastName, email?, imageUrl?, location? }>>}
+ */
+export const searchUsers = async (query, page = 0, size = 30) => {
+  const trimmed = (query || '').trim();
+  if (!trimmed) return [];
+  try {
+    const params = {
+      searchParams: {
+        username: trimmed,
+        firstName: trimmed,
+        lastName: trimmed,
+      },
+      pageSortingParam: {
+        pageNumber: page,
+        pageSize: size,
+      },
+    };
+    const res = await postAuth(API.USER_SEARCH(), params);
+    const raw = res?.data ?? res;
+    if (typeof raw === 'string') return [];
+    const content = raw?.content ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+    const list = Array.isArray(content) ? content : [];
+    return list.map((u) => ({
+      id: u.id,
+      username: u.username ?? '',
+      firstName: u.firstName ?? '',
+      lastName: u.lastName ?? '',
+      email: u.email,
+      imageUrl: u.imageUrl ?? u.imageBase64,
+      location: u.location,
+    }));
+  } catch (err) {
+    console.log('searchUsers error', err);
+    return [];
+  }
 };

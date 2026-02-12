@@ -5,7 +5,6 @@ import {
   Image,
   FlatList,
   StyleSheet,
-  Dimensions,
   Pressable,
   ScrollView,
   TouchableOpacity,
@@ -21,8 +20,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Menu, Bell, MessageCircle} from 'lucide-react-native';
 import HeaderDashboard from '../../../components/dashboardHeader';
 import {colors} from '../../../global/theme';
-
-const {width} = Dimensions.get('window');
 
 const COLORS = {
   orange: '#D48A4A',
@@ -164,22 +161,6 @@ const videosData = [
   // },
 ];
 
-// Grid items (2-column layout for some content)
-const gridItems = [
-  {
-    id: 'grid1',
-    thumbnail:
-      'https://images.pexels.com/photos/33647384/pexels-photo-33647384.jpeg?auto=compress&cs=tinysrgb&w=400',
-    type: 'image',
-  },
-  {
-    id: 'grid2',
-    thumbnail:
-      'https://images.pexels.com/photos/33646957/pexels-photo-33646957.jpeg?auto=compress&cs=tinysrgb&w=400',
-    type: 'image',
-  },
-];
-
 export default function VideosReelsScreen() {
   const nav = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -236,14 +217,6 @@ export default function VideosReelsScreen() {
           })}
         </ScrollView>
       </View>
-    );
-  };
-
-  const renderGridItem = ({item}) => {
-    return (
-      <Pressable style={styles.gridCard}>
-        <Image source={{uri: item.thumbnail}} style={styles.gridImage} />
-      </Pressable>
     );
   };
 
@@ -355,18 +328,6 @@ export default function VideosReelsScreen() {
               tintColor={COLORS.orange}
             />
           }
-          ListHeaderComponent={() => (
-            <View style={styles.gridContainer}>
-              <FlatList
-                data={gridItems}
-                keyExtractor={item => item.id}
-                renderItem={renderGridItem}
-                numColumns={2}
-                columnWrapperStyle={styles.gridRow}
-                scrollEnabled={false}
-              />
-            </View>
-          )}
         />
       </SafeAreaView>
     </View>
@@ -410,26 +371,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 100, // Extra padding for bottom tab bar
-  },
-  gridContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  gridRow: {
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 12,
-  },
-  gridCard: {
-    width: (width - 16 * 2 - 12) / 2,
-    aspectRatio: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#F2F2F2',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
   },
   videoCard: {
     marginBottom: 16,

@@ -91,6 +91,22 @@ class Endpoints {
   SOCIAL_STORY_ADD_VIEW = (storyId) => this.socialBase + `story/${storyId}/view`;
   SOCIAL_STORY_VIEWED = (storyId) => this.socialBase + `story/${storyId}/viewed`;
 
+  // Temple APIs (jain-app at /user/temples)
+  get templeBase() {
+    return this.baseUrl.replace(/\/api\/?$/, '/') + 'user/temples/';
+  }
+  TEMPLE_LIST = () => this.templeBase + 'list';
+  TEMPLE_LOCATE = () => this.templeBase + 'locate';
+  TEMPLE_VIEW = (id) => this.templeBase + `${id}/view`;
+  TEMPLE_POPULAR = () => this.templeBase + 'popular';
+  TEMPLE_TRENDING = () => this.templeBase + 'trending';
+
+  // User search (whole user master: normal + temple users). POST with searchParams + pageSortingParam.
+  get userBase() {
+    return this.baseUrl.replace(/\/api\/?$/, '/') + 'user/';
+  }
+  USER_SEARCH = () => this.userBase + 'all-player-user';
+
   // npm i react-native-picker-select --legacy-peer-deps
 }
 

@@ -6,15 +6,29 @@ Google Play **requires** Android App Bundle (AAB) for new apps. You can still bu
 
 ## 1. Create a release keystore (one-time)
 
-Run this in a terminal (e.g. from project root). **Keep the keystore and passwords safe** — you need them for all future updates.
+Run this in a terminal. **Keep the keystore and passwords safe** — you need them for all future updates.
+
+### Windows (keytool not in PATH)
+
+`keytool` is in the Java JDK. Use the full path or add it to PATH:
 
 ```powershell
 cd android
-keytool -genkeypair -v -storetype PKCS12 -keystore app\release.keystore -alias jainapp -keyalg RSA -keysize 2048 -validity 10000
+& "C:\Program Files\Java\jdk-17\bin\keytool.exe" -genkeypair -v -storetype PKCS12 -keystore app\release.keystore -alias jainapp -keyalg RSA -keysize 2048 -validity 10000 -storepass YOUR_STORE_PASSWORD -keypass YOUR_KEY_PASSWORD -dname "CN=JainApp, OU=Mobile, O=Jainsansaar, L=City, ST=State, C=US"
 ```
 
-- Store location: e.g. `D:\Projects\React\TempleApplicationMobile\android\app\release.keystore`
-- Use a strong password and remember it.
+Replace `YOUR_STORE_PASSWORD` and `YOUR_KEY_PASSWORD` with your chosen passwords, then put the **same** values in `keystore.properties` (Step 2).
+
+Or run without `-storepass`/`-keypass` to be prompted for them:
+
+```powershell
+& "C:\Program Files\Java\jdk-17\bin\keytool.exe" -genkeypair -v -storetype PKCS12 -keystore app\release.keystore -alias jainapp -keyalg RSA -keysize 2048 -validity 10000
+```
+
+If you have JDK 11 instead: use `jdk-11` in the path.
+
+- **PKCS12 keystore**: store and key passwords must be the same. Use identical values for `storePassword` and `keyPassword` in `keystore.properties`.
+- Store location: `android\app\release.keystore`
 - The `release.keystore` file is already gitignored; do not commit it.
 
 ---
@@ -102,6 +116,10 @@ defaultConfig {
 
 - **“Keystore was tampered with or password incorrect”**  
   Double-check `storePassword` and `keyPassword` in `keystore.properties` and that `storeFile` path is correct (relative to `android/`).
+
+- **"keytool is not recognized" (Windows)** — Use the full path: `& "C:\Program Files\Java\jdk-17\bin\keytool.exe"` (or `jdk-11` if that's what you have).
+
+- **"Given final block not properly padded" / "bad key used during decryption"** — The keystore file is corrupt or was created with different passwords. Delete `android/app/release.keystore`, then regenerate it (Step 1). Ensure the passwords in `keystore.properties` match exactly what you used when creating the keystore.
 
 - **“Release build uses debug signing”**  
   Ensure `keystore.properties` exists in `android/` and that `signingConfig signingConfigs.release` is set for the `release` build type in `app/build.gradle`.

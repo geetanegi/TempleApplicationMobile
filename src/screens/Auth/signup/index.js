@@ -8,6 +8,8 @@ import {
   BackHandler,
   SafeAreaView,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import React, { useState } from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -26,7 +28,6 @@ import {
   ValidateMail,
   ValidateMobile,
   ValidateCVV,
-  ValidateTempleName,
 } from '../../../utils/helperfunctions/validations';
 import Toast from 'react-native-simple-toast';
 import MydatePicker from '../../../components/datePicker';
@@ -54,7 +55,6 @@ const INITIALINPUT = {
   CVV: '',
   nameOnCard: '',
   Terms: '',
-  templeName: '',
 };
 
 const Signup = ({ navigation }) => {
@@ -79,6 +79,7 @@ const Signup = ({ navigation }) => {
       firstName: inputs?.firstName,
       lastName: inputs?.lastName,
       phone: inputs?.mobile,
+      countryCode: inputs?.countryCode,
       password: inputs?.password,
       username: inputs?.username,
       isTempleMember: isCheckedTemple,
@@ -147,10 +148,6 @@ const Signup = ({ navigation }) => {
     if (isEmpty(inputs.emailId)) handleError(ValidateMail(null), 'emailId');
     if (isEmpty(inputs.mobile)) handleError(ValidateMobile(null), 'mobile');
 
-    if (isEmpty(inputs.templeName) && isCheckedTemple) {
-      handleError(ValidateTempleName(null), 'templeName');
-    }
-
     if (
       isEmpty(errors.username) &&
       isEmpty(errors.password) &&
@@ -166,6 +163,7 @@ const Signup = ({ navigation }) => {
       isEmpty(errors.expiryDate) &&
       isEmpty(errors.CVV) &&
       isEmpty(errors.nameOnCard) &&
+      isEmpty(errors.Terms) &&
       isChecked === true
     ) {
       handleSubmitPress();
@@ -215,11 +213,6 @@ const Signup = ({ navigation }) => {
     } else if (input === 'mobile') {
       const valid = ValidateMobile(text);
       valid === 'success' ? handleError('', 'mobile') : handleError(valid, 'mobile');
-    } else if (input === 'templeName') {
-      const valid = ValidateTempleName(text);
-      valid === 'success'
-        ? handleError('', 'templeName')
-        : handleError(valid, 'templeName');
     } else if (input === 'CVV') {
       const valid = ValidateCVV(text);
       valid === 'success' ? handleError('', 'CVV') : handleError(valid, 'CVV');
@@ -296,6 +289,11 @@ const Signup = ({ navigation }) => {
 
       {loading && <FullScreenLoader visible={loading} />}
 
+      <KeyboardAvoidingView
+        style={styles.safe}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -320,6 +318,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -334,6 +333,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -348,6 +348,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -363,6 +364,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -378,6 +380,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -402,6 +405,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
             <View style={styles.gap} />
 
@@ -417,6 +421,7 @@ const Signup = ({ navigation }) => {
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
+              inputMinHeight={48}
             />
 
             <View style={[styles.row, { marginTop: 14 }]}>
@@ -429,24 +434,6 @@ const Signup = ({ navigation }) => {
               </View>
               <Text style={styles.checkboxText}>{APP_TEXT.REGISTER_AS_TEMPLE}</Text>
             </View>
-
-            {isCheckedTemple ? (
-              <>
-                <View style={styles.gap} />
-                <Text style={styles.fieldLabel}>TEMPLE NAME</Text>
-                <AdminInput
-                  isRequired
-                  holderName={APP_TEXT.TEMPLE_NAME}
-                  onChangeText={text => handleOnchange(text, 'templeName')}
-                  error={errors?.templeName}
-                  value={inputs?.templeName}
-                  inputBackgroundColor="#FFF"
-                  inputTextColor="#000"
-                  placeholderColor="#6B7280"
-                  inputFontSize={15}
-                />
-              </>
-            ) : null}
 
             <View style={{ marginTop: 16 }}>
               <Pressable
@@ -490,6 +477,7 @@ const Signup = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {isLoading && <Loader />}
       {show_alert_msg()}

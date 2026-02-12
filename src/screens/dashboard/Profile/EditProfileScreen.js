@@ -13,6 +13,7 @@ import {
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
+import { User } from 'lucide-react-native';
 import { colors } from '../../../global/theme';
 import st from '../../../global/styles';
 import FloatingInput from '../../../components/floating_Input';
@@ -43,6 +44,7 @@ const INITIALINPUT = {
   alternateEmail: '',
   city: '',
   contactNumber: '',
+  countryCode: '',
   dateOfBirth: '',
   description: '',
   imageUrl: '',
@@ -78,7 +80,8 @@ const EditProfileScreen = () => {
           lastName: item.lastName ?? '',
           username: item.username ?? '',
           email: item.email ?? '',
-          contactNumber: up.contactNumber ?? up.phone ?? '',
+          contactNumber: up.contactNumber ?? up.contact ?? item.phone ?? up.phone ?? '',
+          countryCode: up.countryCode ?? '',
           alternateEmail: up.alternateEmail ?? '',
           city: up.city ?? '',
           location: up.location ?? '',
@@ -98,7 +101,7 @@ const EditProfileScreen = () => {
       Toast.show('Profile data not loaded.');
       return;
     }
-    const errKeys = ['contactNumber', 'alternateEmail', 'location', 'city'];
+    const errKeys = ['alternateEmail', 'location', 'city'];
     const hasErr = errKeys.some(k => !isEmpty(errors[k]));
     if (hasErr) return;
     handleSubmitPress();
@@ -109,13 +112,9 @@ const EditProfileScreen = () => {
     try {
       const userId = inputs.id;
       await updateProfile(userId, {
-        username: inputs.username,
-        firstName: inputs.firstName,
-        lastName: inputs.lastName,
         description: inputs.description,
         location: inputs.location,
         city: inputs.city,
-        contactNumber: inputs.contactNumber,
         alternateEmail: inputs.alternateEmail,
       });
       if (newPictureUri) {
@@ -339,10 +338,13 @@ const EditProfileScreen = () => {
             activeOpacity={0.85}
           >
             <View style={styles.avatarWrap}>
-              <Image
-                source={{ uri: avatarUri || 'https://i.pravatar.cc/150?img=3' }}
-                style={styles.avatar}
-              />
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarIconWrap]}>
+                  <User size={48} color={THEME.textMuted} strokeWidth={2} />
+                </View>
+              )}
               <View style={styles.cameraOverlay}>
                 <Feather name="camera" size={28} color="#fff" />
               </View>
@@ -362,7 +364,7 @@ const EditProfileScreen = () => {
                 onChangeText={t => handleOnchange(t, 'firstName')}
                 onFocus={() => handleError('', 'firstName')}
                 error={errors.firstName}
-                editableField={true}
+                editableField={false}
                 placeholderTextColor={colors.DARK_GREY}
               />
             </View>
@@ -373,7 +375,7 @@ const EditProfileScreen = () => {
                 onChangeText={t => handleOnchange(t, 'lastName')}
                 onFocus={() => handleError('', 'lastName')}
                 error={errors.lastName}
-                editableField={true}
+                editableField={false}
                 placeholderTextColor={colors.DARK_GREY}
               />
             </View>
@@ -383,7 +385,7 @@ const EditProfileScreen = () => {
             label="Username"
             value={inputs.username}
             onChangeText={t => handleOnchange(t, 'username')}
-            editableField={true}
+            editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
@@ -424,10 +426,14 @@ const EditProfileScreen = () => {
 
           <FloatingInput
             label="Phone Number"
-            value={inputs.contactNumber}
+            value={
+              inputs.countryCode && inputs.contactNumber
+                ? `${inputs.countryCode}${inputs.contactNumber}`
+                : inputs.contactNumber || inputs.countryCode || ''
+            }
             onChangeText={t => handleOnchange(t, 'contactNumber')}
             error={errors.contactNumber}
-            editableField={true}
+            editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
@@ -435,7 +441,7 @@ const EditProfileScreen = () => {
             label="Primary Email"
             value={inputs.email}
             onChangeText={t => handleOnchange(t, 'email')}
-            editableField={true}
+            editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
@@ -509,6 +515,10 @@ const styles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     backgroundColor: THEME.border,
+  },
+  avatarIconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cameraOverlay: {
     position: 'absolute',

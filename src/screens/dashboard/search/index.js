@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,32 +7,80 @@ import {
   ScrollView,
   TextInput,
   Keyboard,
+  FlatList,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Search, X, TrendingUp, MapPin, Flame, Zap, Menu, Bell, MessageCircle } from 'lucide-react-native';
+import { Search, X, TrendingUp, MapPin, Flame, Menu, Bell, MessageCircle, History } from 'lucide-react-native';
 import st from '../../../global/styles';
 import { colors, APP_TEXT } from '../../../global/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HeaderDashboard from '../../../components/dashboardHeader';
+import { searchUsers, getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { getPopularTemples, getTrendingTemples } from '../../../utils/apicalls/templeHandler';
 
 const RECENT_SEARCHES_KEY = '@search_recent';
 
 const CATEGORIES = [
-  { id: 'trending', label: 'Trending', Icon: TrendingUp },
+  { id: 'recent', label: 'Recent', Icon: History },
   { id: 'nearby', label: 'Near By', Icon: MapPin },
+  { id: 'trending', label: 'Trending', Icon: TrendingUp },
   { id: 'popular', label: 'Popular', Icon: Flame },
-  { id: 'hot', label: 'Hot', Icon: Zap },
 ];
+
+const DEBOUNCE_MS = 400;
+
+const TEMPLE_IMG_FALLBACK = 'https://images.unsplash.com/photo-1548013146-72479768bada?w=200&auto=format&fit=crop&q=60';
+
+const toTempleItem = (t, index) => ({
+  id: String(t.id ?? index),
+  name: t.name || 'Temple',
+  location: t.location || t.address || '—',
+  image: t.profileImage?.url ?? t.image ?? TEMPLE_IMG_FALLBACK,
+  views: t.views ?? 0,
+  latitude: t.latitude,
+  longitude: t.longitude,
+  type: t.type || 'mandir',
+});
 
 const SearchScreen = () => {
   const navigation = useNavigation();
   const [query, setQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
+  const [userResults, setUserResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [popularTemples, setPopularTemples] = useState([]);
+  const [trendingTemples, setTrendingTemples] = useState([]);
+  const [sectionLoading, setSectionLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('recent');
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     loadRecentSearches();
   }, []);
+
+  const loadPopularAndTrending = useCallback(async () => {
+    setSectionLoading(true);
+    try {
+      const [popular, trending] = await Promise.all([
+        getPopularTemples(),
+        getTrendingTemples(),
+      ]);
+      setPopularTemples((Array.isArray(popular) ? popular : []).map(toTempleItem));
+      setTrendingTemples((Array.isArray(trending) ? trending : []).map(toTempleItem));
+    } catch {
+      setPopularTemples([]);
+      setTrendingTemples([]);
+    } finally {
+      setSectionLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPopularAndTrending();
+  }, [loadPopularAndTrending]);
 
   const loadRecentSearches = async () => {
     try {
@@ -58,16 +106,58 @@ const SearchScreen = () => {
     }
   };
 
+  const runUserSearch = useCallback(async (q) => {
+    const trimmed = (q || '').trim();
+    if (!trimmed) {
+      setUserResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const list = await searchUsers(trimmed, 0, 30);
+      setUserResults(list);
+    } catch (e) {
+      setUserResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = (query || '').trim();
+    if (!trimmed) {
+      setUserResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      runUserSearch(query);
+    }, DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, runUserSearch]);
+
   const handleSearchSubmit = () => {
     Keyboard.dismiss();
-    if (query.trim()) {
-      addRecentSearch(query.trim());
-      // Optional: navigate to results or stay and show results
-    }
+    if (query.trim()) addRecentSearch(query.trim());
   };
 
   const handleRecentPress = (item) => {
     setQuery(item);
+  };
+
+  const displayName = (user) => {
+    const first = user.firstName || '';
+    const last = user.lastName || '';
+    const name = [first, last].filter(Boolean).join(' ').trim();
+    return name || user.username || 'User';
+  };
+
+  const avatarUrl = (user) => {
+    if (user.imageUrl) return resolveProfilePictureUrl(user.imageUrl);
+    return getProfilePictureUrlByUserId(user.id);
   };
 
   return (
@@ -114,33 +204,145 @@ const SearchScreen = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.categoriesRow}>
-          {CATEGORIES.map(({ id, label, Icon }) => (
-            <Pressable
-              key={id}
-              style={styles.categoryItem}
-              onPress={() => {}}
-            >
-              <View style={styles.categoryIconWrap}>
-                <Icon size={24} color={colors.DARK_BLACK} strokeWidth={2} />
+          {(query || '').trim().length > 0 ? (
+            <>
+              {searchLoading ? (
+                <View style={styles.loadingWrap}>
+                  <ActivityIndicator size="large" color={colors.PRIMARY_BUTTON} />
+                  <Text style={styles.loadingText}>Searching users...</Text>
+                </View>
+              ) : userResults.length > 0 ? (
+                <>
+                  <Text style={styles.subheading}>Users</Text>
+                  <View style={styles.userList}>
+                    {userResults.map((user) => (
+                      <Pressable
+                        key={user.id}
+                        style={styles.userRow}
+                        onPress={() => {
+                          addRecentSearch(query.trim());
+                          navigation.navigate('Profiles', { userId: user.id });
+                        }}
+                      >
+                        {avatarUrl(user) ? (
+                          <Image
+                            source={{ uri: avatarUrl(user) }}
+                            style={styles.userAvatar}
+                          />
+                        ) : (
+                          <View style={[styles.userAvatar, styles.userAvatarPlaceholder]} />
+                        )}
+                        <View style={styles.userInfo}>
+                          <Text style={styles.userName}>{displayName(user)}</Text>
+                          {user.username ? (
+                            <Text style={styles.userUsername}>@{user.username}</Text>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.emptyText}>No users found</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={styles.categoriesRow}>
+                {CATEGORIES.map(({ id, label, Icon }) => (
+                  <Pressable
+                    key={id}
+                    style={[styles.categoryItem, selectedCategory === id && styles.categoryItemActive]}
+                    onPress={() => {
+                      if (id === 'nearby') {
+                        navigation.navigate('Temples', { screen: 'TempleList', params: { focusTemple: null } });
+                      } else {
+                        setSelectedCategory(id);
+                      }
+                    }}
+                  >
+                    <View style={[styles.categoryIconWrap, selectedCategory === id && styles.categoryIconWrapActive]}>
+                      <Icon size={24} color={colors.DARK_BLACK} strokeWidth={2} />
+                    </View>
+                    <Text style={[styles.categoryLabel, selectedCategory === id && styles.categoryLabelActive]}>{label}</Text>
+                  </Pressable>
+                ))}
               </View>
-              <Text style={styles.categoryLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
 
-        <Text style={styles.subheading}>Recent Search</Text>
-        <View style={styles.recentList}>
-          {(recentSearches.length ? recentSearches : ['Temple events', 'Aarti timings', 'Nearby temples']).slice(0, 3).map((item, index) => (
-            <Pressable
-              key={`${item}-${index}`}
-              style={styles.recentItem}
-              onPress={() => handleRecentPress(item)}
-            >
-              <Text style={styles.recentText}>{item}</Text>
-            </Pressable>
-          ))}
-        </View>
+              {selectedCategory === 'recent' && (
+                <>
+                  <Text style={styles.subheading}>Recent Search</Text>
+                  <View style={styles.recentList}>
+                    {(recentSearches.length ? recentSearches : ['Temple events', 'Aarti timings', 'Nearby temples']).slice(0, 10).map((item, index) => (
+                      <Pressable
+                        key={`${item}-${index}`}
+                        style={styles.recentItem}
+                        onPress={() => handleRecentPress(item)}
+                      >
+                        <Text style={styles.recentText}>{item}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {selectedCategory === 'trending' && (
+                <>
+                  <Text style={styles.subheading}>Trending Temples</Text>
+                  {sectionLoading ? (
+                    <View style={styles.loadingWrap}>
+                      <ActivityIndicator size="small" color={colors.PRIMARY_BUTTON} />
+                    </View>
+                  ) : trendingTemples.length > 0 ? (
+                    <View style={styles.recentList}>
+                      {trendingTemples.map((temple) => (
+                        <Pressable
+                          key={temple.id}
+                          style={styles.recentItem}
+                          onPress={() => navigation.navigate('Temples', { screen: 'TempleDetails', params: { temple } })}
+                        >
+                          <Text style={styles.recentText}>{temple.name}</Text>
+                          {temple.location ? (
+                            <Text style={styles.recentSubtext}>{temple.location}</Text>
+                          ) : null}
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.emptyText}>No trending temples</Text>
+                  )}
+                </>
+              )}
+
+              {selectedCategory === 'popular' && (
+                <>
+                  <Text style={styles.subheading}>Popular Temples</Text>
+                  {sectionLoading ? (
+                    <View style={styles.loadingWrap}>
+                      <ActivityIndicator size="small" color={colors.PRIMARY_BUTTON} />
+                    </View>
+                  ) : popularTemples.length > 0 ? (
+                    <View style={styles.recentList}>
+                      {popularTemples.map((temple) => (
+                        <Pressable
+                          key={temple.id}
+                          style={styles.recentItem}
+                          onPress={() => navigation.navigate('Temples', { screen: 'TempleDetails', params: { temple } })}
+                        >
+                          <Text style={styles.recentText}>{temple.name}</Text>
+                          {temple.location ? (
+                            <Text style={styles.recentSubtext}>{temple.location}</Text>
+                          ) : null}
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.emptyText}>No popular temples</Text>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -200,6 +402,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  categoryItemActive: {
+    opacity: 1,
+  },
+  categoryIconWrapActive: {
+    backgroundColor: colors.PRIMARY_BUTTON || colors.orange || '#D48A4A',
+  },
+  categoryLabelActive: {
+    color: colors.PRIMARY_BUTTON || colors.orange || '#D48A4A',
+    fontWeight: '600',
+  },
   categoryIconWrap: {
     width: 56,
     height: 56,
@@ -229,6 +441,58 @@ const styles = StyleSheet.create({
   },
   recentText: {
     fontSize: 15,
+    color: colors.DARK_BLACK,
+    fontWeight: '500',
+  },
+  recentSubtext: {
+    fontSize: 13,
     color: colors.grey,
+    marginTop: 2,
+  },
+  loadingWrap: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: colors.grey,
+  },
+  userList: {
+    gap: 4,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.BACKGROUD_ICON_COLOR || '#e5e7eb',
+  },
+  userAvatarPlaceholder: {
+    backgroundColor: colors.grey || '#9ca3af',
+  },
+  userInfo: {
+    marginLeft: 14,
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.DARK_BLACK,
+  },
+  userUsername: {
+    fontSize: 14,
+    color: colors.grey,
+    marginTop: 2,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.grey,
+    paddingVertical: 24,
   },
 });

@@ -106,6 +106,7 @@ const Verifyemail = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
+            inputMinHeight={48}
           />
 
           <ApplicationButton

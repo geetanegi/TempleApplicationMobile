@@ -20,6 +20,7 @@ import {
   Archive,
   Clock3,
   Play,
+  User,
 } from 'lucide-react-native';
 import VideoPlayer from 'react-native-video-player';
 import { colors } from '../../global/theme';
@@ -351,10 +352,16 @@ const PostCard = ({
         {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.userInfo}>
-            <Image
-              source={{uri: resolveProfilePictureUrl(avatar) || avatar || 'https://i.pravatar.cc/150?img=12'}}
-              style={styles.avatar}
-            />
+            {(resolveProfilePictureUrl(avatar) || avatar) ? (
+              <Image
+                source={{uri: resolveProfilePictureUrl(avatar) || avatar}}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarIconWrap]}>
+                <User size={24} color="#777" strokeWidth={2} />
+              </View>
+            )}
 
             <View style={{flex: 1}}>
               <Pressable
@@ -606,6 +613,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginRight: 12,
     backgroundColor: '#eee',
+  },
+
+  avatarIconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   userName: {

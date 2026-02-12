@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
-import {useNavigation, getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import {useNavigation, getFocusedRouteNameFromRoute, useFocusEffect} from '@react-navigation/native';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -56,12 +56,17 @@ import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
 import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
 import TempleList from '../../dashboard/TempleList';
 import TempleDetails from '../../dashboard/TempleList/TempleDetails';
+import LocateTempleScreen from '../../dashboard/TempleList/LocateTempleScreen';
 import {
   Home,
   BookOpen,
   MapPin,
   PlayCircle,
+  MapPinned,
 } from 'lucide-react-native';
+import { getUserId } from '../../../redux/store/getState';
+import { getUserProfileById } from '../../../utils/apicalls/profileHandler';
+import { setTempleBarRefreshCallback } from '../../../utils/templeBarRefresh';
 
 // --------------------------------
 // Stack Navigators
@@ -110,7 +115,7 @@ const ProfileStack = () => (
   </HomeStack.Navigator>
 );
 
-/** Stack for Profile tab: profile screen + followers/following list. FollowList has no stack header (custom header inside screen). */
+/** Stack for Profile tab: profile screen + followers/following list + locate temple. */
 const ProfileTabStack = () => (
   <HomeStack.Navigator screenOptions={{headerShown: false}}>
     <HomeStack.Screen name="ProfileMain" component={ProfileScreen} />
@@ -120,6 +125,22 @@ const ProfileTabStack = () => (
       component={FollowListScreen}
     />
     <HomeStack.Screen name="Profiles" component={ProfileScreen} />
+    <HomeStack.Screen
+      name="LocateTempleScreen"
+      options={({ navigation }) => ({
+        headerShown: true,
+        title: 'Locate your temple',
+        headerTitleAlign: 'center',
+        headerBackVisible: false,
+        headerLeft: () => null,
+        headerRight: () => (
+          <Pressable onPress={() => navigation.goBack()} style={{paddingRight: 16}}>
+            <Text style={{fontSize: 16, color: colors.orange, fontWeight: '600'}}>Close</Text>
+          </Pressable>
+        ),
+      })}
+      component={LocateTempleScreen}
+    />
   </HomeStack.Navigator>
 );
 
@@ -278,11 +299,9 @@ const JeevaniScreenStack = () => {
       />
       <JeevaniStack.Screen
         name="SubCategoryPage"
-        options={({route}) => ({
-          headerTitle: route.params?.title || 'Sub Category',
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
-        })}
+        options={{
+          headerShown: false,
+        }}
         component={SubCategoryPage}
       />
       <JeevaniStack.Screen
@@ -370,8 +389,50 @@ const FLOATING_TAB_BAR_STYLE = {
 
 export default function BottomNavigation() {
   const navigation = useNavigation();
+  const [showLocateTemplePrompt, setShowLocateTemplePrompt] = useState(false);
+
+  const checkTempleUserNeedsLocate = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) {
+      setShowLocateTemplePrompt(false);
+      return;
+    }
+    try {
+      const profile = await getUserProfileById(userId);
+      const isTempleMember = Boolean(profile?.isTempleMember);
+      const temple = profile?.temple;
+      const hasLocation = temple && temple.latitude != null && temple.longitude != null;
+      setShowLocateTemplePrompt(isTempleMember && !hasLocation);
+    } catch {
+      setShowLocateTemplePrompt(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkTempleUserNeedsLocate();
+  }, [checkTempleUserNeedsLocate]);
+
+  useEffect(() => {
+    setTempleBarRefreshCallback(checkTempleUserNeedsLocate);
+  }, [checkTempleUserNeedsLocate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkTempleUserNeedsLocate();
+    }, [checkTempleUserNeedsLocate]),
+  );
 
   return (
+    <>
+    {showLocateTemplePrompt && (
+      <Pressable
+        style={styles.locateTempleBar}
+        onPress={() => navigation.navigate('Profile')}
+      >
+        <MapPinned size={20} color="#fff" />
+        <Text style={styles.locateTempleBarText}>Locate your temple to complete your profile</Text>
+      </Pressable>
+    )}
     <Tab.Navigator
       screenOptions={{
         tabBarShowLabel: false,
@@ -411,6 +472,15 @@ export default function BottomNavigation() {
       <Tab.Screen
         name="Temples"
         component={TempleListStack}
+        listeners={({ navigation, route }) => ({
+          tabPress: (e) => {
+            const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'TempleList';
+            if (focusedRoute === 'TempleDetails') {
+              e.preventDefault();
+              navigation.navigate('Temples', { screen: 'TempleList' });
+            }
+          },
+        })}
         options={{
           tabBarIcon: renderTabIcon(MapPin),
           headerShown: false,
@@ -448,7 +518,7 @@ export default function BottomNavigation() {
         component={ProfileTabStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
-          const hideBar = routeName === 'FollowList' || routeName === 'Profiles';
+          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen';
           const isFollowList = routeName === 'FollowList';
           return {
           headerShown: !isFollowList,
@@ -491,6 +561,7 @@ export default function BottomNavigation() {
         }}
       />
     </Tab.Navigator>
+    </>
   );
 }
 
@@ -498,6 +569,31 @@ export default function BottomNavigation() {
 // Styles
 // --------------------------------
 const styles = StyleSheet.create({
+  locateTempleBar: {
+    position: 'absolute',
+    bottom: 88,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.orange,
+    borderRadius: 12,
+    zIndex: 100,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  locateTempleBarText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
   shadow: {
     shadowColor: '#7cc242',
     shadowOffset: {width: 0, height: 10},

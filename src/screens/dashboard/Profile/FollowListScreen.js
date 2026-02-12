@@ -95,7 +95,7 @@ export default function FollowListScreen() {
   const renderItem = ({ item }) => (
     <Pressable
       style={styles.row}
-      onPress={() => navigation.navigate('Profiles', { userId: item.userId })}
+      onPress={() => navigation.navigate('Profiles', { userId: item.userId, fromFollowList: true })}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
     >
       <Image

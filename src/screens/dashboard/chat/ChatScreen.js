@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { getUserId } from '../../../redux/store/getState';
 import { getChatMessages, sendChatMessage } from '../../../utils/apicalls/socialHandler';
 import { connectWebSocket, subscribeChatThread, unsubscribeChatThread } from '../../../utils/services/websocketService';
+import { preloadChatSounds, playSendSound, playReceiveSound } from '../../../utils/chatSounds';
 import { colors } from '../../../global/theme';
 
 function uuid() {
@@ -55,9 +56,15 @@ export default function ChatScreen() {
   }, [loadMessages]);
 
   useEffect(() => {
+    preloadChatSounds();
+  }, []);
+
+  useEffect(() => {
     if (!threadId || !currentUserId) return;
     connectWebSocket(currentUserId, {}).then(() => {
       subscribeChatThread(threadId, (message) => {
+        const isFromOther = message.senderId !== currentUserId && message.senderUsername !== 'You';
+        if (isFromOther) playReceiveSound();
         setMessages((prev) => {
           const exists = prev.some((m) => m.id === message.id || m.clientMessageId === message.clientMessageId);
           if (exists) return prev;
@@ -86,6 +93,7 @@ export default function ChatScreen() {
       status: 'sending',
     };
     setMessages((prev) => [...prev, optimistic]);
+    playSendSound();
     try {
       const res = await sendChatMessage(threadId, currentUserId, clientMessageId, text, 'text');
       const saved = res?.data;

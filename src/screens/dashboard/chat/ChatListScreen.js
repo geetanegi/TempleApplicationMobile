@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { getUserId } from '../../../redux/store/getState';
 import { getFollowing, getChatThreads, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { colors } from '../../../global/theme';
+import SearchInput from '../Main/SearchInput';
 
 function getAvatarUri(userId) {
   const url = getProfilePictureUrlByUserId(userId);
@@ -32,6 +33,7 @@ export default function ChatListScreen() {
   const [following, setFollowing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const load = useCallback(async () => {
     if (!currentUserId) return;
@@ -102,6 +104,26 @@ export default function ChatListScreen() {
     return id && !threadIds.has(id);
   });
 
+  const getFollowingDisplayName = (item) =>
+    item?.username || item?.firstName || [item?.firstName, item?.lastName].filter(Boolean).join(' ') || 'User';
+
+  const query = (searchQuery || '').trim().toLowerCase();
+
+  const filteredThreads = useMemo(() => {
+    if (!query) return threads;
+    return threads.filter(
+      (t) =>
+        (t.otherUsername || 'User').toLowerCase().includes(query)
+    );
+  }, [threads, query]);
+
+  const filteredFollowing = useMemo(() => {
+    if (!query) return followingNotInThreads;
+    return followingNotInThreads.filter((u) =>
+      getFollowingDisplayName(u).toLowerCase().includes(query)
+    );
+  }, [followingNotInThreads, query]);
+
   const renderThread = ({ item }) => (
     <TouchableOpacity style={styles.row} onPress={() => openThread(item)} activeOpacity={0.7}>
       <Image source={{ uri: getAvatarUri(item.otherUserId) }} style={styles.avatar} />
@@ -118,7 +140,7 @@ export default function ChatListScreen() {
 
   const renderFollowing = ({ item }) => {
     const id = item?.id ?? item?.userId;
-    const name = item?.username || item?.firstName || [item?.firstName, item?.lastName].filter(Boolean).join(' ') || 'User';
+    const name = getFollowingDisplayName(item);
     return (
       <TouchableOpacity style={styles.row} onPress={() => openChatWithUser(item)} activeOpacity={0.7}>
         <Image source={{ uri: getAvatarUri(id) }} style={styles.avatar} />
@@ -142,20 +164,27 @@ export default function ChatListScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      <View style={styles.searchWrap}>
+        <SearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search users..."
+        />
+      </View>
       <FlatList
         data={[]}
         ListHeaderComponent={
           <>
-            {threads.length > 0 && (
+            {filteredThreads.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Recent</Text>
-                {threads.map((t) => (
+                {filteredThreads.map((t) => (
                   <View key={t.id}>{renderThread({ item: t })}</View>
                 ))}
               </>
             )}
             <Text style={styles.sectionTitle}>Message someone you follow</Text>
-            {followingNotInThreads.map((u) => (
+            {filteredFollowing.map((u) => (
               <View key={u?.id ?? u?.userId}>{renderFollowing({ item: u })}</View>
             ))}
           </>
@@ -168,6 +197,8 @@ export default function ChatListScreen() {
         ListEmptyComponent={
           following.length === 0 ? (
             <Text style={styles.empty}>Follow people to start messaging them.</Text>
+          ) : query && filteredThreads.length === 0 && filteredFollowing.length === 0 ? (
+            <Text style={styles.empty}>No users match "{searchQuery}"</Text>
           ) : null
         }
       />
@@ -178,6 +209,12 @@ export default function ChatListScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  searchWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: '#fff',
+  },
   listContent: { paddingBottom: 24 },
   sectionTitle: {
     fontSize: 14,

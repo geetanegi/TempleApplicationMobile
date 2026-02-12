@@ -8,8 +8,8 @@ import {
   Pressable,
   Text,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import PostCard from '../../../components/PostCard';
 import { getPostById, deletePost } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
@@ -97,10 +97,10 @@ export default function PostPreviewScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={styles.headerBack}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          <Text style={styles.backArrow}>{'\u2190'}</Text>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
           Post
@@ -154,7 +154,7 @@ export default function PostPreviewScreen() {
           }}
         />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -178,6 +178,11 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backArrow: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: COLORS.text,
   },
   headerTitle: {
     fontSize: 18,

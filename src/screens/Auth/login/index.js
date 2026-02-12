@@ -98,6 +98,8 @@ const Login = ({ navigation }) => {
     }
 
     setIsLoading(true);
+    const invalidCredentialsMessage = 'Username and password did not match. Please try again.';
+
     postNoAuth(API.LOGIN_AUTH, {
       username: inputs.username,
       password: inputs.password,
@@ -109,14 +111,17 @@ const Login = ({ navigation }) => {
           dispatch(setLogindata(res?.data));
           dispatch(setLogin(true));
         } else {
-          setTitle('Oops!');
-          setSubtitle(res?.description);
+          setTitle('Login failed');
+          setSubtitle(res?.description || invalidCredentialsMessage);
           setPopupMessageVisibility(true);
         }
       })
       .catch(err => {
-        setTitle('Error');
-        setSubtitle(err?.message || 'Something went wrong');
+        const isAuthFailure = err?.status === 401 || err?.status === 403;
+        setTitle('Login failed');
+        setSubtitle(
+          isAuthFailure ? invalidCredentialsMessage : (err?.message || 'Something went wrong. Please try again.')
+        );
         setPopupMessageVisibility(true);
       })
       .finally(() => setIsLoading(false));
@@ -152,6 +157,7 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
+            inputMinHeight={48}
           />
 
           <View style={styles.gap} />
@@ -167,6 +173,7 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
+            inputMinHeight={48}
           />
 
           {/* Remember me */}

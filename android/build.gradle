@@ -2,8 +2,8 @@ buildscript {
     ext {
         buildToolsVersion = "34.0.0"           // Latest build tools for Android 14
         minSdkVersion = 23                     // Set the minimum SDK version
-        compileSdkVersion = 34                 // Compile with Android 14 (API level 34)
-        targetSdkVersion = 34                  // Target Android 14
+        compileSdkVersion = 35                 // Compile with Android 15 (API level 35)
+        targetSdkVersion = 35                  // Target Android 15 (required by Google Play)
         ndkVersion = "26.1.10909125"           // Update the NDK version if necessary
         kotlinVersion = "1.9.22"               // Latest Kotlin version
         googlePlayServicesAuthVersion = "17.0.0" // Google Play Services Auth version

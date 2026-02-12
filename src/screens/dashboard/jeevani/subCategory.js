@@ -1,81 +1,113 @@
 import {
   FlatList,
-  SafeAreaView,
   StyleSheet,
   Text,
-  StatusBar,
   View,
-  Alert,
   Image,
   Dimensions,
-  ScrollView,
+  Pressable,
 } from 'react-native';
-import React from 'react';
-import CustomHeader from '../../../components/Header/newHeader';
-import st from '../../../global/styles';
-import InputText from '../../../components/InputText';
-import {APP_TEXT, colors} from '../../../global/theme';
-import CategoryButton from '../../../components/categoryButton';
-import {musicList, songNavs} from '../../../dummy';
-import MusicCard from '../../../components/musicCard';
-import {useRoute} from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useCallback } from 'react';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
+import { ChevronLeft } from 'lucide-react-native';
 
-const {width} = Dimensions.get('screen');
+import InputText from '../../../components/InputText';
+import { APP_TEXT, colors } from '../../../global/theme';
+import { musicList } from '../../../dummy';
+import MusicCard from '../../../components/musicCard';
+
+const { width } = Dimensions.get('window');
+
 const SubCategoryPage = () => {
   const route = useRoute();
-  const {title, image} = route.params || {};
-  return (
-    <ScrollView style={styles.container}>
-      {/* <StatusBar barStyle="dark-content" backgroundColor={colors.WHITE} />
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { title = 'Granth', image } = route.params || {};
+  const [searchText, setSearchText] = useState('');
 
-      <CustomHeader title={'Song'} /> */}
-      {/* <View
-        style={{
-          flex: 1 / 3,
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: 500,
-        }}>
-        <Image
-          source={image}
-          style={{width: width, resizeMode: 'cover', height: '100%'}}
-        />
-      </View> */}
-      <FlatList
-        style={[st.pd_H20, st.flex]}
-        data={musicList}
-        keyExtractor={item => item.id}
-        renderItem={({item}) => <MusicCard item={item} />}
-        ListHeaderComponent={
-          <View style={[st.mt_B10]}>
-            <InputText
-              placeholder={APP_TEXT.SEARCH}
-              iconName={'search'}
-              onFocus={() => Alert.alert('Clicked!')}
-            />
-            {/* <FlatList
-              data={songNavs}
-              keyExtractor={item => item.label}
-              renderItem={({item}) => (
-                <View style={[st.align_C, styles.tab]}>
-                  <Text style={[st.tx12, {color: colors.white}]}>
-                    {item.label}
-                  </Text>
-                </View>
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                st.mt_t10,
-                st.wdh100,
-                st.justify_S,
-                st.pv10,
-              ]}
-            /> */}
+  const filteredList = React.useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return musicList;
+    return musicList.filter(
+      (item) =>
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.artist || '').toLowerCase().includes(q)
+    );
+  }, [searchText]);
+
+  const renderHeader = useCallback(
+    () => (
+      <View style={styles.headerSection}>
+        {/* Hero header with gradient */}
+        <View style={styles.heroWrap}>
+          {image ? (
+            <Image source={image} style={styles.heroImage} resizeMode="cover" />
+          ) : null}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            style={styles.heroGradient}
+          />
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>{title}</Text>
+            <Text style={styles.heroSubtitle}>
+              Sacred texts and devotional literature
+            </Text>
           </View>
-        }
+        </View>
+
+        {/* Search bar */}
+        <View style={styles.searchSection}>
+          <InputText
+            placeholder={APP_TEXT.SEARCH}
+            iconName="search"
+            value={searchText}
+            onChangeText={setSearchText}
+            inputsty={styles.searchInput}
+          />
+        </View>
+      </View>
+    ),
+    [title, image, searchText]
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => <MusicCard item={item} />,
+    []
+  );
+
+  const ListEmptyComponent = useCallback(
+    () => (
+      <View style={styles.emptyWrap}>
+        <Text style={styles.emptyText}>No granths found</Text>
+        <Text style={styles.emptyHint}>Try a different search term</Text>
+      </View>
+    ),
+    []
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back button overlay */}
+      <Pressable
+        style={[styles.backBtn, { top: insets.top + 8 }]}
+        onPress={() => navigation.goBack()}
+        hitSlop={12}
+      >
+        <ChevronLeft size={28} color="#fff" strokeWidth={2.5} />
+      </Pressable>
+
+      <FlatList
+        data={filteredList}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={ListEmptyComponent}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
       />
-    </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -84,12 +116,102 @@ export default SubCategoryPage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: '#F8F6F3',
   },
-  tab: {
-    backgroundColor: colors.orange,
-    padding: 10,
-    borderRadius: 100,
-    paddingHorizontal: 18,
+
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D48A4A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+
+  headerSection: {
+    marginBottom: 8,
+  },
+
+  heroWrap: {
+    width,
+    height: 180,
+    backgroundColor: '#D48A4A',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  heroContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+  },
+
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+
+  searchInput: {
+    marginTop: 0,
+    marginBottom: 0,
+    borderRadius: 28,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+    height: 52,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+
+  emptyWrap: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+
+  emptyHint: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginTop: 6,
   },
 });

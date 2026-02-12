@@ -3,14 +3,14 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
   FlatList,
   SafeAreaView,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors } from '../../../global/theme';
 import { getUserId } from '../../../redux/store/getState';
 import { getNotifications, markNotificationsSeen } from '../../../utils/apicalls/socialHandler';
@@ -26,25 +26,72 @@ function getAvatarUri(actorUserId) {
   return 'https://i.pravatar.cc/150?img=3';
 }
 
-const NotificationItem = ({ image, message, notificationType, createdAt, isRead }) => (
-  <View style={[styles.notificationItem, !isRead && styles.notificationItemUnread]}>
-    <Image source={{ uri: image }} style={styles.avatar} />
-    <View style={styles.notificationContent}>
-      <Text style={styles.notificationText}>{message}</Text>
-      {createdAt && (
-        <Text style={styles.notificationTime}>
-          {typeof createdAt === 'string' ? new Date(createdAt).toLocaleDateString() : ''}
-        </Text>
-      )}
-    </View>
-  </View>
-);
+const TYPE_FOLLOW = 'FOLLOW';
+const TYPE_MESSAGE = 'MESSAGE';
+const TYPE_LIKE = 'LIKE';
+const TYPE_COMMENT = 'COMMENT';
+
+const NotificationItem = ({ item, image, message, notificationType, createdAt, isRead, onPress }) => {
+  const type = (notificationType || '').toUpperCase();
+  return (
+    <Pressable
+      style={[styles.notificationItem, !isRead && styles.notificationItemUnread]}
+      onPress={() => onPress(item, type)}
+    >
+      <Image source={{ uri: image }} style={styles.avatar} />
+      <View style={styles.notificationContent}>
+        <Text style={styles.notificationText}>{message}</Text>
+        {createdAt && (
+          <Text style={styles.notificationTime}>
+            {typeof createdAt === 'string' ? new Date(createdAt).toLocaleDateString() : ''}
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+};
 
 const NotificationScreen = () => {
+  const navigation = useNavigation();
   const userId = getUserId();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleNotificationPress = useCallback(
+    (item, type) => {
+      const actorUserId = item?.actorUserId ?? item?.actorUser?.id;
+      const targetId = item?.targetId;
+      const actorUsername = item?.actorUsername ?? 'User';
+
+      switch (type) {
+        case TYPE_FOLLOW:
+          if (actorUserId) {
+            navigation.navigate('Profiles', { userId: actorUserId });
+          }
+          break;
+        case TYPE_MESSAGE:
+          if (targetId && actorUserId) {
+            navigation.navigate('ChatScreen', {
+              threadId: targetId,
+              otherUserId: actorUserId,
+              otherUsername: actorUsername,
+            });
+          } else {
+            navigation.navigate('Chat');
+          }
+          break;
+        case TYPE_LIKE:
+        case TYPE_COMMENT:
+        default:
+          if (targetId) {
+            navigation.navigate('PostPreview', { postId: targetId });
+          }
+          break;
+      }
+    },
+    [navigation]
+  );
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -92,18 +139,20 @@ const NotificationScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.sectionTitle}>Notifications</Text>
       <FlatList
         data={notifications}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <NotificationItem
+            item={item}
             image={getAvatarUri(item.actorUserId)}
             message={item.message}
             notificationType={item.notificationType}
             createdAt={item.createdDate}
             isRead={item.isRead}
+            onPress={handleNotificationPress}
           />
         )}
         refreshControl={

@@ -35,6 +35,7 @@ const ChangePassword = ({navigation, route}) => {
   const [title, setTitle] = useState();
   const [subtitle, setSubtitle] = useState('');
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
+  const [successPopupVisible, setSuccessPopupVisible] = useState(false);
   const [warning, setWarning] = useState(false);
 
   const handleOnchange = (text, input) => {
@@ -59,6 +60,12 @@ const ChangePassword = ({navigation, route}) => {
   };
 
   const onPopupMessageModalClick = value => {
+    if (successPopupVisible) {
+      setPopupMessageVisibility(false);
+      setSuccessPopupVisible(false);
+      navigation.navigate(NAVIGATION.TO_LOGIN);
+      return;
+    }
     if (warning == true) {
       handleSubmitPress();
       setPopupMessageVisibility(value);
@@ -103,8 +110,10 @@ const ChangePassword = ({navigation, route}) => {
       .then(result => {
         if (!result?.error) {
           setIsLoading(false);
-          Toast.show(result?.data?.message);
-          navigation.navigate(NAVIGATION.TO_SUCCESS_SCREEN);
+          setTitle('Success');
+          setSubtitle(result?.description || result?.data?.message || 'Password changed successfully. You can now log in.');
+          setSuccessPopupVisible(true);
+          setPopupMessageVisibility(true);
         } else {
           setIsLoading(false);
           setTitle('Oops!');
@@ -199,6 +208,7 @@ const ChangePassword = ({navigation, route}) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={12}
+            inputMinHeight={48}
           />
           <View style={styles.gap} />
           <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
@@ -214,6 +224,7 @@ const ChangePassword = ({navigation, route}) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={12}
+            inputMinHeight={48}
           />
 
           <ApplicationButton
