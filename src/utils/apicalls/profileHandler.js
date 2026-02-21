@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import {environment} from '../constant';
 import {API} from '../endpoints';
@@ -5,7 +6,29 @@ import {getApiHeader} from './apiHandler';
 import {getAuth} from './getApi';
 import {postAuth} from './postApi';
 import {getFollowersCount, getFollowingCount} from './socialHandler';
-import {uploadApi} from './index';
+import {retrieveData} from './index';
+
+const PROFILE_PIC_UPDATED_PREFIX = 'profilePicUpdatedAt_';
+
+/** Store timestamp when profile picture is updated (for cache busting across screens). */
+export const setProfilePictureUpdatedAt = async (userId) => {
+  try {
+    if (userId != null) {
+      await AsyncStorage.setItem(PROFILE_PIC_UPDATED_PREFIX + userId, String(Date.now()));
+    }
+  } catch (_) {}
+};
+
+/** Get stored timestamp for profile picture cache busting. */
+export const getProfilePictureUpdatedAt = async (userId) => {
+  try {
+    if (userId == null) return null;
+    const v = await AsyncStorage.getItem(PROFILE_PIC_UPDATED_PREFIX + userId);
+    return v ? Number(v) : null;
+  } catch (_) {
+    return null;
+  }
+};
 
 /** Server base URL (no /api) for proxy endpoints like profile picture */
 const serverBase = () => (environment.baseUrl || '').replace(/\/api\/?$/, '');
@@ -102,18 +125,52 @@ export const updateProfile = async (userId, body) => {
   return res?.data?.data ?? res?.data;
 };
 
+/** Normalize file URI for FormData - Android may need file:// prefix for absolute paths */
+function normalizeProfilePictureUri(uri) {
+  if (!uri || typeof uri !== 'string') return uri;
+  const t = uri.trim();
+  if (t.startsWith('content://') || t.startsWith('file://')) return t;
+  if (t.startsWith('/')) return 'file://' + t;
+  return t;
+}
+
 /**
- * Update profile picture (social backend). fileUri = local image path from picker.
+ * Update profile picture (social backend). Uses fetch instead of axios - React Native
+ * fetch handles FormData correctly and sets Content-Type with boundary.
  */
 export const updateProfilePicture = async (userId, fileUri) => {
+  const normalizedUri = normalizeProfilePictureUri(fileUri);
   const formData = new FormData();
   formData.append('userId', String(userId));
   formData.append('file', {
-    uri: fileUri,
+    uri: normalizedUri,
     type: 'image/jpeg',
     name: 'profile.jpg',
   });
-  return uploadApi(API.SOCIAL_PROFILE_PICTURE, formData);
+
+  const token = await retrieveData();
+  const url = API.SOCIAL_PROFILE_PICTURE;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: 'Bearer ' + token,
+      // Do NOT set Content-Type - fetch sets multipart/form-data with boundary for FormData
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const msg = errData?.message || errData?.data?.message || res.statusText || 'Upload failed';
+    const err = new Error(msg);
+    err.response = { status: res.status, data: errData };
+    throw err;
+  }
+  const json = await res.json();
+  await setProfilePictureUpdatedAt(userId);
+  return { data: json };
 };
 
 /**

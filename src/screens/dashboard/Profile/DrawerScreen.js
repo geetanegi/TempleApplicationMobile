@@ -67,7 +67,7 @@ const DrawerScreen = ({navigation}) => {
     { id: '4', label: 'Privacy Policy', icon: 'lock', screen: 'PrivacyPolicyScreen' },
     { id: '5', label: 'Terms & Condition', icon: 'gavel', screen: 'TermsAndConditionScreen' },
     { id: '6', label: 'Configuration', icon: 'settings', screen: 'ConfigurationScreen' },
-    { id: '7', label: 'YouTube Videos', icon: 'play-circle-outline', screen: 'YouTubeVideosScreen' },
+    { id: '7', label: 'Videos', icon: 'play-circle-outline', screen: 'YouTubeVideosScreen' },
     { id: '8', label: 'Logout', icon: 'logout', screen: null },
   ];
 

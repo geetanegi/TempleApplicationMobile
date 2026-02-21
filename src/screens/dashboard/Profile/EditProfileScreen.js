@@ -32,7 +32,7 @@ import {
   ValidateGHIN,
   Validatehdcp,
 } from '../../../utils/helperfunctions/validations';
-import { updateProfile, updateProfilePicture, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { updateProfile, updateProfilePicture, resolveProfilePictureUrl, getProfilePictureUrlByUserId, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 import Toast from 'react-native-simple-toast';
 import ImageCropPicker from 'react-native-image-crop-picker';
 
@@ -67,9 +67,16 @@ const EditProfileScreen = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [newPictureUri, setNewPictureUri] = useState(null);
+  const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
+  const [focusBuster, setFocusBuster] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
+      setFocusBuster(prev => prev + 1);
+      const userId = item?.id ?? null;
+      if (userId) {
+        getProfilePictureUpdatedAt(userId).then(ts => setProfilePicTimestamp(ts));
+      }
       if (item) {
         const up = item.userProfile || {};
         let dateOfBirth = '';
@@ -101,12 +108,14 @@ const EditProfileScreen = () => {
 
   const isEmpty = str => !str || (typeof str === 'string' && str.trim() === '');
 
+  const isTempleMember = Boolean(item?.isTempleMember);
+
   const handleSave = () => {
     if (!inputs.id) {
       Toast.show('Profile data not loaded.');
       return;
     }
-    const errKeys = ['location', 'city'];
+    const errKeys = isTempleMember ? ['location', 'city'] : [];
     const hasErr = errKeys.some(k => !isEmpty(errors[k]));
     if (hasErr) return;
     handleSubmitPress();
@@ -126,11 +135,12 @@ const EditProfileScreen = () => {
         setNewPictureUri(null);
       }
       Toast.show('Profile updated.');
-      navigation.getParent()?.navigate('Profile', {
+      const tabNav = navigation.getParent()?.getParent?.();
+      (tabNav || navigation.getParent() || navigation).navigate('Profile', {
         screen: 'ProfileMain',
         params: { refreshProfile: true },
       });
-      navigation.pop();
+      navigation.goBack();
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Update failed';
       Toast.show(msg);
@@ -307,7 +317,14 @@ const EditProfileScreen = () => {
     setInputs(prevState => ({ ...prevState, [input]: text }));
   };
 
-  const avatarUri = newPictureUri || resolveProfilePictureUrl(inputs.imageUrl);
+  const baseAvatarUrl = inputs.id ? getProfilePictureUrlByUserId(inputs.id) : resolveProfilePictureUrl(inputs.imageUrl);
+  const cacheBust = profilePicTimestamp ?? focusBuster;
+  const avatarUri = newPictureUri
+    ? newPictureUri
+    : baseAvatarUrl
+      ? `${baseAvatarUrl}${baseAvatarUrl.includes('?') ? '&' : '?'}t=${cacheBust}`
+      : null;
+  const isNetworkAvatar = avatarUri && (avatarUri.startsWith('http://') || avatarUri.startsWith('https://'));
 
   const handleError = (error, input) => {
     setErrors(prevState => ({ ...prevState, [input]: error }));
@@ -337,7 +354,14 @@ const EditProfileScreen = () => {
           >
             <View style={styles.avatarWrap}>
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                <Image
+                  key={avatarUri}
+                  source={{
+                    uri: avatarUri,
+                    ...(isNetworkAvatar && { cache: 'reload' }),
+                  }}
+                  style={styles.avatar}
+                />
               ) : (
                 <View style={[styles.avatar, styles.avatarIconWrap]}>
                   <User size={48} color={THEME.textMuted} strokeWidth={2} />
@@ -384,12 +408,13 @@ const EditProfileScreen = () => {
             placeholderTextColor={colors.DARK_GREY}
           />
 
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <FloatingInput
-                label="Location"
-                labelAbove
-                labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
+          {isTempleMember && (
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <FloatingInput
+                  label="Location"
+                  labelAbove
+                  labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
                   value={inputs.location}
                   onChangeText={t => handleOnchange(t, 'location')}
                   error={errors.location}
@@ -397,12 +422,12 @@ const EditProfileScreen = () => {
                   placeholder="e.g. Mumbai"
                   placeholderTextColor={colors.DARK_GREY}
                 />
-            </View>
-            <View style={styles.half}>
-              <FloatingInput
-                label="City"
-                labelAbove
-                labelIcon={<Building2 size={16} color={THEME.textMuted} strokeWidth={2} />}
+              </View>
+              <View style={styles.half}>
+                <FloatingInput
+                  label="City"
+                  labelAbove
+                  labelIcon={<Building2 size={16} color={THEME.textMuted} strokeWidth={2} />}
                   value={inputs.city}
                   onChangeText={t => handleOnchange(t, 'city')}
                   error={errors.city}
@@ -410,8 +435,9 @@ const EditProfileScreen = () => {
                   placeholder="e.g. Mumbai"
                   placeholderTextColor={colors.DARK_GREY}
                 />
+              </View>
             </View>
-          </View>
+          )}
 
           <FloatingInput
             label="Phone Number"

@@ -12,7 +12,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   launchImageLibrary,
   launchCamera,
@@ -42,6 +42,8 @@ const normalizeVideoUri = (uri) => {
 
 const PostReelScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const fromProfile = route.params?.fromProfile === true;
   const currentUserId = getUserId();
   const [videoUri, setVideoUri] = useState(null);
   const [thumbnailUri, setThumbnailUri] = useState(null);
@@ -202,7 +204,17 @@ const PostReelScreen = () => {
       Alert.alert('Success', 'Your reel has been posted!', [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('ReelsFeed'),
+          onPress: () => {
+            if (fromProfile) {
+              const tabNav = navigation.getParent()?.getParent?.();
+              (tabNav || navigation).navigate('Profile', {
+                screen: 'ProfileMain',
+                params: { activeTab: 'Reels', refreshProfile: true },
+              });
+            } else {
+              navigation.navigate('ReelsFeed');
+            }
+          },
         },
       ]);
     } catch (e) {

@@ -56,10 +56,14 @@ export const uploadApi = async (api, data, options = {}) => {
   const config = {
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'multipart/form-data',
       Authorization: 'Bearer ' + mytoken,
     },
   };
+  // Don't set Content-Type for FormData - let axios set multipart/form-data with boundary.
+  // (data instanceof FormData) can fail in RN; check for append method instead.
+  if (!data || typeof data.append !== 'function') {
+    config.headers['Content-Type'] = 'application/json';
+  }
   if (options.onUploadProgress) {
     config.onUploadProgress = options.onUploadProgress;
   }

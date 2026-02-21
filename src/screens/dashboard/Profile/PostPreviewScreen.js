@@ -9,9 +9,10 @@ import {
   Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import PostCard from '../../../components/PostCard';
 import { getPostById, deletePost } from '../../../utils/apicalls/socialHandler';
+import { getProfilePictureUrlByUserId, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { colors } from '../../../global/theme';
 
@@ -30,6 +31,20 @@ export default function PostPreviewScreen() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(null);
+  const [focusBuster, setFocusBuster] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocusBuster((b) => b + 1);
+      if (currentUserId) {
+        getProfilePictureUpdatedAt(currentUserId).then(setAvatarCacheBuster);
+      }
+      return () => {};
+    }, [currentUserId]),
+  );
+
+  const cacheBuster = avatarCacheBuster ?? focusBuster;
 
   const loadPost = useCallback(async () => {
     if (!postId) {
@@ -47,10 +62,12 @@ export default function PostPreviewScreen() {
         setPost(null);
         return;
       }
+      const authorId = item.user?.id ?? item.userId;
+      let avatarUrl = getProfilePictureUrlByUserId(authorId) || 'https://i.pravatar.cc/150';
       setPost({
         id: String(item.id),
         postId: item.id,
-        authorUserId: item.user?.id ?? item.userId,
+        authorUserId: authorId,
         userName: item.user?.username || item.user?.name || 'Unknown',
         createdAt: item.createdAt,
         image: item.photoUrl || null,
@@ -59,7 +76,7 @@ export default function PostPreviewScreen() {
         likes: item.likesCount ?? item.likes ?? 0,
         comments: item.commentsCount ?? item.comments ?? 0,
         shares: item.sharesCount ?? item.shares ?? 0,
-        avatar: item.user?.userProfile || item.user?.profileImageUrl || 'https://i.pravatar.cc/150',
+        avatar: avatarUrl,
         contentText: item.contentText || '',
         isLiked: !!item.isLiked,
         isShared: !!item.isShared,
@@ -114,6 +131,7 @@ export default function PostPreviewScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.cardWrap}>
         <PostCard
           postId={post.postId}
           authorUserId={post.authorUserId}
@@ -126,7 +144,11 @@ export default function PostPreviewScreen() {
           likes={post.likes}
           comments={post.comments}
           shares={post.shares}
-          avatar={post.avatar}
+          avatar={
+            post.authorUserId === currentUserId && cacheBuster
+              ? `${post.avatar}${post.avatar.includes('?') ? '&' : '?'}t=${cacheBuster}`
+              : post.avatar
+          }
           contentText={post.contentText}
           initialIsLiked={post.isLiked}
           initialIsShared={post.isShared}
@@ -155,6 +177,7 @@ export default function PostPreviewScreen() {
             );
           }}
         />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -195,7 +218,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 40,
+  },
+  cardWrap: {
+    padding: 16,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 16,
   },
   centered: {
     flex: 1,

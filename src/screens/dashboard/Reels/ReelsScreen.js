@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import {
   StatusBar,
   Image,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Video from 'react-native-video';
-import { Plus, Heart, MessageCircle, Send, User, X } from 'lucide-react-native';
+import { Plus, Heart, MessageCircle, Send, User, X, MoreVertical } from 'lucide-react-native';
 import ReelCommentsOverlay from './ReelCommentsOverlay';
 import Share from 'react-native-share';
 import { getUserId } from '../../../redux/store/getState';
@@ -25,6 +26,7 @@ import {
   unlikeReel,
   shareReel,
   unshareReel,
+  deleteReel,
 } from '../../../utils/apicalls/reelHandler';
 import {
   getProfilePictureUrlByUserId,
@@ -54,6 +56,8 @@ const ReelsScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [commentReel, setCommentReel] = useState(null);
   const flatListRef = useRef(null);
+  const initialLoadDoneRef = useRef(false);
+  const lastLoadedReelIdRef = useRef(null);
 
   const loadReels = useCallback(
     async (pageNum = 0, append = false) => {
@@ -97,42 +101,55 @@ const ReelsScreen = () => {
     loadReels(nextPage, true);
   }, [page, loadReels, loadingMore, hasMore]);
 
+  // Load specific reel when navigated with reelId param (e.g. from Profile)
+  useEffect(() => {
+    if (!initialReelId) return;
+    const reelIdStr = String(initialReelId);
+    if (lastLoadedReelIdRef.current === reelIdStr) return;
+    lastLoadedReelIdRef.current = reelIdStr;
+    let cancelled = false;
+    setLoading(true);
+    initialLoadDoneRef.current = true;
+    Promise.all([
+      getReelById(initialReelId, currentUserId),
+      getRandomReels(0, PAGE_SIZE, currentUserId),
+    ])
+      .then(([reelRes, feedRes]) => {
+        if (cancelled) return;
+        const reelData = reelRes?.data;
+        const feedList = Array.isArray(feedRes?.data) ? feedRes.data : [];
+        const inFeed = feedList.some((r) => String(r.id) === reelIdStr);
+        const list = inFeed
+          ? feedList
+          : reelData
+            ? [{ ...reelData, id: reelData.id }, ...feedList]
+            : feedList;
+        setReels(list);
+        setHasMore(feedList.length >= PAGE_SIZE);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.warn('Reels load error:', err);
+          setHasMore(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [initialReelId, currentUserId]);
+
+  // First load (no reelId) - run once when component mounts/focuses and no reel requested
   useFocusEffect(
     useCallback(() => {
-      const run = async () => {
-        if (initialReelId) {
-          setLoading(true);
-          try {
-            const [reelRes, feedRes] = await Promise.all([
-              getReelById(initialReelId, currentUserId),
-              getRandomReels(0, PAGE_SIZE, currentUserId),
-            ]);
-            const reelData = reelRes?.data;
-            const feedList = Array.isArray(feedRes?.data) ? feedRes.data : [];
-            const inFeed = feedList.some((r) => String(r.id) === String(initialReelId));
-            const list = inFeed
-              ? feedList
-              : reelData
-                ? [{ ...reelData, id: reelData.id }, ...feedList]
-                : feedList;
-            setReels(list);
-            setHasMore(feedList.length >= PAGE_SIZE);
-          } catch (err) {
-            console.warn('Reels load error:', err);
-            setHasMore(false);
-          } finally {
-            setLoading(false);
-          }
-        } else {
-          await loadReels(0, false);
-        }
-      };
-      run();
-    }, [loadReels, initialReelId, currentUserId])
+      if (initialReelId || initialLoadDoneRef.current) return;
+      initialLoadDoneRef.current = true;
+      loadReels(0, false);
+    }, [loadReels, initialReelId])
   );
 
   // Scroll to the reel when we have initialReelId and reels are loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (!initialReelId || reels.length === 0) return;
     const index = reels.findIndex((r) => String(r.id) === String(initialReelId));
     if (index < 0) return;
@@ -143,7 +160,8 @@ const ReelsScreen = () => {
       });
       setActiveIndex(index);
       navigation.setParams({ reelId: undefined });
-    }, 150);
+      lastLoadedReelIdRef.current = null; // Reset so next navigation with reelId will load again
+    }, 200);
     return () => clearTimeout(timer);
   }, [initialReelId, reels, navigation, videoHeight]);
 
@@ -180,6 +198,37 @@ const ReelsScreen = () => {
           )
         );
       }
+    },
+    [currentUserId]
+  );
+
+  const handleDeleteReel = useCallback(
+    async (reel) => {
+      const isOwn = currentUserId && String(reel.user?.id ?? reel.userId) === String(currentUserId);
+      if (!isOwn) return;
+      Alert.alert(
+        'Delete Reel',
+        'Are you sure you want to delete this reel?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteReel(reel.id, currentUserId);
+                setReels((prev) => prev.filter((r) => r.id !== reel.id));
+                setCommentReel((c) => (c?.id === reel.id ? null : c));
+              } catch (e) {
+                Alert.alert(
+                  'Error',
+                  e?.response?.data?.message || e?.message || 'Failed to delete reel'
+                );
+              }
+            },
+          },
+        ]
+      );
     },
     [currentUserId]
   );
@@ -297,6 +346,14 @@ const ReelsScreen = () => {
               <Send size={30} color="#fff" strokeWidth={2} />
               <Text style={styles.actionCount}>{item.sharesCount ?? 0}</Text>
             </Pressable>
+            {currentUserId && String(item.user?.id ?? item.userId ?? '') === String(currentUserId) ? (
+              <Pressable
+                onPress={() => handleDeleteReel(item)}
+                style={styles.actionBtn}
+              >
+                <MoreVertical size={28} color="#fff" strokeWidth={2} />
+              </Pressable>
+            ) : null}
           </View>
           {/* Caption & user */}
           <View style={styles.captionOverlay}>
@@ -315,7 +372,7 @@ const ReelsScreen = () => {
         </View>
       );
     },
-    [activeIndex, isFocused, navigation, handleLike, handleShare, setCommentReel]
+    [activeIndex, isFocused, navigation, currentUserId, handleLike, handleShare, handleDeleteReel, setCommentReel]
   );
 
   if (loading && reels.length === 0) {
@@ -341,9 +398,9 @@ const ReelsScreen = () => {
           >
             <X size={28} color="#fff" strokeWidth={2.5} />
           </Pressable>
-          <Text style={styles.headerTitle}>Reels</Text>
+          <Text style={styles.headerTitle}>Clips</Text>
           <Pressable
-            onPress={() => navigation.navigate('PostReel')}
+            onPress={() => navigation.navigate('PostReel', { fromProfile: false })}
             style={styles.addBtn}
             hitSlop={12}
           >

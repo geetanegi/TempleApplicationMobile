@@ -16,6 +16,15 @@ import { getUserId } from '../../../redux/store/getState';
 import { getNotifications, markNotificationsSeen } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 
+function capitalizeName(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
+    .join(' ');
+}
+
 function getAvatarUri(actorUserId) {
   if (!actorUserId) return 'https://i.pravatar.cc/150?img=3';
   const url = getProfilePictureUrlByUserId(actorUserId);
@@ -86,9 +95,10 @@ function formatDateTime(createdAt) {
 
 const NotificationItem = ({ item, image, message, actorName, notificationType, createdAt, isRead, onPress }) => {
   const type = (notificationType || '').toUpperCase();
-  const name = (actorName || '').trim();
-  const hasNamePrefix = name.length > 0 && message && message.startsWith(name);
-  const restOfMessage = hasNamePrefix ? message.slice(name.length).trimStart() : null;
+  const rawName = (actorName || '').trim();
+  const name = capitalizeName(rawName);
+  const hasNamePrefix = rawName.length > 0 && message && (message.startsWith(rawName) || message.toLowerCase().startsWith(rawName.toLowerCase()));
+  const restOfMessage = hasNamePrefix ? message.slice(rawName.length).trimStart() : null;
 
   return (
     <Pressable

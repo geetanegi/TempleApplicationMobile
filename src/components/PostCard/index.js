@@ -67,6 +67,10 @@ const PostCard = ({
   initialIsShared = false,
   onAuthorPress, // (authorUserId) when user taps author name to open profile
   onImagePress, // when user taps photo/video to open full post view (e.g. PostPreview)
+  // Stable-callback form: pass (postId, ...) so parent can use useCallback without item in closure
+  onLikeChangeWithPostId, // (postId, newLiked, newCount)
+  onDeleteWithPostId, // (postId)
+  onImagePressWithPostId, // (postId)
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
 
@@ -239,7 +243,11 @@ const PostCard = ({
     setIsLiked(nextLiked);
     const newCount = nextLiked ? likeCount + 1 : Math.max(0, likeCount - 1);
     setLikeCount(newCount);
-    onLikeChange?.(nextLiked, newCount);
+    if (onLikeChangeWithPostId && postId != null) {
+      onLikeChangeWithPostId(postId, nextLiked, newCount);
+    } else {
+      onLikeChange?.(nextLiked, newCount);
+    }
 
     Animated.spring(scaleAnim, {
       toValue: 1.12,
@@ -266,10 +274,14 @@ const PostCard = ({
         // Revert on failure
         setIsLiked(prevLiked);
         setLikeCount(prevCount);
-        onLikeChange?.(prevLiked, prevCount);
+        if (onLikeChangeWithPostId && postId != null) {
+          onLikeChangeWithPostId(postId, prevLiked, prevCount);
+        } else {
+          onLikeChange?.(prevLiked, prevCount);
+        }
       }
     }
-  }, [isLiked, postId, currentUserId, likeCount, onLikeChange, scaleAnim]);
+  }, [isLiked, postId, currentUserId, likeCount, onLikeChange, onLikeChangeWithPostId, scaleAnim]);
 
   const ActionPill = ({icon, count}) => {
     return (
@@ -338,7 +350,11 @@ const PostCard = ({
           <View style={styles.userInfo}>
             {(resolveProfilePictureUrl(avatar) || avatar) ? (
               <Image
-                source={{uri: resolveProfilePictureUrl(avatar) || avatar}}
+                key={resolveProfilePictureUrl(avatar) || avatar}
+                source={{
+                  uri: resolveProfilePictureUrl(avatar) || avatar,
+                  ...(authorUserId === currentUserId && { cache: 'reload' }),
+                }}
                 style={styles.avatar}
               />
             ) : (
@@ -409,7 +425,8 @@ const PostCard = ({
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuOpen(false);
-                  onDelete?.();
+                  if (onDeleteWithPostId && postId != null) onDeleteWithPostId(postId);
+                  else onDelete?.();
                 }}>
                 <Trash2 size={16} color="#666" />
                 <Text style={styles.menuText}>Delete</Text>
@@ -468,7 +485,13 @@ const PostCard = ({
             ) : (
               <Pressable
                 style={styles.videoThumbWrap}
-                onPress={() => (postId != null && onImagePress ? onImagePress() : setVideoPlaying(true))}
+                onPress={() => {
+                if (postId != null && (onImagePressWithPostId || onImagePress)) {
+                  onImagePressWithPostId?.(postId) ?? onImagePress?.();
+                } else {
+                  setVideoPlaying(true);
+                }
+              }}
               >
                 <Image
                   source={{ uri: thumbnailUrl || videoUrl }}
@@ -487,7 +510,11 @@ const PostCard = ({
         {!videoUrl && !!image && (
           <View style={styles.imageWrap}>
             <Pressable
-              onPress={() => postId != null && onImagePress?.()}
+              onPress={() => {
+              if (postId != null) {
+                onImagePressWithPostId?.(postId) ?? onImagePress?.();
+              }
+            }}
               style={styles.imagePressable}
             >
               <Image source={{uri: image}} style={styles.postImage} resizeMode="contain" />
@@ -549,7 +576,7 @@ const PostCard = ({
   );
 };
 
-export default PostCard;
+export default React.memo(PostCard);
 
 // ---------- helpers ----------
 function formatCount(n) {

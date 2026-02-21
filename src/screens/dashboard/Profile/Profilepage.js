@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -20,9 +21,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { getUserId } from '../../../redux/store/getState';
-import { getProfileWithCounts, getProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { getProfileWithCounts, getProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 import { getUserPosts, follow, unfollow, isFollowing, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
-import { getUserReels } from '../../../utils/apicalls/reelHandler';
+import { getUserReels, deleteReel } from '../../../utils/apicalls/reelHandler';
 import st from '../../../global/styles';
 
 const { width } = Dimensions.get('window');
@@ -42,12 +43,12 @@ const COLORS = {
 };
 
 const TABS = [
-  { key: 'Photos', icon: 'image' },
-  { key: 'Videos', icon: 'video' },
-  { key: 'Reels', icon: 'film' },
+  { key: 'Photos', icon: 'image', label: 'Photos' },
+  { key: 'Videos', icon: 'video', label: 'Videos' },
+  { key: 'Reels', icon: 'film', label: 'Clips' },
 ];
 
-const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPressPost }) => {
+const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPressPost, onDeleteReel }) => {
   const isReel = activeTab === 'Reels';
   const mediaUri = isReel || item.videoUrl
     ? (item.thumbnailUrl || item.videoUrl || item.photoUrl)
@@ -58,6 +59,11 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPre
     <Pressable
       style={[styles.card, !isEndOfRow && styles.cardMarginRight]}
       onPress={() => (isReel ? onPressReel() : onPressPost())}
+      onLongPress={
+        isReel && onDeleteReel
+          ? () => onDeleteReel(item)
+          : undefined
+      }
     >
       {mediaUri ? (
         <Image source={source} style={styles.cardImg} resizeMode="cover" />
@@ -77,24 +83,31 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPre
   );
 });
 
-/** URL regex - matches http(s) URLs */
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+/** URL regex - matches http(s) and www. URLs */
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
 
 /** Renders bio text with clickable links and preserved line breaks */
 function BioWithLinks({ text, style }) {
   if (!text || !text.trim()) return <Text style={style}>No description yet.</Text>;
-  const parts = text.split(URL_REGEX);
+  const parts = text.split(URL_REGEX).filter(Boolean);
+  const openLink = (url) => {
+    let toOpen = url.replace(/[.,;:!?)\]\s]+$/, '').trim();
+    if (toOpen && !toOpen.startsWith('http://') && !toOpen.startsWith('https://')) {
+      toOpen = 'https://' + toOpen;
+    }
+    if (toOpen) Linking.openURL(toOpen).catch(() => {});
+  };
   return (
     <Text style={style}>
       {parts.map((part, i) => {
-        const isUrl = part.startsWith('http://') || part.startsWith('https://');
+        const isUrl =
+          part.startsWith('http://') || part.startsWith('https://') || /^www\./i.test(part);
         if (isUrl) {
-          const url = part.replace(/[.,;:!?)\]]+$/, '');
           return (
             <Text
               key={i}
               style={[style, { color: COLORS.orange, textDecorationLine: 'underline' }]}
-              onPress={() => Linking.openURL(url).catch(() => {})}
+              onPress={() => openLink(part)}
             >
               {part}
             </Text>
@@ -130,6 +143,13 @@ export default function ProfileScreen() {
   const isFollowingFetched = useRef(false);
   const lastFetchedAt = useRef(0);
   const FOCUS_REFRESH_THROTTLE_MS = 20000; // Only refetch on focus if 20+ sec since last fetch
+
+  React.useEffect(() => {
+    const tab = route.params?.activeTab;
+    if (tab === 'Photos' || tab === 'Videos' || tab === 'Reels') {
+      setActiveTab(tab);
+    }
+  }, [route.params?.activeTab]);
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -209,6 +229,7 @@ export default function ProfileScreen() {
     setRefreshing(true);
     lastFetchedAt.current = Date.now();
     await Promise.all([loadProfile(), loadPosts(), loadReels()]);
+    setAvatarCacheBuster((b) => b + 1);
     setRefreshing(false);
   }, [loadProfile, loadPosts, loadReels]);
 
@@ -223,12 +244,14 @@ export default function ProfileScreen() {
 
       if (shouldRefresh) {
         lastFetchedAt.current = Date.now();
-        if (route.params?.refreshProfile) {
+        const hadRefreshProfile = route.params?.refreshProfile === true;
+        if (hadRefreshProfile) {
           navigation.setParams?.({ refreshProfile: undefined });
         }
         if (isInitialLoad) setLoading(true);
         Promise.all([loadProfile(), loadPosts(), loadReels()]).finally(() => {
           if (isInitialLoad) setLoading(false);
+          if (hadRefreshProfile) setAvatarCacheBuster((b) => b + 1);
         });
       }
     }, [userId, profile, loading, loadProfile, loadPosts, loadReels, route.params?.refreshProfile, navigation]),
@@ -272,6 +295,35 @@ export default function ProfileScreen() {
     }
   }, [currentUserId, userId, isOwnProfile, isFollowingUser, followLoading]);
 
+  const handleDeleteReel = useCallback(
+    async (reel) => {
+      if (!isOwnProfile || !currentUserId) return;
+      Alert.alert(
+        'Delete Reel',
+        'Are you sure you want to delete this reel?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteReel(reel.id ?? reel.reelId, currentUserId);
+                setReels((prev) => prev.filter((r) => (r.id ?? r.reelId) !== (reel.id ?? reel.reelId)));
+              } catch (e) {
+                Alert.alert(
+                  'Error',
+                  e?.response?.data?.message || e?.message || 'Failed to delete reel'
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [isOwnProfile, currentUserId]
+  );
+
   const handleMessage = useCallback(async () => {
     if (!currentUserId || !userId || isOwnProfile || messageLoading) return;
     setMessageLoading(true);
@@ -302,7 +354,25 @@ export default function ProfileScreen() {
     return [first, last].filter(Boolean).join(' ') || profile.username || 'User';
   }, [profile]);
 
-  const avatarUrl = useMemo(() => getProfilePictureUrl(profile), [profile]);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(0);
+  const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId && isOwnProfile) {
+        getProfilePictureUpdatedAt(userId).then(ts => setProfilePicTimestamp(ts));
+      }
+      return () => {};
+    }, [userId, isOwnProfile]),
+  );
+
+  const avatarUrl = useMemo(() => {
+    const url = getProfilePictureUrl(profile);
+    if (!url) return null;
+    const sep = url.includes('?') ? '&' : '?';
+    const bust = profilePicTimestamp ?? avatarCacheBuster;
+    return bust ? `${url}${sep}t=${bust}` : url;
+  }, [profile, avatarCacheBuster, profilePicTimestamp]);
 
   // Description: from user_profile.description (DB), then location, address. Backend: UserProfileDTO.description
   const about = useMemo(() => {
@@ -326,22 +396,31 @@ export default function ProfileScreen() {
 
   const renderHeader = () => (
     <View style={[styles.headerWrap, !isOwnProfile && styles.headerWrapCompact]}>
-      {/* Profile: avatar on top, name + username below */}
+      {/* Profile: left = avatar, name, username; right = post count, follower, following */}
       <View style={styles.profileSection}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarIconWrap]}>
-            <User size={36} color={COLORS.sub} strokeWidth={2} />
-          </View>
-        )}
-        <Text style={styles.name} numberOfLines={1}>
-          {displayName}
-        </Text>
-        <Text style={styles.username} numberOfLines={1}>
-          @{usernameDisplay || 'username'}
-        </Text>
-        <View style={styles.statsRow}>
+        <View style={styles.profileLeft}>
+          {avatarUrl ? (
+            <Image
+              key={avatarUrl}
+              source={{
+                uri: avatarUrl,
+                ...(isOwnProfile && { cache: 'reload' }),
+              }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatar, styles.avatarIconWrap]}>
+              <User size={36} color={COLORS.sub} strokeWidth={2} />
+            </View>
+          )}
+          <Text style={styles.name} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Text style={styles.username} numberOfLines={1}>
+            @{usernameDisplay || 'username'}
+          </Text>
+        </View>
+        <View style={styles.profileRight}>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>{posts.length}</Text>
             <Text style={styles.statLabel}>Posts</Text>
@@ -382,6 +461,7 @@ export default function ProfileScreen() {
                   description: profile?.userProfile?.description ?? about,
                   location: profile?.userProfile?.location,
                   userProfile: profile?.userProfile,
+                  isTempleMember: profile?.isTempleMember,
                 };
                 navigation.navigate('EditProfileScreen', { profile: profilePayload });
               }}
@@ -524,7 +604,7 @@ export default function ProfileScreen() {
                 />
               </View>
               <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                {t.key}
+                {t.label ?? t.key}
               </Text>
               {isActive ? (
                 <View style={styles.tabUnderline} />
@@ -545,16 +625,19 @@ export default function ProfileScreen() {
         item={item}
         index={index}
         activeTab={activeTab}
-        onPressReel={() =>
-          navigation.getParent()?.navigate('Video', {
+        onPressReel={() => {
+          const reelId = item.reelId ?? item.id;
+          const tabNav = navigation.getParent()?.getParent?.();
+          (tabNav || navigation).navigate('Video', {
             screen: 'ReelsFeed',
-            params: { reelId: item.reelId ?? item.id },
-          })
-        }
+            params: { reelId },
+          });
+        }}
         onPressPost={() => navigation.navigate('PostPreview', { postId: item.postId })}
+        onDeleteReel={isOwnProfile && activeTab === 'Reels' ? handleDeleteReel : undefined}
       />
     ),
-    [activeTab, navigation],
+    [activeTab, navigation, isOwnProfile, handleDeleteReel],
   );
 
   if (loading && !profile) {
@@ -736,14 +819,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileSection: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 0,
+    paddingHorizontal: 16,
+  },
+  profileLeft: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    flex: 1,
+    marginRight: 16,
+  },
+  profileRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 20,
   },
   avatar: {
     width: 74,
     height: 74,
     borderRadius: 37,
     backgroundColor: '#eee',
+    marginTop: 12,
   },
   avatarIconWrap: {
     justifyContent: 'center',
@@ -755,18 +854,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: 10,
     marginBottom: 2,
-    textAlign: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    width: '100%',
-    paddingHorizontal: 24,
   },
   statBox: {
-    flex: 1,
     alignItems: 'center',
+    minWidth: 56,
   },
   statValue: {
     fontSize: 20,
@@ -784,8 +875,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: COLORS.sub,
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: 4,
   },
   aboutRow: {
     marginTop: 10,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   Alert,
   StatusBar,
@@ -21,16 +21,20 @@ import LinearGradient from 'react-native-linear-gradient';
 import { getAllPosts, getStoriesFeed, getFollowing, deletePost, getNotificationsCount } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { connectWebSocket } from '../../../utils/services/websocketService';
-import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { getProfilePictureUrlByUserId, resolveProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 
 /** Same avatar resolution as FollowListScreen: profile picture by userId, or null for no photo */
-function getAvatarUriForUserId(userId) {
+function getAvatarUriForUserId(userId, cacheBuster) {
   const url = getProfilePictureUrlByUserId(userId);
   const resolved = resolveProfilePictureUrl(url || '');
-  if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
-    return resolved;
+  if (!resolved || (!resolved.startsWith('http://') && !resolved.startsWith('https://'))) {
+    return null;
   }
-  return null;
+  if (cacheBuster) {
+    const sep = resolved.includes('?') ? '&' : '?';
+    return `${resolved}${sep}t=${cacheBuster}`;
+  }
+  return resolved;
 }
 
 /** Group story feed by user for lookup */
@@ -62,10 +66,14 @@ function buildStoriesRowData(followingList, storyFeed, currentUserId) {
     const uid = user?.id ?? user?.userId;
     if (!uid) return;
     const { stories = [] } = storiesByUser.get(uid) ?? {};
-    row.push({ type: 'user', userId: uid, user, stories });
+    if (stories.length > 0) {
+      row.push({ type: 'user', userId: uid, user, stories });
+    }
   });
   return row;
 }
+
+const FOCUS_REFRESH_THROTTLE_MS = 20000;
 
 const MainDashboard = () => {
   const navigation = useNavigation();
@@ -75,8 +83,23 @@ const MainDashboard = () => {
   const [storyFeed, setStoryFeed] = useState([]);
   const [following, setFollowing] = useState([]);
   const [notificationCount, setNotificationCount] = useState(0);
+  const lastFetchTimeRef = useRef(0);
 
   const currentUserId = getUserId();
+  const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
+  const [focusBuster, setFocusBuster] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocusBuster(prev => prev + 1);
+      if (currentUserId) {
+        getProfilePictureUpdatedAt(currentUserId).then(ts => setProfilePicTimestamp(ts));
+      }
+      return () => {};
+    }, [currentUserId]),
+  );
+
+  const avatarCacheBuster = profilePicTimestamp ?? focusBuster;
 
   const loadPosts = useCallback(async () => {
     try {
@@ -102,7 +125,21 @@ const MainDashboard = () => {
         isShared: !!item.isShared,
       }));
 
-      setPosts(formatted);
+      setPosts(prev => {
+        if (prev.length !== formatted.length) return formatted;
+        const prevIds = prev.map(p => p.id).join(',');
+        const newIds = formatted.map(p => p.id).join(',');
+        if (prevIds !== newIds) return formatted;
+        const anyChange = formatted.some((p, i) => {
+          const op = prev[i];
+          if (!op) return true;
+          return op.likes !== p.likes || op.comments !== p.comments || op.shares !== p.shares ||
+            op.isLiked !== p.isLiked || op.isShared !== p.isShared || op.image !== p.image ||
+            op.videoUrl !== p.videoUrl || op.thumbnailUrl !== p.thumbnailUrl;
+        });
+        return anyChange ? formatted : prev;
+      });
+      lastFetchTimeRef.current = Date.now();
     } catch (err) {
       console.error('Error fetching posts:', err);
     } finally {
@@ -115,7 +152,14 @@ const MainDashboard = () => {
     try {
       const res = await getStoriesFeed(currentUserId);
       const raw = res?.data ?? [];
-      setStoryFeed(Array.isArray(raw) ? raw : []);
+      const next = Array.isArray(raw) ? raw : [];
+      setStoryFeed(prev => {
+        if (prev.length !== next.length) return next;
+        const prevIds = prev.map(s => String(s?.id ?? s?.storyId ?? '')).join(',');
+        const newIds = next.map(s => String(s?.id ?? s?.storyId ?? '')).join(',');
+        return prevIds === newIds ? prev : next;
+      });
+      lastFetchTimeRef.current = Date.now();
     } catch (err) {
       console.error('Error fetching story feed:', err);
     }
@@ -126,7 +170,14 @@ const MainDashboard = () => {
     try {
       const res = await getFollowing(currentUserId);
       const raw = res?.data ?? res ?? [];
-      setFollowing(Array.isArray(raw) ? raw : []);
+      const next = Array.isArray(raw) ? raw : [];
+      setFollowing(prev => {
+        if (prev.length !== next.length) return next;
+        const prevIds = prev.map(u => String(u?.id ?? u?.userId ?? '')).join(',');
+        const newIds = next.map(u => String(u?.id ?? u?.userId ?? '')).join(',');
+        return prevIds === newIds ? prev : next;
+      });
+      lastFetchTimeRef.current = Date.now();
     } catch (err) {
       console.error('Error fetching following:', err);
     }
@@ -152,15 +203,6 @@ const MainDashboard = () => {
   }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount]);
 
   useEffect(() => {
-    loadPosts();
-  }, []);
-
-  useEffect(() => {
-    loadStoryFeed();
-    loadFollowing();
-  }, [loadStoryFeed, loadFollowing]);
-
-  useEffect(() => {
     loadNotificationCount();
   }, [loadNotificationCount]);
 
@@ -176,11 +218,101 @@ const MainDashboard = () => {
 
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      if (now - lastFetchTimeRef.current < FOCUS_REFRESH_THROTTLE_MS) {
+        loadNotificationCount();
+        return;
+      }
       loadPosts();
       loadStoryFeed();
       loadFollowing();
       loadNotificationCount();
     }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount])
+  );
+
+  const handleLikeChange = useCallback((postId, newLiked, newCount) => {
+    setPosts(prev =>
+      prev.map(p => (p.postId === postId ? { ...p, isLiked: newLiked, likes: newCount } : p))
+    );
+  }, []);
+
+  const handleDeletePost = useCallback(
+    (postId) => {
+      Alert.alert(
+        'Delete post',
+        'Are you sure you want to delete this post? The photo or video will be removed.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deletePost(postId, currentUserId);
+                setPosts(prev => prev.filter(p => p.postId !== postId));
+              } catch (e) {
+                Alert.alert('Error', e?.data?.message || e?.message || 'Failed to delete post');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [currentUserId]
+  );
+
+  const handleAuthorPress = useCallback(
+    (userId) => navigation.navigate('Profiles', { userId }),
+    [navigation]
+  );
+
+  const handleImagePress = useCallback(
+    (postId) => navigation.navigate('PostPreview', { postId }),
+    [navigation]
+  );
+
+  const appendCacheBust = (url, bust) => {
+    if (!url || !bust || typeof url !== 'string') return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}t=${bust}`;
+  };
+
+  const renderPostItem = useCallback(
+    ({ item }) => (
+      <PostCard
+        postId={item.postId}
+        authorUserId={item.authorUserId}
+        currentUserId={currentUserId}
+        userName={item.userName}
+        createdAt={item.createdAt}
+        image={item.image}
+        videoUrl={item.videoUrl}
+        thumbnailUrl={item.thumbnailUrl}
+        likes={item.likes}
+        comments={item.comments}
+        shares={item.shares}
+        avatar={
+          item.authorUserId === currentUserId && avatarCacheBuster
+            ? appendCacheBust(item.avatar, avatarCacheBuster)
+            : item.avatar
+        }
+        contentText={item.contentText}
+        initialIsLiked={item.isLiked}
+        initialIsShared={item.isShared}
+        onAuthorPress={handleAuthorPress}
+        onImagePressWithPostId={handleImagePress}
+        onLikeChangeWithPostId={handleLikeChange}
+        onDeleteWithPostId={handleDeletePost}
+      />
+    ),
+    [
+      currentUserId,
+      avatarCacheBuster,
+      handleAuthorPress,
+      handleImagePress,
+      handleLikeChange,
+      handleDeletePost,
+    ]
   );
 
   // ✅ Filter posts by search text (username, location, content)
@@ -232,7 +364,7 @@ const MainDashboard = () => {
         if (item.type === 'add') {
           const myStories = item.myStories ?? [];
           const canViewMyStory = myStories.length > 0;
-          const myAvatar = getAvatarUriForUserId(currentUserId);
+          const myAvatar = getAvatarUriForUserId(currentUserId, avatarCacheBuster);
           return (
             <View style={styles.addTileWrap}>
               <Pressable
@@ -260,7 +392,8 @@ const MainDashboard = () => {
                     <View style={[styles.storyImgInner, { zIndex: 1 }]}>
                       {myAvatar ? (
                         <Image
-                          source={{ uri: myAvatar }}
+                          key={myAvatar}
+                          source={{ uri: myAvatar, cache: 'reload' }}
                           style={styles.storyImgInGradient}
                           resizeMode="cover"
                         />
@@ -275,7 +408,8 @@ const MainDashboard = () => {
                   <View style={styles.storyImgInnerFull}>
                     {myAvatar ? (
                       <Image
-                        source={{ uri: myAvatar }}
+                        key={myAvatar}
+                        source={{ uri: myAvatar, cache: 'reload' }}
                         style={styles.storyImg}
                         resizeMode="cover"
                       />
@@ -298,8 +432,11 @@ const MainDashboard = () => {
         }
 
         if (item.type === 'user') {
-          // Same API as FollowListScreen: avatar by userId only
-          const profilePic = getAvatarUriForUserId(item.userId);
+          // Same API as FollowListScreen: avatar by userId only; bust cache for current user
+          const profilePic = getAvatarUriForUserId(
+            item.userId,
+            item.userId === currentUserId ? avatarCacheBuster : null,
+          );
           const hasStory = (item.stories?.length ?? 0) > 0;
           const startIndex = startIndexByRow[rowIndex] ?? 0;
 
@@ -316,7 +453,7 @@ const MainDashboard = () => {
           };
 
           return (
-            <Pressable style={styles.storyImgWrap} onPress={onPress}>
+            <Pressable style={[styles.storyImgWrap, styles.storyOtherUserBorder]} onPress={onPress}>
               {hasStory ? (
                 <View style={styles.storyWithGradientWrap}>
                   <LinearGradient
@@ -328,7 +465,11 @@ const MainDashboard = () => {
                   <View style={[styles.storyImgInner, { zIndex: 1 }]}>
                     {profilePic ? (
                       <Image
-                        source={{ uri: profilePic }}
+                        key={profilePic}
+                        source={{
+                          uri: profilePic,
+                          ...(item.userId === currentUserId && { cache: 'reload' }),
+                        }}
                         style={styles.storyImgInGradient}
                         resizeMode="cover"
                       />
@@ -343,7 +484,11 @@ const MainDashboard = () => {
                 <View style={styles.storyImgInnerFull}>
                   {profilePic ? (
                     <Image
-                      source={{ uri: profilePic }}
+                      key={profilePic}
+                      source={{
+                        uri: profilePic,
+                        ...(item.userId === currentUserId && { cache: 'reload' }),
+                      }}
                       style={styles.storyImg}
                       resizeMode="cover"
                     />
@@ -392,9 +537,14 @@ const MainDashboard = () => {
         </View>
         <FlatList
           data={filteredPosts}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
+          renderItem={renderPostItem}
           style={styles.postList}
           contentContainerStyle={[st.pdB20, { paddingBottom: 90, paddingHorizontal: 16 }]}
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          windowSize={6}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -403,59 +553,6 @@ const MainDashboard = () => {
               tintColor={colors.PRIMARY_BUTTON}
             />
           }
-          renderItem={({ item }) => (
-            <PostCard
-              postId={item.postId}
-              authorUserId={item.authorUserId}
-              currentUserId={currentUserId}
-              userName={item.userName}
-              createdAt={item.createdAt}
-              image={item.image}
-              videoUrl={item.videoUrl}
-              thumbnailUrl={item.thumbnailUrl}
-              likes={item.likes}
-              comments={item.comments}
-              shares={item.shares}
-              avatar={item.avatar}
-              contentText={item.contentText}
-              initialIsLiked={item.isLiked}
-              initialIsShared={item.isShared}
-              onAuthorPress={(authorUserId) =>
-                navigation.navigate('Profiles', { userId: authorUserId })
-              }
-              onImagePress={() =>
-                navigation.navigate('PostPreview', { postId: item.postId })
-              }
-              onLikeChange={(newLiked, newCount) => {
-                setPosts(prev =>
-                  prev.map(p =>
-                    p.postId === item.postId ? { ...p, isLiked: newLiked, likes: newCount } : p
-                  )
-                );
-              }}
-              onDelete={() => {
-                Alert.alert(
-                  'Delete post',
-                  'Are you sure you want to delete this post? The photo or video will be removed.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await deletePost(item.postId, currentUserId);
-                          setPosts(prev => prev.filter(p => p.postId !== item.postId));
-                        } catch (e) {
-                          Alert.alert('Error', e?.data?.message || e?.message || 'Failed to delete post');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-            />
-          )}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
@@ -485,6 +582,7 @@ const styles = StyleSheet.create({
     width: 74,
     height: 74,
     position: 'relative',
+    overflow: 'visible',
   },
   addTile: {
     width: 74,
@@ -508,8 +606,8 @@ const styles = StyleSheet.create({
   },
   addPlus: {
     position: 'absolute',
-    right: -6,
-    bottom: -6,
+    right: 0,
+    bottom: 0,
     width: 28,
     height: 28,
     borderRadius: 999,
@@ -522,6 +620,11 @@ const styles = StyleSheet.create({
   storyImgWrap: {
     width: 74,
     height: 74,
+  },
+  storyOtherUserBorder: {
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.orange || '#D48A4A',
   },
   storyWithGradientWrap: {
     width: 74,

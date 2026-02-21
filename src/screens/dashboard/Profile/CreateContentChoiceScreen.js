@@ -28,7 +28,10 @@ export default function CreateContentChoiceScreen() {
 
   const handlePostReel = () => {
     navigation.goBack();
-    navigation.getParent()?.navigate('Video', { screen: 'PostReel' });
+    navigation.getParent()?.navigate('Video', {
+      screen: 'PostReel',
+      params: { fromProfile: true },
+    });
   };
 
   return (

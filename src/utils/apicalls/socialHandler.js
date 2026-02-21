@@ -3,7 +3,7 @@ import { getAuth, getAuthWithParams } from './getApi';
 import { postAuth } from './postApi';
 import { putAuth } from './putApi';
 import { deleteAuthWithParams } from './deleteApi';
-import { uploadApi } from './index';
+import { retrieveData } from './index';
 
 /**
  * Build URL with query string from params object.
@@ -56,40 +56,63 @@ export const isFollowing = async (followerId, followingId) => {
 
 // ----------- Posts (return likesCount, commentsCount, sharesCount, isLiked, isShared when currentUserId passed) -----------
 
+/** Normalize file URI for FormData - Android may need file:// prefix */
+function normalizeFileUri(uri) {
+  if (!uri || typeof uri !== 'string') return uri;
+  const t = uri.trim();
+  if (t.startsWith('content://') || t.startsWith('file://')) return t;
+  if (t.startsWith('/')) return 'file://' + t;
+  return t;
+}
+
 /**
- * Create a post with photo or video. Compression is done on the backend.
+ * Create a post with photo or video. Uses fetch for FormData - axios can fail on RN.
  * @param {number|string} userId
  * @param {string} text - Caption/content text
  * @param {string} fileUri - Local file URI (image or video)
  * @param {'photo'|'video'} mediaType - Whether the file is a photo or video
- * @param {{ thumbnailUri?: string, onUploadProgress?: (percent: number) => void }} options - Optional; thumbnailUri for video thumb; onUploadProgress(0-100) for progress bar
+ * @param {{ thumbnailUri?: string, onUploadProgress?: (percent: number) => void }} options - Optional; thumbnailUri for video; onUploadProgress (XHR only, not used with fetch)
  */
 export const createPost = async (userId, text, fileUri, mediaType, options = {}) => {
+  const normalizedUri = normalizeFileUri(fileUri);
   const formData = new FormData();
   formData.append('userId', String(userId));
   if (text != null && text.trim() !== '') formData.append('text', text.trim());
   const isVideo = mediaType === 'video';
-  const filename = fileUri.split('/').pop() || (isVideo ? 'video.mp4' : 'photo.jpg');
+  const filename = (fileUri || '').split('/').pop() || (isVideo ? 'video.mp4' : 'photo.jpg');
   formData.append(isVideo ? 'video' : 'photo', {
-    uri: fileUri,
+    uri: normalizedUri,
     type: isVideo ? 'video/mp4' : 'image/jpeg',
     name: filename,
   });
   if (isVideo && options.thumbnailUri && typeof options.thumbnailUri === 'string' && options.thumbnailUri.trim()) {
     formData.append('thumbnail', {
-      uri: options.thumbnailUri.trim(),
+      uri: normalizeFileUri(options.thumbnailUri.trim()),
       type: 'image/jpeg',
       name: 'thumbnail.jpg',
     });
   }
-  const uploadOptions = {};
-  if (options.onUploadProgress) {
-    uploadOptions.onUploadProgress = (e) => {
-      const percent = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
-      options.onUploadProgress(percent);
-    };
+
+  const token = await retrieveData();
+  const res = await fetch(API.SOCIAL_POST_CREATE, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const msg = errData?.message || errData?.data?.message || res.statusText || 'Failed to create post';
+    const err = new Error(msg);
+    err.response = { status: res.status, data: errData };
+    err.data = errData;
+    throw err;
   }
-  return uploadApi(API.SOCIAL_POST_CREATE, formData, uploadOptions);
+  const json = await res.json();
+  return { data: json?.data ?? json };
 };
 
 export const getAllPosts = async (currentUserId = null) => {
