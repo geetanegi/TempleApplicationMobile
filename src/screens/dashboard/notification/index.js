@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -133,6 +133,12 @@ const NotificationScreen = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const lastLoadRef = useRef(0);
+  const hasMountedRef = useRef(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const loaderTimerRef = useRef(null);
+  const FOCUS_REFRESH_THROTTLE_MS = 15000;
+  const LOADER_DELAY_MS = 600; // Only show spinner if API takes >600ms (avoids flash for fast requests)
 
   const handleNotificationPress = useCallback(
     (item, type) => {
@@ -152,6 +158,8 @@ const NotificationScreen = () => {
               threadId: targetId,
               otherUserId: actorUserId,
               otherUsername: actorUsername,
+              otherName: actorUsername,
+              otherUserHandle: actorUsername,
             });
           } else {
             navigation.navigate('Chat');
@@ -169,26 +177,41 @@ const NotificationScreen = () => {
     [navigation]
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoader = true) => {
     if (!userId) {
       setLoading(false);
       return;
+    }
+    if (showLoader) {
+      setLoading(true);
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = setTimeout(() => setShowSpinner(true), LOADER_DELAY_MS);
     }
     try {
       const res = await getNotifications(userId, 0, 50);
       const list = Array.isArray(res?.data) ? res.data : [];
       setNotifications(list);
+      lastLoadRef.current = Date.now();
       const unreadIds = list.filter((n) => !n.isRead).map((n) => n.id).filter(Boolean);
       if (unreadIds.length > 0) {
-        await markNotificationsSeen(unreadIds);
+        markNotificationsSeen(unreadIds).catch((e) => console.warn('Mark seen error', e));
       }
     } catch (e) {
       console.warn('Notifications load error', e);
     } finally {
+      if (loaderTimerRef.current) {
+        clearTimeout(loaderTimerRef.current);
+        loaderTimerRef.current = null;
+      }
+      setShowSpinner(false);
       setLoading(false);
       setRefreshing(false);
     }
   }, [userId]);
+
+  useEffect(() => () => {
+    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -197,7 +220,13 @@ const NotificationScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) load();
+      if (!userId) return;
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      if (Date.now() - lastLoadRef.current < FOCUS_REFRESH_THROTTLE_MS) return;
+      load(false);
     }, [userId, load])
   );
 
@@ -211,7 +240,7 @@ const NotificationScreen = () => {
     [notifications]
   );
 
-  if (loading && notifications.length === 0) {
+  if (loading && notifications.length === 0 && showSpinner) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color={colors.orange} />

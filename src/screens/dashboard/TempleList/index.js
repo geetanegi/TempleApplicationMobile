@@ -221,14 +221,23 @@ const TempleLocator = () => {
     }
   }, [focusTemple?.latitude, focusTemple?.longitude]);
 
+  const lastLoadRef = useRef(0);
+  const hasMountedRef = useRef(false);
+  const FOCUS_REFRESH_THROTTLE_MS = 30000;
+
   useEffect(() => {
-    loadTemples();
+    loadTemples().then(() => { lastLoadRef.current = Date.now(); });
   }, [loadTemples]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      if (Date.now() - lastLoadRef.current < FOCUS_REFRESH_THROTTLE_MS) return;
       fetchCurrentLocation();
-      loadTemples();
+      loadTemples().then(() => { lastLoadRef.current = Date.now(); });
     }, [loadTemples]),
   );
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,40 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { User } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getUserId } from '../../../redux/store/getState';
 import { getFollowing, getChatThreads, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { colors } from '../../../global/theme';
 import SearchInput from '../Main/SearchInput';
 
-function getAvatarUri(userId) {
-  const url = getProfilePictureUrlByUserId(userId);
-  const resolved = resolveProfilePictureUrl(url || '');
-  if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
-    return resolved;
+function AvatarOrIcon({ userId }) {
+  const [avatarError, setAvatarError] = useState(false);
+  const url = userId ? getProfilePictureUrlByUserId(userId) : null;
+  const avatarUrl = url ? (resolveProfilePictureUrl(url) || url) : null;
+  const showIcon = !avatarUrl || avatarError;
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [userId]);
+
+  if (showIcon) {
+    return (
+      <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <User size={26} color="#fff" strokeWidth={2} />
+      </View>
+    );
   }
-  return 'https://i.pravatar.cc/150?img=3';
+  return (
+    <Image
+      source={{ uri: avatarUrl }}
+      style={styles.avatar}
+      resizeMode="cover"
+      onError={() => setAvatarError(true)}
+    />
+  );
 }
 
 export default function ChatListScreen() {
@@ -34,9 +53,20 @@ export default function ChatListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const lastLoadRef = useRef(0);
+  const hasMountedRef = useRef(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const loaderTimerRef = useRef(null);
+  const FOCUS_REFRESH_THROTTLE_MS = 15000;
+  const LOADER_DELAY_MS = 600; // Only show spinner if API takes >600ms (avoids flash for fast requests)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoader = true) => {
     if (!currentUserId) return;
+    if (showLoader) {
+      setLoading(true);
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = setTimeout(() => setShowSpinner(true), LOADER_DELAY_MS);
+    }
     try {
       const [threadsRes, followingRes] = await Promise.all([
         getChatThreads(currentUserId),
@@ -46,18 +76,40 @@ export default function ChatListScreen() {
       const followList = Array.isArray(followingRes?.data) ? followingRes.data : [];
       setThreads(threadList);
       setFollowing(followList);
+      lastLoadRef.current = Date.now();
     } catch (e) {
       console.warn('Chat list load error', e);
     } finally {
+      if (loaderTimerRef.current) {
+        clearTimeout(loaderTimerRef.current);
+        loaderTimerRef.current = null;
+      }
+      setShowSpinner(false);
       setLoading(false);
       setRefreshing(false);
     }
   }, [currentUserId]);
 
+  useEffect(() => () => {
+    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      const now = Date.now();
+      if (now - lastLoadRef.current < FOCUS_REFRESH_THROTTLE_MS) return;
+      load(false);
+    }, [load])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -76,6 +128,8 @@ export default function ChatListScreen() {
             threadId: thread.id,
             otherUserId: otherId,
             otherUsername: otherUser?.username || otherUser?.firstName || 'User',
+            otherName: [otherUser?.firstName, otherUser?.lastName].filter(Boolean).join(' ') || otherUser?.username || 'User',
+            otherUserHandle: otherUser?.username,
           });
         }
       } catch (e) {
@@ -92,6 +146,8 @@ export default function ChatListScreen() {
         threadId: thread.id,
         otherUserId: otherId,
         otherUsername: thread.otherUsername || 'User',
+        otherName: thread.otherName || thread.otherUsername || 'User',
+        otherUserHandle: thread.otherUserHandle || thread.otherUsername,
       });
     },
     [navigation]
@@ -110,11 +166,15 @@ export default function ChatListScreen() {
   const query = (searchQuery || '').trim().toLowerCase();
 
   const filteredThreads = useMemo(() => {
-    if (!query) return threads;
-    return threads.filter(
-      (t) =>
-        (t.otherUsername || 'User').toLowerCase().includes(query)
-    );
+    let list = query
+      ? threads.filter((t) => (t.otherUsername || 'User').toLowerCase().includes(query))
+      : [...threads];
+    list.sort((a, b) => {
+      const getTime = (t) =>
+        new Date(t.lastMessageAtForSort || t.lastMessageAt || t.updatedAt || t.createdAt || 0).getTime();
+      return getTime(b) - getTime(a);
+    });
+    return list;
   }, [threads, query]);
 
   const filteredFollowing = useMemo(() => {
@@ -124,26 +184,35 @@ export default function ChatListScreen() {
     );
   }, [followingNotInThreads, query]);
 
-  const renderThread = ({ item }) => (
-    <TouchableOpacity style={styles.row} onPress={() => openThread(item)} activeOpacity={0.7}>
-      <Image source={{ uri: getAvatarUri(item.otherUserId) }} style={styles.avatar} />
-      <View style={styles.rowText}>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.otherUsername || 'User'}
-        </Text>
-        <Text style={styles.preview} numberOfLines={1}>
-          {item.lastMessagePreview || 'No messages yet'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderThread = ({ item }) => {
+
+    const mostRecentContent = item.lastMessagePreview || 'No messages yet';
+    const isFromMe = String(item.lastMessageSenderId) === String(currentUserId);
+    const previewText =
+      mostRecentContent !== 'No messages yet' && isFromMe
+        ? `You: ${mostRecentContent}`
+        : mostRecentContent;
+    return (
+      <TouchableOpacity style={styles.row} onPress={() => openThread(item)} activeOpacity={0.7}>
+        <AvatarOrIcon userId={item.otherUserId} />
+        <View style={styles.rowText}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.otherUsername || 'User'}
+          </Text>
+          <Text style={styles.preview} numberOfLines={1}>
+            {previewText}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderFollowing = ({ item }) => {
     const id = item?.id ?? item?.userId;
     const name = getFollowingDisplayName(item);
     return (
       <TouchableOpacity style={styles.row} onPress={() => openChatWithUser(item)} activeOpacity={0.7}>
-        <Image source={{ uri: getAvatarUri(id) }} style={styles.avatar} />
+        <AvatarOrIcon userId={id} />
         <View style={styles.rowText}>
           <Text style={styles.name} numberOfLines={1}>
             {name}
@@ -154,7 +223,7 @@ export default function ChatListScreen() {
     );
   };
 
-  if (loading && threads.length === 0 && following.length === 0) {
+  if (loading && threads.length === 0 && following.length === 0 && showSpinner) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color={colors.orange} />
@@ -168,7 +237,7 @@ export default function ChatListScreen() {
         <SearchInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search users..."
+          placeholder="Search"
         />
       </View>
       <FlatList
@@ -211,7 +280,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   searchWrap: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: 4,
     backgroundColor: '#fff',
   },
@@ -233,6 +302,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#eee' },
+  avatarPlaceholder: { backgroundColor: colors.orange || '#D48A4A', justifyContent: 'center', alignItems: 'center' },
   rowText: { marginLeft: 14, flex: 1 },
   name: { fontSize: 17, fontWeight: '600', color: '#000' },
   preview: { fontSize: 14, color: '#666', marginTop: 2 },

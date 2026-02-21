@@ -2,15 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   FlatList,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Send, ChevronLeft, User } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getUserId } from '../../../redux/store/getState';
 import { getChatMessages, sendChatMessage } from '../../../utils/apicalls/socialHandler';
@@ -30,17 +34,23 @@ function uuid() {
 export default function ChatScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { threadId, otherUserId, otherUsername } = route.params || {};
+  const insets = useSafeAreaInsets();
+  const { threadId, otherUserId, otherUsername, otherName, otherUserHandle } = route.params || {};
   const currentUserId = getUserId();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const flatListRef = useRef(null);
+  const loaderTimerRef = useRef(null);
 
   const loadMessages = useCallback(async () => {
     if (!threadId) return;
+    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+    loaderTimerRef.current = setTimeout(() => setShowSpinner(true), 600); // Only show spinner if API takes >600ms
     try {
       const res = await getChatMessages(threadId, 0, 50);
       const list = Array.isArray(res?.data) ? res.data : [];
@@ -48,6 +58,11 @@ export default function ChatScreen() {
     } catch (e) {
       console.warn('Load messages error', e);
     } finally {
+      if (loaderTimerRef.current) {
+        clearTimeout(loaderTimerRef.current);
+        loaderTimerRef.current = null;
+      }
+      setShowSpinner(false);
       setLoading(false);
     }
   }, [threadId]);
@@ -56,8 +71,23 @@ export default function ChatScreen() {
     loadMessages();
   }, [loadMessages]);
 
+  useEffect(() => () => {
+    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [otherUserId]);
+
   useEffect(() => {
     preloadChatSounds();
+  }, []);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -125,11 +155,8 @@ export default function ChatScreen() {
   };
 
   useEffect(() => {
-    navigation.setOptions({
-      title: otherUsername || 'Chat',
-      headerTitleAlign: 'center',
-    });
-  }, [navigation, otherUsername]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   if (!threadId) {
     return (
@@ -140,9 +167,50 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom']}>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={styles.headerBack}>
+          <ChevronLeft size={28} color={colors.orange || '#D48A4A'} strokeWidth={2} />
+        </Pressable>
+        <Pressable
+          style={styles.headerProfile}
+          onPress={() => otherUserId && navigation.navigate('Profiles', { userId: otherUserId })}
+        >
+          {(() => {
+            const url = otherUserId ? getProfilePictureUrlByUserId(otherUserId) : null;
+            const avatarUrl = url ? (resolveProfilePictureUrl(url) || url) : null;
+            const showIcon = !avatarUrl || avatarError;
+            return showIcon ? (
+              <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+                <User size={22} color="#fff" strokeWidth={2} />
+              </View>
+            ) : (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={styles.headerAvatar}
+                resizeMode="cover"
+                onError={() => setAvatarError(true)}
+              />
+            );
+          })()}
+        </Pressable>
+        <Pressable
+          style={styles.headerNameWrap}
+          onPress={() => otherUserId && navigation.navigate('Profiles', { userId: otherUserId })}
+        >
+          <Text style={styles.headerName} numberOfLines={1}>
+            {otherName || otherUsername || 'Chat'}
+          </Text>
+          {otherUserHandle ? (
+            <Text style={styles.headerUsername} numberOfLines={1}>
+              @{String(otherUserHandle).replace(/^@/, '')}
+            </Text>
+          ) : null}
+        </Pressable>
+        <View style={styles.headerBack} />
+      </View>
       <View style={styles.contentArea}>
-        {loading ? (
+        {loading && showSpinner ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.orange} />
           </View>
@@ -154,49 +222,98 @@ export default function ChatScreen() {
             renderItem={renderMessage}
             contentContainerStyle={[styles.listContent, { paddingBottom: 80 }]}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
           />
         )}
       </View>
       <KeyboardAvoidingView
         behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={0}
+        enabled={true}
         style={styles.inputAvoid}
       >
         <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Message..."
-            placeholderTextColor="#999"
-            multiline
-            maxLength={2000}
-            onSubmitEditing={send}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
-            onPress={send}
-            disabled={!input.trim() || sending}
-          >
-            <Text style={styles.sendBtnText}>Send</Text>
-          </TouchableOpacity>
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Message..."
+              placeholderTextColor="#999"
+              multiline
+              maxLength={2000}
+              onSubmitEditing={send}
+            />
+            {input.trim() ? (
+              <Pressable
+                onPress={send}
+                disabled={sending}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  (pressed || sending) && styles.iconBtnDisabled,
+                ]}
+              >
+                <Send size={22} color={colors.orange || '#D48A4A'} strokeWidth={2.5} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  headerBack: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerProfile: {
+    marginRight: 10,
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  headerAvatarPlaceholder: {
+    backgroundColor: colors.orange || '#D48A4A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerNameWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1B1B1B',
+  },
+  headerUsername: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 1,
+  },
   contentArea: { flex: 1 },
   inputAvoid: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#fff',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#ddd',
+    paddingBottom: 20,
   },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: '#666' },
@@ -214,8 +331,31 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: 10, color: 'rgba(0,0,0,0.5)', marginTop: 4 },
   timeLabelMe: { color: 'rgba(255,255,255,0.8)' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: 10 },
-  input: { flex: 1, minHeight: 40, maxHeight: 100, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 16, color: '#000', marginRight: 10 },
-  sendBtn: { paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.orange || '#D48A4A', borderRadius: 20, justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  inputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 24,
+    minHeight: 44,
+    maxHeight: 100,
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 96,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingRight: 44,
+    fontSize: 16,
+    color: '#000',
+  },
+  iconBtn: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    padding: 4,
+  },
+  iconBtnDisabled: { opacity: 0.5 },
 });

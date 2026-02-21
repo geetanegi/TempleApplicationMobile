@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -253,12 +253,12 @@ const HomeStackScreens = () => (
     />
     <HomeStack.Screen
       name="Chat"
-      options={{ headerShown: true, title: 'Messages', headerTitleAlign: 'center' }}
+      options={{ headerShown: true, title: 'Chats', headerTitleAlign: 'center' }}
       component={ChatListScreen}
     />
     <HomeStack.Screen
       name="ChatScreen"
-      options={{ headerShown: true, headerTitleAlign: 'center' }}
+      options={{ headerShown: false }}
       component={ChatScreen}
     />
     <HomeStack.Screen
@@ -391,9 +391,12 @@ const FLOATING_TAB_BAR_STYLE = {
   shadowRadius: 10,
 };
 
+const TEMPLE_CHECK_THROTTLE_MS = 60000;
+
 export default function BottomNavigation() {
   const navigation = useNavigation();
   const [showLocateTemplePrompt, setShowLocateTemplePrompt] = useState(false);
+  const lastTempleCheckRef = useRef(0);
 
   const checkTempleUserNeedsLocate = useCallback(async () => {
     const userId = getUserId();
@@ -422,6 +425,9 @@ export default function BottomNavigation() {
 
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      if (now - lastTempleCheckRef.current < TEMPLE_CHECK_THROTTLE_MS) return;
+      lastTempleCheckRef.current = now;
       checkTempleUserNeedsLocate();
     }, [checkTempleUserNeedsLocate]),
   );
@@ -443,6 +449,7 @@ export default function BottomNavigation() {
         headerShown: true,
         tabBarActiveTintColor: colors.orange,
         tabBarStyle: FLOATING_TAB_BAR_STYLE,
+        tabBarHideOnKeyboard: true,
       }}>
       <Tab.Screen
         name="Home"

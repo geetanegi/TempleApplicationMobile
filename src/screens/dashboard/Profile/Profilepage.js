@@ -338,6 +338,8 @@ export default function ProfileScreen() {
           threadId: thread.id,
           otherUserId: userId,
           otherUsername: name,
+          otherName: name,
+          otherUserHandle: profile?.username,
         });
       }
     } catch (e) {
