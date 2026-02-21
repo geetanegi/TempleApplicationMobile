@@ -12,13 +12,20 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Feather from 'react-native-vector-icons/Feather';
-import { User } from 'lucide-react-native';
+import {
+  User,
+  AtSign,
+  FileText,
+  MapPin,
+  Building2,
+  Phone,
+  Mail,
+  Camera,
+} from 'lucide-react-native';
 import { colors } from '../../../global/theme';
 import st from '../../../global/styles';
 import FloatingInput from '../../../components/floating_Input';
 import {
-  AlternativeValidateMail,
   ValidateCity,
   ValidateLocation,
   ValidateMobile,
@@ -41,7 +48,6 @@ const INITIALINPUT = {
   email: '',
   id: null,
   address: '',
-  alternateEmail: '',
   city: '',
   contactNumber: '',
   countryCode: '',
@@ -82,7 +88,6 @@ const EditProfileScreen = () => {
           email: item.email ?? '',
           contactNumber: up.contactNumber ?? up.contact ?? item.phone ?? up.phone ?? '',
           countryCode: up.countryCode ?? '',
-          alternateEmail: up.alternateEmail ?? '',
           city: up.city ?? '',
           location: up.location ?? '',
           description: up.description ?? item.bio ?? item.description ?? '',
@@ -101,7 +106,7 @@ const EditProfileScreen = () => {
       Toast.show('Profile data not loaded.');
       return;
     }
-    const errKeys = ['alternateEmail', 'location', 'city'];
+    const errKeys = ['location', 'city'];
     const hasErr = errKeys.some(k => !isEmpty(errors[k]));
     if (hasErr) return;
     handleSubmitPress();
@@ -115,14 +120,17 @@ const EditProfileScreen = () => {
         description: inputs.description,
         location: inputs.location,
         city: inputs.city,
-        alternateEmail: inputs.alternateEmail,
       });
       if (newPictureUri) {
         await updateProfilePicture(userId, newPictureUri);
         setNewPictureUri(null);
       }
       Toast.show('Profile updated.');
-      navigation.goBack();
+      navigation.getParent()?.navigate('Profile', {
+        screen: 'ProfileMain',
+        params: { refreshProfile: true },
+      });
+      navigation.pop();
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Update failed';
       Toast.show(msg);
@@ -149,6 +157,13 @@ const EditProfileScreen = () => {
   };
 
   const handleOnchange = (text, input) => {
+    // Restrict bio to 4 lines max
+    if (input === 'description') {
+      const lines = text.split('\n');
+      if (lines.length > 4) {
+        text = lines.slice(0, 4).join('\n');
+      }
+    }
 
     if (input == 'location') {
       let validNumber;
@@ -181,24 +196,7 @@ const EditProfileScreen = () => {
         handleError(validPassword, 'city');
         isValid = false;
       }
-    } else if (input == 'alternateEmail') {
-      let validPassword;
-      if (isEmpty(text)) {
-        handleError('', 'alternateEmail');
-      }
-      else {
-        validPassword = AlternativeValidateMail(text);
-      }
-      let isValid = true;
-
-      if (validPassword == 'success') {
-        handleError('', 'alternateEmail');
-      } else {
-        handleError(validPassword, 'alternateEmail');
-        isValid = false;
-      }
-    }
-    else if (input == 'contactNumber') {
+    } else if (input == 'contactNumber') {
       let isValid = true;
       let validPassword;
       if (isEmpty(text)) {
@@ -346,129 +344,118 @@ const EditProfileScreen = () => {
                 </View>
               )}
               <View style={styles.cameraOverlay}>
-                <Feather name="camera" size={28} color="#fff" />
+                <Camera size={18} color="#fff" strokeWidth={2.5} />
               </View>
             </View>
             <Text style={styles.changePhotoLabel}>Tap to change photo</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Basic info */}
-        <Text style={styles.sectionTitle}>Basic info</Text>
         <View style={styles.formCard}>
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <FloatingInput
-                label="First Name"
-                value={inputs.firstName}
-                onChangeText={t => handleOnchange(t, 'firstName')}
-                onFocus={() => handleError('', 'firstName')}
-                error={errors.firstName}
-                editableField={false}
-                placeholderTextColor={colors.DARK_GREY}
-              />
-            </View>
-            <View style={styles.half}>
-              <FloatingInput
-                label="Last Name"
-                value={inputs.lastName}
-                onChangeText={t => handleOnchange(t, 'lastName')}
-                onFocus={() => handleError('', 'lastName')}
-                error={errors.lastName}
-                editableField={false}
-                placeholderTextColor={colors.DARK_GREY}
-              />
-            </View>
-          </View>
+          <FloatingInput
+            label="Name"
+            labelAbove
+            labelIcon={<User size={16} color={THEME.textMuted} strokeWidth={2} />}
+            value={[inputs.firstName, inputs.lastName].filter(Boolean).join(' ') || ''}
+            editableField={false}
+            placeholderTextColor={colors.DARK_GREY}
+          />
 
           <FloatingInput
             label="Username"
+            labelAbove
+            labelIcon={<AtSign size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={inputs.username}
-            onChangeText={t => handleOnchange(t, 'username')}
             editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
           <FloatingInput
             label="Bio"
+            labelAbove
+            labelIcon={<FileText size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={inputs.description}
             onChangeText={t => handleOnchange(t, 'description')}
             editableField={true}
+            multiline
+            multilineLines={4}
+            numberOfLines={4}
+            placeholder="Write a short bio."
             placeholderTextColor={colors.DARK_GREY}
           />
-        </View>
 
-        {/* Contact & location */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Contact & location</Text>
-        <View style={[styles.formCard, { marginTop: 8 }]}>
           <View style={styles.row}>
             <View style={styles.half}>
               <FloatingInput
                 label="Location"
-                value={inputs.location}
-                onChangeText={t => handleOnchange(t, 'location')}
-                error={errors.location}
-                editableField={true}
-                placeholderTextColor={colors.DARK_GREY}
-              />
+                labelAbove
+                labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
+                  value={inputs.location}
+                  onChangeText={t => handleOnchange(t, 'location')}
+                  error={errors.location}
+                  editableField={true}
+                  placeholder="e.g. Mumbai"
+                  placeholderTextColor={colors.DARK_GREY}
+                />
             </View>
             <View style={styles.half}>
               <FloatingInput
                 label="City"
-                value={inputs.city}
-                onChangeText={t => handleOnchange(t, 'city')}
-                error={errors.city}
-                editableField={true}
-                placeholderTextColor={colors.DARK_GREY}
-              />
+                labelAbove
+                labelIcon={<Building2 size={16} color={THEME.textMuted} strokeWidth={2} />}
+                  value={inputs.city}
+                  onChangeText={t => handleOnchange(t, 'city')}
+                  error={errors.city}
+                  editableField={true}
+                  placeholder="e.g. Mumbai"
+                  placeholderTextColor={colors.DARK_GREY}
+                />
             </View>
           </View>
 
           <FloatingInput
             label="Phone Number"
+            labelAbove
+            labelIcon={<Phone size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={
               inputs.countryCode && inputs.contactNumber
                 ? `${inputs.countryCode}${inputs.contactNumber}`
                 : inputs.contactNumber || inputs.countryCode || ''
             }
-            onChangeText={t => handleOnchange(t, 'contactNumber')}
-            error={errors.contactNumber}
             editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
           <FloatingInput
-            label="Primary Email"
+            label="Email"
+            labelAbove
+            labelIcon={<Mail size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={inputs.email}
-            onChangeText={t => handleOnchange(t, 'email')}
             editableField={false}
             placeholderTextColor={colors.DARK_GREY}
           />
 
-          <FloatingInput
-            label="Alternate Email"
-            value={inputs.alternateEmail}
-            onChangeText={t => handleOnchange(t, 'alternateEmail')}
-            error={errors.alternateEmail}
-            editableField={true}
-            placeholderTextColor={colors.DARK_GREY}
-          />
         </View>
 
         {/* Actions */}
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveButton, isLoading && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -538,17 +525,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: THEME.primary,
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
   formCard: {
     backgroundColor: THEME.card,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,

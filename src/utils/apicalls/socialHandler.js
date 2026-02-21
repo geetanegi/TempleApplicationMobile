@@ -62,7 +62,7 @@ export const isFollowing = async (followerId, followingId) => {
  * @param {string} text - Caption/content text
  * @param {string} fileUri - Local file URI (image or video)
  * @param {'photo'|'video'} mediaType - Whether the file is a photo or video
- * @param {{ onUploadProgress?: (percent: number) => void }} options - Optional; onUploadProgress(0-100) for progress bar
+ * @param {{ thumbnailUri?: string, onUploadProgress?: (percent: number) => void }} options - Optional; thumbnailUri for video thumb; onUploadProgress(0-100) for progress bar
  */
 export const createPost = async (userId, text, fileUri, mediaType, options = {}) => {
   const formData = new FormData();
@@ -75,6 +75,13 @@ export const createPost = async (userId, text, fileUri, mediaType, options = {})
     type: isVideo ? 'video/mp4' : 'image/jpeg',
     name: filename,
   });
+  if (isVideo && options.thumbnailUri && typeof options.thumbnailUri === 'string' && options.thumbnailUri.trim()) {
+    formData.append('thumbnail', {
+      uri: options.thumbnailUri.trim(),
+      type: 'image/jpeg',
+      name: 'thumbnail.jpg',
+    });
+  }
   const uploadOptions = {};
   if (options.onUploadProgress) {
     uploadOptions.onUploadProgress = (e) => {

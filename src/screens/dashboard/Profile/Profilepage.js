@@ -10,16 +10,19 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { ChevronLeft, User } from 'lucide-react-native';
+import { DrawerActions } from '@react-navigation/native';
+import { ChevronLeft, User, Menu } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { getUserId } from '../../../redux/store/getState';
 import { getProfileWithCounts, getProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { getUserPosts, follow, unfollow, isFollowing, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
+import { getUserReels } from '../../../utils/apicalls/reelHandler';
 import st from '../../../global/styles';
 
 const { width } = Dimensions.get('window');
@@ -41,7 +44,67 @@ const COLORS = {
 const TABS = [
   { key: 'Photos', icon: 'image' },
   { key: 'Videos', icon: 'video' },
+  { key: 'Reels', icon: 'film' },
 ];
+
+const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPressPost }) => {
+  const isReel = activeTab === 'Reels';
+  const mediaUri = isReel || item.videoUrl
+    ? (item.thumbnailUrl || item.videoUrl || item.photoUrl)
+    : (item.photoUrl || item.videoUrl);
+  const isEndOfRow = (index + 1) % NUM_COLS === 0;
+  const source = useMemo(() => (mediaUri ? { uri: mediaUri } : null), [mediaUri]);
+  return (
+    <Pressable
+      style={[styles.card, !isEndOfRow && styles.cardMarginRight]}
+      onPress={() => (isReel ? onPressReel() : onPressPost())}
+    >
+      {mediaUri ? (
+        <Image source={source} style={styles.cardImg} resizeMode="cover" />
+      ) : (
+        <View style={[styles.cardImg, styles.cardPlaceholder]}>
+          <Text style={styles.placeholderText} numberOfLines={2}>
+            {item.contentText || item.caption || 'Post'}
+          </Text>
+        </View>
+      )}
+      {(item.videoUrl || isReel) ? (
+        <View style={styles.playOverlay}>
+          <Ionicons name="play" size={20} color="#fff" />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+});
+
+/** URL regex - matches http(s) URLs */
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+/** Renders bio text with clickable links and preserved line breaks */
+function BioWithLinks({ text, style }) {
+  if (!text || !text.trim()) return <Text style={style}>No description yet.</Text>;
+  const parts = text.split(URL_REGEX);
+  return (
+    <Text style={style}>
+      {parts.map((part, i) => {
+        const isUrl = part.startsWith('http://') || part.startsWith('https://');
+        if (isUrl) {
+          const url = part.replace(/[.,;:!?)\]]+$/, '');
+          return (
+            <Text
+              key={i}
+              style={[style, { color: COLORS.orange, textDecorationLine: 'underline' }]}
+              onPress={() => Linking.openURL(url).catch(() => {})}
+            >
+              {part}
+            </Text>
+          );
+        }
+        return part;
+      })}
+    </Text>
+  );
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -57,6 +120,7 @@ export default function ProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [posts, setPosts] = useState([]);
+  const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('Photos');
@@ -64,6 +128,8 @@ export default function ProfileScreen() {
   const [followLoading, setFollowLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const isFollowingFetched = useRef(false);
+  const lastFetchedAt = useRef(0);
+  const FOCUS_REFRESH_THROTTLE_MS = 20000; // Only refetch on focus if 20+ sec since last fetch
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -72,7 +138,6 @@ export default function ProfileScreen() {
     }
     try {
       const { profile: p, followersCount: fc, followingCount: fic } = await getProfileWithCounts(userId);
-      console.log('p', p);
       setProfile(p);
       setFollowersCount(fc);
       setFollowingCount(fic);
@@ -88,13 +153,23 @@ export default function ProfileScreen() {
     try {
       const res = await getUserPosts(userId, currentUserId);
       const raw = res?.data ?? [];
-      const list = Array.isArray(raw) ? raw.map(item => ({
-        id: String(item.id),
-        postId: item.id,
-        photoUrl: item.photoUrl,
-        videoUrl: item.videoUrl,
-        contentText: item.contentText,
-      })) : [];
+      const list = Array.isArray(raw)
+        ? raw
+            .map(item => ({
+              id: String(item.id),
+              postId: item.id,
+              photoUrl: item.photoUrl,
+              videoUrl: item.videoUrl,
+              thumbnailUrl: item.thumbnailUrl,
+              contentText: item.contentText,
+              createdAt: item.createdAt ?? item.createdDate,
+            }))
+            .sort((a, b) => {
+              const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return tb - ta;
+            })
+        : [];
       setPosts(list);
     } catch (e) {
       console.warn('User posts load error', e);
@@ -102,28 +177,61 @@ export default function ProfileScreen() {
     }
   }, [userId, currentUserId]);
 
+  const loadReels = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await getUserReels(userId, currentUserId);
+      const raw = res?.data ?? [];
+      const list = Array.isArray(raw)
+        ? raw
+            .map(item => ({
+              id: String(item.id),
+              reelId: item.id,
+              videoUrl: item.videoUrl,
+              thumbnailUrl: item.thumbnailUrl,
+              caption: item.caption,
+              createdAt: item.createdAt ?? item.createdDate,
+            }))
+            .sort((a, b) => {
+              const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return tb - ta;
+            })
+        : [];
+      setReels(list);
+    } catch (e) {
+      console.warn('User reels load error', e);
+      setReels([]);
+    }
+  }, [userId, currentUserId]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadProfile(), loadPosts()]);
+    lastFetchedAt.current = Date.now();
+    await Promise.all([loadProfile(), loadPosts(), loadReels()]);
     setRefreshing(false);
-  }, [loadProfile, loadPosts]);
-
-  useEffect(() => {
-    setLoading(true);
-    loadProfile();
-  }, [loadProfile]);
-
-  useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+  }, [loadProfile, loadPosts, loadReels]);
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) {
-        loadProfile();
-        loadPosts();
+      if (!userId) return;
+      const isInitialLoad = !profile && !loading;
+      const shouldRefresh =
+        isInitialLoad ||
+        route.params?.refreshProfile === true ||
+        (Date.now() - lastFetchedAt.current) > FOCUS_REFRESH_THROTTLE_MS;
+
+      if (shouldRefresh) {
+        lastFetchedAt.current = Date.now();
+        if (route.params?.refreshProfile) {
+          navigation.setParams?.({ refreshProfile: undefined });
+        }
+        if (isInitialLoad) setLoading(true);
+        Promise.all([loadProfile(), loadPosts(), loadReels()]).finally(() => {
+          if (isInitialLoad) setLoading(false);
+        });
       }
-    }, [userId, loadProfile, loadPosts]),
+    }, [userId, profile, loading, loadProfile, loadPosts, loadReels, route.params?.refreshProfile, navigation]),
   );
 
   // Fetch is-following state when viewing another user's profile
@@ -212,13 +320,14 @@ export default function ProfileScreen() {
 
   const filteredByTab = useMemo(() => {
     if (activeTab === 'Videos') return posts.filter(p => p.videoUrl);
+    if (activeTab === 'Reels') return reels;
     return posts.filter(p => p.photoUrl); // Photos
-  }, [posts, activeTab]);
+  }, [posts, reels, activeTab]);
 
   const renderHeader = () => (
     <View style={[styles.headerWrap, !isOwnProfile && styles.headerWrapCompact]}>
-      {/* Profile row: avatar + stats */}
-      <View style={styles.profileRow}>
+      {/* Profile: avatar on top, name + username below */}
+      <View style={styles.profileSection}>
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         ) : (
@@ -226,36 +335,34 @@ export default function ProfileScreen() {
             <User size={36} color={COLORS.sub} strokeWidth={2} />
           </View>
         )}
-        <View style={styles.profileRight}>
-          <Text style={styles.name} numberOfLines={1}>
-            {displayName}
-          </Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{posts.length}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-            <Pressable
-              style={styles.statBox}
-              onPress={() => navigation.navigate('FollowList', { userId, listType: 'followers' })}
-            >
-              <Text style={styles.statValue}>{followersCount}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </Pressable>
-            <Pressable
-              style={styles.statBox}
-              onPress={() => navigation.navigate('FollowList', { userId, listType: 'following' })}
-            >
-              <Text style={styles.statValue}>{followingCount}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </Pressable>
+        <Text style={styles.name} numberOfLines={1}>
+          {displayName}
+        </Text>
+        <Text style={styles.username} numberOfLines={1}>
+          @{usernameDisplay || 'username'}
+        </Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{posts.length}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
           </View>
+          <Pressable
+            style={styles.statBox}
+            onPress={() => navigation.navigate('FollowList', { userId, listType: 'followers' })}
+          >
+            <Text style={styles.statValue}>{followersCount}</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </Pressable>
+          <Pressable
+            style={styles.statBox}
+            onPress={() => navigation.navigate('FollowList', { userId, listType: 'following' })}
+          >
+            <Text style={styles.statValue}>{followingCount}</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.usernameRow}>
-        <Text style={styles.username}>@{usernameDisplay || 'username'}</Text>
-      </View>
       <View style={styles.aboutRow}>
         <View style={styles.aboutHeaderRow}>
           <Text style={styles.aboutLabel}>About</Text>
@@ -312,7 +419,7 @@ export default function ProfileScreen() {
             </View>
           ) : null}
         </View>
-        <Text style={styles.bio}>{about || 'No description yet.'}</Text>
+        <BioWithLinks text={about} style={styles.bio} />
       </View>
 
       {/* Temple section - for temple users */}
@@ -389,7 +496,7 @@ export default function ProfileScreen() {
       {isOwnProfile && (
         <TouchableOpacity
           style={styles.createPostRow}
-          onPress={() => navigation.navigate('CreatePost')}
+          onPress={() => navigation.navigate('CreateContentChoice')}
           activeOpacity={0.8}
         >
           <View style={styles.createPostIconWrap}>
@@ -432,34 +539,23 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const renderItem = ({ item, index }) => {
-    const mediaUri = item.photoUrl || item.videoUrl;
-    const isEndOfRow = (index + 1) % NUM_COLS === 0;
-    return (
-      <Pressable
-        style={[
-          styles.card,
-          !isEndOfRow && styles.cardMarginRight,
-        ]}
-        onPress={() => navigation.navigate('PostPreview', { postId: item.postId })}
-      >
-        {mediaUri ? (
-          <Image source={{ uri: mediaUri }} style={styles.cardImg} resizeMode="cover" />
-        ) : (
-          <View style={[styles.cardImg, styles.cardPlaceholder]}>
-            <Text style={styles.placeholderText} numberOfLines={2}>
-              {item.contentText || 'Post'}
-            </Text>
-          </View>
-        )}
-        {item.videoUrl ? (
-          <View style={styles.playOverlay}>
-            <Ionicons name="play" size={20} color="#fff" />
-          </View>
-        ) : null}
-      </Pressable>
-    );
-  };
+  const renderItem = useCallback(
+    ({ item, index }) => (
+      <ProfileGridCard
+        item={item}
+        index={index}
+        activeTab={activeTab}
+        onPressReel={() =>
+          navigation.getParent()?.navigate('Video', {
+            screen: 'ReelsFeed',
+            params: { reelId: item.reelId ?? item.id },
+          })
+        }
+        onPressPost={() => navigation.navigate('PostPreview', { postId: item.postId })}
+      />
+    ),
+    [activeTab, navigation],
+  );
 
   if (loading && !profile) {
     return (
@@ -475,7 +571,26 @@ export default function ProfileScreen() {
         style={styles.container}
         edges={isOwnProfile ? [] : ['bottom']}
       >
-        {!isOwnProfile && (
+        {isOwnProfile ? (
+          <View
+            style={[
+              styles.fixedHeaderRowCompact,
+              { paddingTop: 8 + (insets.top || 0) },
+            ]}
+          >
+            <Pressable
+              hitSlop={12}
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={styles.backBtn}
+            >
+              <Menu size={24} color={COLORS.text} strokeWidth={2.5} />
+            </Pressable>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              Profile
+            </Text>
+            <View style={styles.backBtn} />
+          </View>
+        ) : (
           <View
             style={[
               styles.fixedHeaderRowCompact,
@@ -490,7 +605,7 @@ export default function ProfileScreen() {
               <ChevronLeft size={24} color={COLORS.text} strokeWidth={2.5} />
             </Pressable>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {displayName || 'Profile'}
+              Profile
             </Text>
             <View style={styles.backBtn} />
           </View>
@@ -520,6 +635,10 @@ export default function ProfileScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={9}
+          windowSize={5}
+          removeClippedSubviews={true}
         />
       </SafeAreaView>
     </View>
@@ -531,7 +650,7 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center', alignItems: 'center' },
   listContent: {
     paddingHorizontal: GRID_PADDING_H,
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   emptyTabWrap: {
     paddingVertical: 32,
@@ -616,10 +735,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileRow: {
-    flexDirection: 'row',
-    marginTop: 0,
+  profileSection: {
     alignItems: 'center',
+    marginTop: 0,
   },
   avatar: {
     width: 74,
@@ -631,20 +749,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileRight: {
-    flex: 1,
-    marginLeft: 14,
-  },
   name: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
+    width: '100%',
+    paddingHorizontal: 24,
   },
   statBox: {
     flex: 1,
@@ -662,13 +780,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '600',
   },
-  usernameRow: {
-    marginTop: 12,
-  },
   username: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1B1B1B',
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.sub,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   aboutRow: {
     marginTop: 10,

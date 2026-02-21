@@ -59,8 +59,8 @@ const HeaderDashboard = ({
       <View style={styles.centerArea}>
         {logoSource ? (
           <Image source={logoSource} style={styles.logo} resizeMode="contain" />
-        ) : images.jainSansaarLogo ? (
-          <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
+        ) : images.logo ? (
+          <Image source={images.logo} style={styles.logo} />
         ) : (
           <Text style={styles.titleText}>{title}</Text>
         )}

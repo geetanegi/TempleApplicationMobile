@@ -11,9 +11,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
 import {useNavigation, getFocusedRouteNameFromRoute, useFocusEffect} from '@react-navigation/native';
 
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 
 import {APP_TEXT, colors, images} from '../../../global/theme';
 import st from '../../../global/styles';
@@ -54,16 +52,17 @@ import StoryViewScreen from '../../dashboard/Main/StoryViewScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
 import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
 import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
+import ReelsStack from '../../dashboard/Reels/ReelsStack';
 import TempleList from '../../dashboard/TempleList';
 import TempleDetails from '../../dashboard/TempleList/TempleDetails';
 import LocateTempleScreen from '../../dashboard/TempleList/LocateTempleScreen';
-import {
-  Home,
-  BookOpen,
-  MapPin,
-  PlayCircle,
-  MapPinned,
-} from 'lucide-react-native';
+import {MapPinned} from 'lucide-react-native';
+
+import HomeIcon from '../../../components/icons/HomeIcon';
+import JevaaniIcon from '../../../components/icons/JevaaniIcon';
+import TempleIcon from '../../../components/icons/TempleIcon';
+import VideoIcon from '../../../components/icons/VideoIcon';
+import ProfileIcon from '../../../components/icons/ProfileIcon';
 import { getUserId } from '../../../redux/store/getState';
 import { getUserProfileById } from '../../../utils/apicalls/profileHandler';
 import { setTempleBarRefreshCallback } from '../../../utils/templeBarRefresh';
@@ -77,6 +76,7 @@ const JeevaniStack = createStackNavigator();
 
 import ProfileScreen from '../../dashboard/Profile/Profilepage';
 import PostPreviewScreen from '../../dashboard/Profile/PostPreviewScreen';
+import CreateContentChoiceScreen from '../../dashboard/Profile/CreateContentChoiceScreen';
 import FollowListScreen from '../../dashboard/Profile/FollowListScreen';
 import ChatListScreen from '../../dashboard/chat/ChatListScreen';
 import ChatScreen from '../../dashboard/chat/ChatScreen';
@@ -119,6 +119,11 @@ const ProfileStack = () => (
 const ProfileTabStack = () => (
   <HomeStack.Navigator screenOptions={{headerShown: false}}>
     <HomeStack.Screen name="ProfileMain" component={ProfileScreen} />
+    <HomeStack.Screen
+      name="CreateContentChoice"
+      options={{ headerShown: false }}
+      component={CreateContentChoiceScreen}
+    />
     <HomeStack.Screen
       name="FollowList"
       options={{ headerShown: false }}
@@ -293,7 +298,7 @@ const JeevaniScreenStack = () => {
   return (
     <JeevaniStack.Navigator>
       <JeevaniStack.Screen
-        name="Jevaani"
+        name="Jivani"
         options={{headerTitleAlign: 'center', headerTitleStyle: {fontSize: 18}}}
         component={JevaaniScreen}
       />
@@ -330,27 +335,6 @@ const CustomTabBarButton = ({children, onPress}) => (
     <View style={{width: 65, height: 65, borderRadius: 57.5}}>{children}</View>
   </TouchableOpacity>
 );
-const renderTabIcon =
-  Icon =>
-  ({focused}) => {
-    if (focused) {
-      return (
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: colors.orange,
-          }}>
-          <Icon size={20} color="#fff" strokeWidth={2} />
-        </View>
-      );
-    }
-    return <Icon size={22} color="#B5B5B5" strokeWidth={2} />;
-  };
-
 const renderTabImage =
   (image, name) =>
   ({focused}) =>
@@ -368,6 +352,26 @@ const renderTabImage =
         />
       </View>
     );
+
+/** Renders a custom SVG tab icon - focused: white in orange circle, unfocused: grey */
+const renderCustomTabIcon = (IconComponent) => ({focused}) => {
+  if (focused) {
+    return (
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.orange,
+        }}>
+        <IconComponent size={20} color="#fff" />
+      </View>
+    );
+  }
+  return <IconComponent size={22} color="#B5B5B5" />;
+};
 
 
 const Tab = createBottomTabNavigator();
@@ -447,7 +451,7 @@ export default function BottomNavigation() {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
           const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'ChatScreen';
           return {
-            tabBarIcon: renderTabIcon(Home),
+            tabBarIcon: renderCustomTabIcon(HomeIcon),
             headerShown: false,
             tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
           };
@@ -460,7 +464,7 @@ export default function BottomNavigation() {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'Jevaani';
           const hideBar = routeName === 'ViewPDF';
           return {
-            tabBarIcon: renderTabIcon(BookOpen),
+            tabBarIcon: renderCustomTabIcon(JevaaniIcon),
             headerShown: false,
             headerTitleAlign: 'center',
             headerTitleStyle: {fontSize: 18},
@@ -482,7 +486,7 @@ export default function BottomNavigation() {
           },
         })}
         options={{
-          tabBarIcon: renderTabIcon(MapPin),
+          tabBarIcon: renderCustomTabIcon(TempleIcon),
           headerShown: false,
           tabBarStyle: FLOATING_TAB_BAR_STYLE,
         }}
@@ -505,11 +509,20 @@ export default function BottomNavigation() {
 
       <Tab.Screen
         name="Video"
-        component={VideosReelsScreen}
+        component={ReelsStack}
+        listeners={({ navigation, route }) => ({
+          tabPress: (e) => {
+            const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'ReelsFeed';
+            if (focusedRoute === 'PostReel') {
+              e.preventDefault();
+              navigation.navigate('Video', { screen: 'ReelsFeed' });
+            }
+          },
+        })}
         options={{
-          tabBarIcon: renderTabIcon(PlayCircle),
+          tabBarIcon: renderCustomTabIcon(VideoIcon),
           headerShown: false,
-          tabBarStyle: FLOATING_TAB_BAR_STYLE,
+          tabBarStyle: { ...FLOATING_TAB_BAR_STYLE, display: 'none' },
         }}
       />
 
@@ -518,46 +531,17 @@ export default function BottomNavigation() {
         component={ProfileTabStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
-          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen';
+          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen' || routeName === 'CreateContentChoice';
           const isFollowList = routeName === 'FollowList';
           return {
-          headerShown: !isFollowList,
-          tabBarIcon: ({focused}) => {
-            const color = focused ? '#fff' : '#B5B5B5';
-            const bg = focused ? colors.orange : 'transparent';
-            return (
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  backgroundColor: bg,
-                }}>
-                <MaterialCommunityIcons
-                  name={focused ? 'account' : 'account-outline'}
-                  size={22}
-                  color={color}
-                />
-              </View>
-            );
-          },
-          headerLeft: () => (
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={{paddingLeft: 15}}>
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={24}
-                color="#000"
-              />
-            </Pressable>
-          ),
-          headerTitleAlign: 'center',
-          headerTitleStyle: {fontSize: 18},
-          tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
-        };
+            headerShown: false,
+            headerTitle: 'Profile',
+            headerTitleAlign: 'center',
+            headerTitleStyle: { fontSize: 18 },
+            headerLeft: undefined,
+            tabBarIcon: renderCustomTabIcon(ProfileIcon),
+            tabBarStyle: hideBar ? {...FLOATING_TAB_BAR_STYLE, display: 'none'} : FLOATING_TAB_BAR_STYLE,
+          };
         }}
       />
     </Tab.Navigator>

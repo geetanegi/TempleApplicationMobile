@@ -40,25 +40,7 @@ import {
   deleteComment,
 } from '../../utils/apicalls/socialHandler';
 import { resolveProfilePictureUrl, getProfilePictureUrlByUserId } from '../../utils/apicalls/profileHandler';
-
-/** Format date as "1 hour ago", "2 days ago", etc. */
-function formatTimeAgo(createdAt) {
-  if (createdAt == null) return '';
-  const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
-  if (isNaN(date.getTime())) return '';
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
-  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-  if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-  if (diffWeeks < 4) return `${diffWeeks} ${diffWeeks === 1 ? 'week' : 'weeks'} ago`;
-  return date.toLocaleDateString();
-}
+import { formatDateTimeIST } from '../../utils/helperfunctions/dateTimeUtils';
 
 const PostCard = ({
   userName = 'Camila',
@@ -66,6 +48,7 @@ const PostCard = ({
   timeText,
   image,
   videoUrl,
+  thumbnailUrl,
   likes = 5400,
   comments = [],
   shares = 100,
@@ -83,6 +66,7 @@ const PostCard = ({
   initialIsLiked = false,
   initialIsShared = false,
   onAuthorPress, // (authorUserId) when user taps author name to open profile
+  onImagePress, // when user taps photo/video to open full post view (e.g. PostPreview)
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
 
@@ -106,7 +90,7 @@ const PostCard = ({
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [videoPlaying, setVideoPlaying] = useState(false);
 
-  const displayTimeAgo = createdAt != null ? formatTimeAgo(createdAt) : (timeText || '');
+  const displayTimeAgo = createdAt != null ? formatDateTimeIST(createdAt) : (timeText || '');
   const displayLikeCount = likeCount;
   const commentCount = typeof comments === 'number'
     ? (commentList.length > 0 ? commentList.length : comments)
@@ -482,11 +466,14 @@ const PostCard = ({
                 </Pressable>
               </View>
             ) : (
-              <Pressable style={styles.videoThumbWrap} onPress={() => setVideoPlaying(true)}>
+              <Pressable
+                style={styles.videoThumbWrap}
+                onPress={() => (postId != null && onImagePress ? onImagePress() : setVideoPlaying(true))}
+              >
                 <Image
-                  source={{ uri: videoUrl }}
+                  source={{ uri: thumbnailUrl || videoUrl }}
                   style={styles.postImage}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
                 <View style={styles.videoPlayOverlay}>
                   <View style={styles.videoPlayCircle}>
@@ -499,7 +486,12 @@ const PostCard = ({
         )}
         {!videoUrl && !!image && (
           <View style={styles.imageWrap}>
-            <Image source={{uri: image}} style={styles.postImage} resizeMode="cover" />
+            <Pressable
+              onPress={() => postId != null && onImagePress?.()}
+              style={styles.imagePressable}
+            >
+              <Image source={{uri: image}} style={styles.postImage} resizeMode="contain" />
+            </Pressable>
           </View>
         )}
         </View>
@@ -671,8 +663,12 @@ const styles = StyleSheet.create({
 
   imageWrap: {
     marginTop: 14,
-    borderRadius: 28,
+    marginHorizontal: -16,
     overflow: 'hidden',
+  },
+
+  imagePressable: {
+    width: '100%',
   },
 
   postImage: {

@@ -73,7 +73,7 @@ const images = {
   loginBG: require('../../images/bg5.png'),
   loginLogo: require('../../images/acecamlogo.png'),
   menu: require('../../images/menu.png'),
-  logo: require('../../images/logo.png'),
+  logo: require('../../assets/images/logo.png'),
   SplashScreen: require('../../images/backgroungimg.png'),
   Nodatafound: require('../../images/Nodatafound.png'),
   // communitybg: require('../../images/screenBg.png'),

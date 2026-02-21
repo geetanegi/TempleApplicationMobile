@@ -16,6 +16,7 @@ import { getUserId } from '../../../redux/store/getState';
 import { getChatMessages, sendChatMessage } from '../../../utils/apicalls/socialHandler';
 import { connectWebSocket, subscribeChatThread, unsubscribeChatThread } from '../../../utils/services/websocketService';
 import { preloadChatSounds, playSendSound, playReceiveSound } from '../../../utils/chatSounds';
+import { formatDateTimeIST } from '../../../utils/helperfunctions/dateTimeUtils';
 import { colors } from '../../../global/theme';
 
 function uuid() {
@@ -110,12 +111,14 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item }) => {
     const isMe = item.senderId === currentUserId || item.senderUsername === 'You';
+    const timeStr = formatDateTimeIST(item.createdAt);
     return (
       <View style={[styles.bubbleWrap, isMe ? styles.bubbleWrapRight : styles.bubbleWrapLeft]}>
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
           <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{item.content}</Text>
           {item.status === 'sending' && <Text style={styles.sendingLabel}>Sending...</Text>}
           {item.status === 'failed' && <Text style={styles.failedLabel}>Failed</Text>}
+          {timeStr ? <Text style={[styles.timeLabel, isMe && styles.timeLabelMe]}>{timeStr}</Text> : null}
         </View>
       </View>
     );
@@ -138,11 +141,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <KeyboardAvoidingView
-        style={styles.keyboard}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+      <View style={styles.contentArea}>
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.orange} />
@@ -153,10 +152,16 @@ export default function ChatScreen() {
             data={messages}
             keyExtractor={(item) => String(item.id || item.clientMessageId)}
             renderItem={renderMessage}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: 80 }]}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           />
         )}
+      </View>
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        style={styles.inputAvoid}
+      >
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -183,10 +188,19 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f5f5f5' },
-  keyboard: { flex: 1 },
+  contentArea: { flex: 1 },
+  inputAvoid: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ddd',
+  },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: '#666' },
-  listContent: { padding: 12, paddingBottom: 24 },
+  listContent: { padding: 12 },
   bubbleWrap: { marginVertical: 4 },
   bubbleWrapLeft: { alignItems: 'flex-start' },
   bubbleWrapRight: { alignItems: 'flex-end' },
@@ -197,7 +211,9 @@ const styles = StyleSheet.create({
   bubbleTextMe: { fontSize: 16, color: '#fff' },
   sendingLabel: { fontSize: 11, color: 'rgba(0,0,0,0.5)', marginTop: 4 },
   failedLabel: { fontSize: 11, color: '#c00', marginTop: 4 },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: 10, backgroundColor: '#fff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#ddd' },
+  timeLabel: { fontSize: 10, color: 'rgba(0,0,0,0.5)', marginTop: 4 },
+  timeLabelMe: { color: 'rgba(255,255,255,0.8)' },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: 10 },
   input: { flex: 1, minHeight: 40, maxHeight: 100, backgroundColor: '#f0f0f0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 16, color: '#000', marginRight: 10 },
   sendBtn: { paddingVertical: 12, paddingHorizontal: 20, backgroundColor: colors.orange || '#D48A4A', borderRadius: 20, justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.5 },

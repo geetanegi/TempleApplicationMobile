@@ -91,6 +91,20 @@ class Endpoints {
   SOCIAL_STORY_ADD_VIEW = (storyId) => this.socialBase + `story/${storyId}/view`;
   SOCIAL_STORY_VIEWED = (storyId) => this.socialBase + `story/${storyId}/viewed`;
 
+  // Reels
+  SOCIAL_REELS = () => this.socialBase + 'reels';
+  SOCIAL_REELS_BY_USER = (userId) => this.socialBase + `reels/user/${userId}`;
+  SOCIAL_REEL_CREATE = this.socialBase + 'reel';
+  SOCIAL_REEL_DELETE = (reelId) => this.socialBase + `reel/${reelId}`;
+  SOCIAL_REEL_BY_ID = (reelId) => this.socialBase + `reel/${reelId}`;
+  SOCIAL_REEL_LIKE = (reelId) => this.socialBase + `reel/${reelId}/like`;
+  SOCIAL_REEL_UNLIKE = (reelId) => this.socialBase + `reel/${reelId}/unlike`;
+  SOCIAL_REEL_COMMENT = (reelId) => this.socialBase + `reel/${reelId}/comment`;
+  SOCIAL_REEL_COMMENTS = (reelId) => this.socialBase + `reel/${reelId}/comments`;
+  SOCIAL_REEL_COMMENT_DELETE = (reelId, commentId) => this.socialBase + `reel/${reelId}/comment/${commentId}`;
+  SOCIAL_REEL_SHARE = (reelId) => this.socialBase + `reel/${reelId}/share`;
+  SOCIAL_REEL_UNSHARE = (reelId) => this.socialBase + `reel/${reelId}/unshare`;
+
   // Temple APIs (jain-app at /user/temples)
   get templeBase() {
     return this.baseUrl.replace(/\/api\/?$/, '/') + 'user/temples/';
@@ -106,6 +120,12 @@ class Endpoints {
     return this.baseUrl.replace(/\/api\/?$/, '/') + 'user/';
   }
   USER_SEARCH = () => this.userBase + 'all-player-user';
+
+  // Feedback
+  get feedbackBase() {
+    return this.baseUrl.replace(/\/api\/?$/, '/') + 'user/feedback/';
+  }
+  FEEDBACK_SUBMIT = () => this.feedbackBase + 'submit';
 
   // npm i react-native-picker-select --legacy-peer-deps
 }

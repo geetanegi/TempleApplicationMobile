@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   Image,
-  FlatList,
+  SectionList,
   SafeAreaView,
   RefreshControl,
   ActivityIndicator,
@@ -31,8 +31,65 @@ const TYPE_MESSAGE = 'MESSAGE';
 const TYPE_LIKE = 'LIKE';
 const TYPE_COMMENT = 'COMMENT';
 
-const NotificationItem = ({ item, image, message, notificationType, createdAt, isRead, onPress }) => {
+const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+const MS_7_DAYS = 7 * MS_PER_DAY;
+
+function getNotificationSections(list) {
+  const now = Date.now();
+  const oneHourAgo = now - MS_PER_HOUR;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTodayMs = startOfToday.getTime();
+  const sevenDaysAgo = now - MS_7_DAYS;
+
+  const recent = [];
+  const today = [];
+  const last7Days = [];
+
+  for (const item of list) {
+    const createdAt = item?.createdDate ?? item?.createdAt;
+    const ts = createdAt ? new Date(createdAt).getTime() : 0;
+    if (isNaN(ts) || ts < sevenDaysAgo) continue;
+
+    if (ts >= oneHourAgo) {
+      recent.push(item);
+    } else if (ts >= startOfTodayMs) {
+      today.push(item);
+    } else {
+      last7Days.push(item);
+    }
+  }
+
+  const sections = [];
+  if (recent.length > 0) sections.push({ title: 'Recent', data: recent });
+  if (today.length > 0) sections.push({ title: 'Today', data: today });
+  if (last7Days.length > 0) sections.push({ title: 'Last 7 days', data: last7Days });
+  return sections;
+}
+
+function formatDateTime(createdAt) {
+  if (createdAt == null) return '';
+  const d = new Date(createdAt);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+}
+
+const NotificationItem = ({ item, image, message, actorName, notificationType, createdAt, isRead, onPress }) => {
   const type = (notificationType || '').toUpperCase();
+  const name = (actorName || '').trim();
+  const hasNamePrefix = name.length > 0 && message && message.startsWith(name);
+  const restOfMessage = hasNamePrefix ? message.slice(name.length).trimStart() : null;
+
   return (
     <Pressable
       style={[styles.notificationItem, !isRead && styles.notificationItemUnread]}
@@ -40,12 +97,21 @@ const NotificationItem = ({ item, image, message, notificationType, createdAt, i
     >
       <Image source={{ uri: image }} style={styles.avatar} />
       <View style={styles.notificationContent}>
-        <Text style={styles.notificationText}>{message}</Text>
-        {createdAt && (
-          <Text style={styles.notificationTime}>
-            {typeof createdAt === 'string' ? new Date(createdAt).toLocaleDateString() : ''}
+        <View style={styles.notificationTextRow}>
+          <Text style={styles.notificationText} numberOfLines={3}>
+            {hasNamePrefix ? (
+              <>
+                <Text style={styles.notificationTextBold}>{name}</Text>
+                {restOfMessage ? ` ${restOfMessage}` : ''}
+              </>
+            ) : (
+              message
+            )}
           </Text>
-        )}
+          {createdAt && (
+            <Text style={styles.notificationTime}>{formatDateTime(createdAt)}</Text>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -130,6 +196,11 @@ const NotificationScreen = () => {
     load();
   }, [load]);
 
+  const sections = useMemo(
+    () => getNotificationSections(notifications),
+    [notifications]
+  );
+
   if (loading && notifications.length === 0) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -141,26 +212,33 @@ const NotificationScreen = () => {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.sectionTitle}>Notifications</Text>
-      <FlatList
-        data={notifications}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <NotificationItem
             item={item}
             image={getAvatarUri(item.actorUserId)}
             message={item.message}
+            actorName={item.actorFullName ?? item.actorUsername}
             notificationType={item.notificationType}
-            createdAt={item.createdDate}
+            createdAt={item.createdDate ?? item.createdAt}
             isRead={item.isRead}
             onPress={handleNotificationPress}
           />
+        )}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>{title}</Text>
+          </View>
         )}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.orange]} tintColor={colors.orange} />
         }
         style={styles.list}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.empty}>No notifications yet.</Text>}
+        contentContainerStyle={[styles.listContent, sections.length === 0 && styles.listContentEmpty]}
+        ListEmptyComponent={sections.length === 0 ? <Text style={styles.empty}>No notifications yet.</Text> : null}
+        stickySectionHeadersEnabled={false}
       />
     </SafeAreaView>
   );
@@ -186,6 +264,21 @@ const styles = StyleSheet.create({
   },
   list: { flex: 1 },
   listContent: { paddingBottom: 24 },
+  listContentEmpty: { flexGrow: 1 },
+  sectionHeader: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#eee',
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -204,15 +297,23 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   notificationContent: { flex: 1 },
+  notificationTextRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
   notificationText: {
+    flex: 1,
     fontSize: 15,
     color: '#000',
-    fontWeight: '500',
+    marginRight: 8,
+  },
+  notificationTextBold: {
+    fontWeight: '700',
   },
   notificationTime: {
     fontSize: 12,
     color: '#666',
-    marginTop: 2,
   },
   empty: {
     textAlign: 'center',

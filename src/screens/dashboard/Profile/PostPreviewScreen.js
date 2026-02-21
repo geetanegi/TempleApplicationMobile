@@ -55,6 +55,7 @@ export default function PostPreviewScreen() {
         createdAt: item.createdAt,
         image: item.photoUrl || null,
         videoUrl: item.videoUrl || null,
+        thumbnailUrl: item.thumbnailUrl || null,
         likes: item.likesCount ?? item.likes ?? 0,
         comments: item.commentsCount ?? item.comments ?? 0,
         shares: item.sharesCount ?? item.shares ?? 0,
@@ -121,6 +122,7 @@ export default function PostPreviewScreen() {
           createdAt={post.createdAt}
           image={post.image}
           videoUrl={post.videoUrl}
+          thumbnailUrl={post.thumbnailUrl}
           likes={post.likes}
           comments={post.comments}
           shares={post.shares}
@@ -193,7 +195,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingBottom: 40,
   },
   centered: {

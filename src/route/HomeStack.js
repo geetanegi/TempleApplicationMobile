@@ -22,6 +22,7 @@ import BottomNavigator from '../screens/BottomNavigation/navigation';
 import CourceCart from '../screens/dashboard/betCentral/TeeScreen';
 import DrawerScreen from '../screens/dashboard/Profile/DrawerScreen';
 import PlaceholderScreen from '../screens/dashboard/Profile/PlaceholderScreen';
+import FeedbackScreen from '../screens/dashboard/Feedback/FeedbackScreen';
 import CourceDetails from '../screens/dashboard/betCentral/HoleScreen';
 import EnterQueueHome from '../screens/dashboard/EnterQueue/EnterQueueHome';
 import HighlightHub from '../screens/dashboard/HighlightHub';
@@ -31,6 +32,7 @@ import PayingCart from '../screens/dashboard/betCentral/CheckoutCart';
 import CourseScreen from '../screens/dashboard/betCentral/CourseScreen';
 import TeeBoxContainer from '../screens/dashboard/EnterQueue/TeeScreen';
 import CountdownBox from '../screens/dashboard/EnterQueue/CountdownBox';
+import VideosReelsScreen from '../screens/dashboard/VideosReels/VideosReelsScreen';
 import {Dimensions} from 'react-native';
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -142,6 +144,16 @@ const DrawerStack = () => {
         name="ConfigurationScreen"
         component={PlaceholderScreen}
         initialParams={{ title: 'Configuration' }}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="YouTubeVideosScreen"
+        component={VideosReelsScreen}
+        options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="FeedbackScreen"
+        component={FeedbackScreen}
         options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
       />
 

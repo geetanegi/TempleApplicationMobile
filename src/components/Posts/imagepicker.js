@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
   FlatList,
@@ -18,9 +18,10 @@ import {
 import {useNavigation} from '@react-navigation/native';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import ImageCropPicker from 'react-native-image-crop-picker';
-import {Camera, Play} from 'lucide-react-native';
+import {Camera, Play, Pencil} from 'lucide-react-native';
 import {getUserId} from '../../redux/store/getState';
 import {createPost} from '../../utils/apicalls/socialHandler';
+import VideoThumbnailSelector from '../VideoThumbnailSelector';
 
 const isVideoUri = uri => {
   if (!uri || typeof uri !== 'string') return false;
@@ -34,6 +35,7 @@ const InstaGallery = () => {
   const [photos, setPhotos] = useState(['camera']);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [selectedIsVideo, setSelectedIsVideo] = useState(false);
+  const [thumbnailUri, setThumbnailUri] = useState(null);
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null); // 0-100 when uploading, null otherwise
@@ -74,35 +76,31 @@ const InstaGallery = () => {
     return true;
   };
 
-  // Cropping only; compression is done on the backend (Java).
-  const cropOptions = { width: 1080, height: 1080 };
+  // Cropping options: no fixed width/height = free aspect ratio (crop any shape).
+  // Backend does compression. Use max dimensions to avoid huge uploads.
+  const cropOptions = {
+    freeStyleCropEnabled: true,
+    compressImageMaxWidth: 1080,
+    compressImageMaxHeight: 1920,
+    compressImageQuality: 0.9,
+  };
 
-  // 📷 Open camera (photo or video). cropping: false so video capture is allowed.
+  // 📷 Open camera (photo or video). No cropping – use full image as captured.
   const openCamera = async () => {
     try {
       const result = await ImageCropPicker.openCamera({
-        width: 1080,
-        height: 1080,
         cropping: false,
         mediaType: 'any',
+        compressImageMaxWidth: 1920,
+        compressImageMaxHeight: 1920,
+        compressImageQuality: 0.9,
       });
       let path = result.path || result.sourceURL || '';
       let isVideo = isVideoUri(path) || result.mime?.includes('video');
-      if (!isVideo && path) {
-        try {
-          const cropped = await ImageCropPicker.openCropper({
-            path,
-            ...cropOptions,
-            cropping: true,
-            freeStyleCropEnabled: true,
-          });
-          path = cropped.path;
-        } catch (e) {
-          if (e?.message !== 'User cancelled') console.log('Crop after camera:', e);
-        }
-      }
+      // Post photo as-is; cropping available in preview
       setSelectedIsVideo(!!isVideo);
       setSelectedPhoto(path);
+      setThumbnailUri(null);
     } catch (err) {
       console.log('Camera error:', err);
     }
@@ -111,8 +109,28 @@ const InstaGallery = () => {
   const clearSelection = () => {
     setSelectedPhoto(null);
     setSelectedIsVideo(false);
+    setThumbnailUri(null);
     setCaption('');
   };
+
+  const handleThumbnailSelect = useCallback((path) => {
+    setThumbnailUri(path);
+  }, []);
+
+  // Optional crop - uses already-selected image, no need to pick again
+  const handleCropPhoto = useCallback(async () => {
+    if (!selectedPhoto || selectedIsVideo) return;
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: selectedPhoto,
+        cropping: true,
+        ...cropOptions,
+      });
+      setSelectedPhoto(cropped.path);
+    } catch (err) {
+      if (err?.message !== 'User cancelled') console.log('Crop cancelled or failed:', err);
+    }
+  }, [selectedPhoto, selectedIsVideo]);
 
   const handlePost = async () => {
     const userId = getUserId();
@@ -125,10 +143,15 @@ const InstaGallery = () => {
     setUploadProgress(0);
     try {
       await createPost(userId, caption, selectedPhoto, selectedIsVideo ? 'video' : 'photo', {
+        thumbnailUri: selectedIsVideo ? (thumbnailUri || undefined) : undefined,
         onUploadProgress: (percent) => setUploadProgress(percent),
       });
       clearSelection();
-      navigation.goBack();
+      navigation.getParent()?.navigate('Profile', {
+        screen: 'ProfileMain',
+        params: { refreshProfile: true },
+      });
+      navigation.pop();
     } catch (e) {
       console.warn('Create post error:', e);
       Alert.alert('Error', e?.data?.message || e?.message || 'Failed to create post.');
@@ -221,17 +244,30 @@ const InstaGallery = () => {
         <View style={styles.previewRoot}>
           <ScrollView style={styles.previewScroll} contentContainerStyle={styles.previewScrollContent}>
             {selectedIsVideo ? (
-              <View style={styles.videoPreviewBox}>
-                <Image source={{uri: selectedPhoto}} style={styles.previewThumb} resizeMode="cover" />
-                <View style={styles.playOverlay}>
-                  <Play size={40} color="#fff" />
+              <>
+                <View style={styles.videoPreviewBox}>
+                  <Image source={{uri: selectedPhoto}} style={styles.previewThumb} resizeMode="cover" />
+                  <View style={styles.playOverlay}>
+                    <Play size={40} color="#fff" />
+                  </View>
+                  <Text style={styles.mediaLabel}>Video</Text>
                 </View>
-                <Text style={styles.mediaLabel}>Video</Text>
-              </View>
+                <VideoThumbnailSelector
+                  videoUri={selectedPhoto}
+                  onSelect={handleThumbnailSelect}
+                />
+              </>
             ) : (
               <View style={styles.photoPreviewBox}>
                 <Image source={{uri: selectedPhoto}} style={styles.previewImage} resizeMode="contain" />
                 <Text style={styles.mediaLabel}>Photo</Text>
+                <TouchableOpacity
+                  onPress={handleCropPhoto}
+                  style={styles.cropBtn}
+                >
+                  <Pencil size={18} color="#D48A4A" strokeWidth={2} />
+                  <Text style={styles.cropBtnText}>Edit</Text>
+                </TouchableOpacity>
               </View>
             )}
             <Text style={styles.captionLabel}>Caption (optional)</Text>
@@ -305,19 +341,11 @@ const InstaGallery = () => {
                 if (isVideo) {
                   setSelectedIsVideo(true);
                   setSelectedPhoto(uri);
+                  setThumbnailUri(null);
                 } else {
-                  try {
-                    const cropped = await ImageCropPicker.openCropper({
-                      path: uri,
-                      ...cropOptions,
-                      cropping: true,
-                      freeStyleCropEnabled: true,
-                    });
-                    setSelectedIsVideo(false);
-                    setSelectedPhoto(cropped.path);
-                  } catch (err) {
-                    console.log('Crop cancelled or failed:', err);
-                  }
+                  // Select photo as-is; optional crop available in preview
+                  setSelectedIsVideo(false);
+                  setSelectedPhoto(uri);
                 }
               }}>
               <Image source={{uri}} style={styles.image} resizeMode="cover" />
@@ -423,6 +451,19 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 280,
     aspectRatio: 1,
+  },
+  cropBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginLeft: 8,
+    alignSelf: 'flex-start',
+  },
+  cropBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#D48A4A',
   },
   mediaLabel: {
     position: 'absolute',

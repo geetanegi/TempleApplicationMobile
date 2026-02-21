@@ -27,7 +27,6 @@ import {
   RefreshCw,
   ImagePlus,
   Check,
-  Crop,
   Pencil,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -41,13 +40,12 @@ const RECENT_PHOTOS_COUNT = 20;
 const GALLERY_PHOTOS_COUNT = 100;
 const THUMB_SIZE = 64;
 
-/** Story crop options – 9:16 aspect, same cropper as profile */
-const STORY_CROP_OPTIONS = {
-  width: 720,
-  height: 1280,
-  cropping: true,
+/** Edit/crop options – free aspect ratio, same as post Create screen */
+const STORY_EDIT_OPTIONS = {
   freeStyleCropEnabled: true,
-  cropperCircleOverlay: false,
+  compressImageMaxWidth: 1080,
+  compressImageMaxHeight: 1920,
+  compressImageQuality: 0.9,
 };
 
 
@@ -200,23 +198,27 @@ const StoryUploadScreen = () => {
     setCaptionText('');
   }, []);
 
-  const handleCropPress = useCallback(async () => {
+  // Edit/crop – same as Create Post. Use openPicker with cropping as fallback since
+  // openCropper can crash on some Android devices with camera/gallery URIs.
+  const handleEditPress = useCallback(async () => {
+    if (!previewUri) return;
     try {
       const result = await ImageCropPicker.openPicker({
-        ...STORY_CROP_OPTIONS,
         mediaType: 'photo',
+        cropping: true,
+        ...STORY_EDIT_OPTIONS,
       });
-      const path = result?.path || result?.sourceURL;
-      if (path) {
-        const uri = path.startsWith('file://') ? path : `file://${path}`;
+      const resultPath = result?.path || result?.sourceURL;
+      if (resultPath) {
+        const uri = resultPath.startsWith('file://') ? resultPath : `file://${resultPath}`;
         setPreviewUri(uri);
       }
     } catch (e) {
-      if (e?.code !== 'E_PICKER_CANCELLED') {
-        Toast.show('Could not open photo picker');
+      if (e?.message !== 'User cancelled' && e?.code !== 'E_PICKER_CANCELLED') {
+        Toast.show('Could not edit photo');
       }
     }
-  }, []);
+  }, [previewUri]);
 
   const submitStory = useCallback(async () => {
     if (!previewUri || uploading) return;
@@ -275,10 +277,7 @@ const StoryUploadScreen = () => {
 
         <View style={[styles.previewTopBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.previewTopRight}>
-            <Pressable style={styles.iconBtn} onPress={handleCropPress}>
-              <Crop size={24} color="#fff" />
-            </Pressable>
-            <Pressable style={styles.iconBtn} onPress={() => {}}>
+            <Pressable style={styles.iconBtn} onPress={handleEditPress}>
               <Pencil size={24} color="#fff" />
             </Pressable>
             <Pressable style={styles.iconBtn} onPress={cancelPreview}>

@@ -12,7 +12,7 @@ import React, {useMemo, useState, useCallback} from 'react';
 import st from '../../../global/styles';
 import Share from 'react-native-share';
 import {images} from '../../../global/theme';
-import InputText from '../../../components/InputText';
+import SearchInput from '../Main/SearchInput';
 
 const gridItems = [
   {id: '1', title: 'Bhakti', image: images.bhakti, navigate: 'BhaktiScreen'},
@@ -86,12 +86,10 @@ const JevaaniScreen = ({navigation}) => {
     <SafeAreaView style={[st.flex, styles.container]}>
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <InputText
-          placeholder="Search"
-          iconName="search"
+        <SearchInput
           value={searchText}
           onChangeText={setSearchText}
-          inputStyle={styles.searchInput}
+          placeholder="Search"
         />
       </View>
 
@@ -130,17 +128,9 @@ const styles = StyleSheet.create({
 
   /* Search */
   searchWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 12,
-  },
-  // This assumes your InputText supports these keys via inputStyle
-  searchInput: {
-    height: 48,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#C7C7D1',
-    backgroundColor: '#fff',
+    paddingBottom: 8,
   },
 
   /* Grid */

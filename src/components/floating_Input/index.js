@@ -12,6 +12,8 @@ import {
 import st from '../../global/styles';
 import {colors} from '../../global/theme';
 
+const LINE_HEIGHT = 24;
+
 const TestScreen = ({
   label,
   iconName,
@@ -23,7 +25,11 @@ const TestScreen = ({
   disable,
   editableField,
   value,
-  required = false, // Add a `required` prop to indicate if a field is mandatory
+  required = false,
+  labelAbove = false,
+  labelIcon,
+  multiline = false,
+  multilineLines,
   ...props
 }) => {
 
@@ -81,10 +87,25 @@ const TestScreen = ({
 
   return (
     <View>
+      {labelAbove && (
+        <View style={styles.labelAboveRow}>
+          {labelIcon && <View style={styles.labelIconWrap}>{labelIcon}</View>}
+          <Text style={[styles.labelAbove, labelIcon && styles.labelAboveWithIcon]}>
+            {label}
+            {required && <Text style={styles.asterisk}> *</Text>}
+          </Text>
+        </View>
+      )}
       <TouchableOpacity onPress={handleTextInputPress} activeOpacity={1}>
         <View
           style={[
             styles.container,
+            labelAbove && styles.containerWithLabelAbove,
+            multiline && styles.containerMultiline,
+            multiline && multilineLines != null && {
+              minHeight: multilineLines * LINE_HEIGHT + 24,
+              maxHeight: multilineLines * LINE_HEIGHT + 24,
+            },
             {
               borderColor: colors.grey,
               borderWidth: 1.5,
@@ -92,12 +113,12 @@ const TestScreen = ({
             },
           ]}
         >
-          {/* Placeholder or Label with asterisk */}
-          {((!isFocused && value?.trim() === '') || value == undefined) && (
+          {/* Placeholder or Label - hide when labelAbove is used */}
+          {!labelAbove && ((!isFocused && value?.trim() === '') || value == undefined) && (
             <View style={styles.placeholderContainer}>
               <Text style={styles.placeholderText}>
-                {label} {/* Label */}
-                {required && <Text style={styles.asterisk}> *</Text>} {/* Asterisk */}
+                {label}
+                {required && <Text style={styles.asterisk}> *</Text>}
               </Text>
             </View>
           )}
@@ -105,14 +126,22 @@ const TestScreen = ({
           <TextInput
             ref={inputRef}
             autoCapitalize={'none'}
-            style={[styles.input]}
+            style={[
+              styles.input,
+              multiline && styles.inputMultiline,
+              multiline && multilineLines != null && {
+                minHeight: multilineLines * LINE_HEIGHT,
+                maxHeight: multilineLines * LINE_HEIGHT,
+              },
+            ]}
             onFocus={() => {
               onFocus();
               setIsFocused(true);
             }}
             onBlur={() => setIsFocused(false)}
             editable={editableField}
-            blurOnSubmit
+            blurOnSubmit={!multiline}
+            multiline={multiline}
             selectionColor={'#fff'}
             value={value}
             placeholderTextColor={'#fff'}
@@ -137,6 +166,32 @@ const TestScreen = ({
 export default TestScreen;
 
 const styles = StyleSheet.create({
+  labelAboveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  labelIconWrap: {
+    marginRight: 6,
+  },
+  labelAbove: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.DARK_GREY || '#555',
+  },
+  labelAboveWithIcon: {
+    marginBottom: 0,
+  },
+  containerWithLabelAbove: {
+    marginTop: 0,
+  },
+  containerMultiline: {
+    height: undefined,
+    minHeight: 120,
+    alignItems: 'flex-start',
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   container: {
     marginBottom: 10,
     marginTop: 20,
@@ -163,6 +218,11 @@ const styles = StyleSheet.create({
   },
   input: {
     ...st.tx14,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+    paddingVertical: 0,
   },
   icon: {
     width: 40,

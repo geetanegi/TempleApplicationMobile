@@ -1,0 +1,491 @@
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  FlatList,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  StatusBar,
+  Image,
+  Platform,
+} from 'react-native';
+import { useNavigation, useRoute, useFocusEffect, useIsFocused } from '@react-navigation/native';
+import Video from 'react-native-video';
+import { Plus, Heart, MessageCircle, Send, User, X } from 'lucide-react-native';
+import ReelCommentsOverlay from './ReelCommentsOverlay';
+import Share from 'react-native-share';
+import { getUserId } from '../../../redux/store/getState';
+import {
+  getRandomReels,
+  getReelById,
+  likeReel,
+  unlikeReel,
+  shareReel,
+  unshareReel,
+} from '../../../utils/apicalls/reelHandler';
+import {
+  getProfilePictureUrlByUserId,
+  resolveProfilePictureUrl,
+} from '../../../utils/apicalls/profileHandler';
+import { colors } from '../../../global/theme';
+
+const { height, width } = Dimensions.get('window');
+const PAGE_SIZE = 5;
+// Fixed offset to clear status/notification bar; ensures + button is clickable
+const STATUS_BAR_OFFSET = Platform.OS === 'android' ? 56 : 0;
+
+const ReelsScreen = () => {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const isFocused = useIsFocused();
+  const initialReelId = route.params?.reelId;
+  const topOffset = STATUS_BAR_OFFSET;
+  const videoHeight = height - topOffset;
+  const currentUserId = getUserId();
+  const [reels, setReels] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [commentReel, setCommentReel] = useState(null);
+  const flatListRef = useRef(null);
+
+  const loadReels = useCallback(
+    async (pageNum = 0, append = false) => {
+      if (pageNum === 0) setLoading(true);
+      else setLoadingMore(true);
+      try {
+        const res = await getRandomReels(pageNum, PAGE_SIZE, currentUserId);
+        const data = res?.data ?? [];
+        const list = Array.isArray(data) ? data : [];
+        if (append) {
+          setReels((prev) => {
+            const ids = new Set(prev.map((r) => r.id));
+            const newItems = list.filter((r) => !ids.has(r.id));
+            return [...prev, ...newItems];
+          });
+        } else {
+          setReels(list);
+        }
+        setHasMore(list.length >= PAGE_SIZE);
+      } catch (err) {
+        console.warn('Reels load error:', err);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [currentUserId]
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPage(0);
+    loadReels(0, false).finally(() => setRefreshing(false));
+  }, [loadReels]);
+
+  const onEndReached = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadReels(nextPage, true);
+  }, [page, loadReels, loadingMore, hasMore]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const run = async () => {
+        if (initialReelId) {
+          setLoading(true);
+          try {
+            const [reelRes, feedRes] = await Promise.all([
+              getReelById(initialReelId, currentUserId),
+              getRandomReels(0, PAGE_SIZE, currentUserId),
+            ]);
+            const reelData = reelRes?.data;
+            const feedList = Array.isArray(feedRes?.data) ? feedRes.data : [];
+            const inFeed = feedList.some((r) => String(r.id) === String(initialReelId));
+            const list = inFeed
+              ? feedList
+              : reelData
+                ? [{ ...reelData, id: reelData.id }, ...feedList]
+                : feedList;
+            setReels(list);
+            setHasMore(feedList.length >= PAGE_SIZE);
+          } catch (err) {
+            console.warn('Reels load error:', err);
+            setHasMore(false);
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          await loadReels(0, false);
+        }
+      };
+      run();
+    }, [loadReels, initialReelId, currentUserId])
+  );
+
+  // Scroll to the reel when we have initialReelId and reels are loaded
+  React.useEffect(() => {
+    if (!initialReelId || reels.length === 0) return;
+    const index = reels.findIndex((r) => String(r.id) === String(initialReelId));
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({
+        offset: index * videoHeight,
+        animated: false,
+      });
+      setActiveIndex(index);
+      navigation.setParams({ reelId: undefined });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [initialReelId, reels, navigation, videoHeight]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index);
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+    minimumViewTime: 300,
+  }).current;
+
+  const handleLike = useCallback(
+    async (reel) => {
+      if (!currentUserId) return;
+      const isLiked = !!reel.isLiked;
+      const newCount = (reel.likesCount ?? 0) + (isLiked ? -1 : 1);
+      setReels((prev) =>
+        prev.map((r) =>
+          r.id === reel.id
+            ? { ...r, isLiked: !isLiked, likesCount: newCount }
+            : r
+        )
+      );
+      try {
+        if (isLiked) await unlikeReel(reel.id, currentUserId);
+        else await likeReel(reel.id, currentUserId);
+      } catch (e) {
+        setReels((prev) =>
+          prev.map((r) =>
+            r.id === reel.id ? { ...r, isLiked, likesCount: reel.likesCount } : r
+          )
+        );
+      }
+    },
+    [currentUserId]
+  );
+
+  const handleShare = useCallback(
+    async (reel) => {
+      if (!currentUserId) return;
+      const isShared = !!reel.isShared;
+      const newCount = (reel.sharesCount ?? 0) + (isShared ? -1 : 1);
+      setReels((prev) =>
+        prev.map((r) =>
+          r.id === reel.id ? { ...r, isShared: !isShared, sharesCount: newCount } : r
+        )
+      );
+      try {
+        if (isShared) {
+          await unshareReel(reel.id, currentUserId);
+        } else {
+          await shareReel(reel.id, currentUserId);
+          await Share.open({
+            message: `Check out this reel! ${reel.caption || ''}`,
+            url: reel.videoUrl,
+            title: 'Share Reel',
+          });
+        }
+      } catch (e) {
+        if (e?.message !== 'User did not share') {
+          setReels((prev) =>
+            prev.map((r) =>
+              r.id === reel.id ? { ...r, isShared: reel.isShared, sharesCount: reel.sharesCount } : r
+            )
+          );
+        }
+      }
+    },
+    [currentUserId]
+  );
+
+  const renderReelItem = useCallback(
+    ({ item, index }) => {
+      const isActive = activeIndex === index;
+      const avatarUrl =
+        getProfilePictureUrlByUserId(item.user?.id) ||
+        resolveProfilePictureUrl(item.user?.userProfile);
+
+      return (
+        <View style={[styles.videoContainer, { height: videoHeight }]} collapsable={false}>
+          {isFocused ? (
+            <Video
+              source={{ uri: item.videoUrl }}
+              poster={item.thumbnailUrl || undefined}
+              posterResizeMode="cover"
+              style={styles.video}
+              resizeMode="cover"
+              repeat
+              paused={!isActive}
+              controls={false}
+              controlsStyles={{
+                hideSeekBar: true,
+                hideDuration: true,
+                hidePosition: true,
+                hidePlayPause: true,
+                hideForward: true,
+                hideRewind: true,
+                hideNext: true,
+                hidePrevious: true,
+                hideFullscreen: true,
+                hideSettingButton: true,
+              }}
+              bufferConfig={{
+                minBufferMs: 5000,
+                maxBufferMs: 15000,
+                bufferForPlaybackMs: 1500,
+                bufferForPlaybackAfterRebufferMs: 2500,
+              }}
+            />
+          ) : item.thumbnailUrl ? (
+            <Image source={{ uri: item.thumbnailUrl }} style={styles.video} resizeMode="cover" />
+          ) : (
+            <View style={[styles.video, styles.videoPlaceholder]} />
+          )}
+          {/* Right side action buttons */}
+          <View style={styles.actionsColumn}>
+            <Pressable
+              onPress={() => navigation.navigate('Profiles', { userId: item.user?.id })}
+              style={styles.avatarBtn}
+            >
+              <View style={styles.avatar}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarImg} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.avatarInner, styles.avatarPlaceholder]}>
+                    <User size={24} color="#fff" strokeWidth={2} />
+                  </View>
+                )}
+              </View>
+            </Pressable>
+            <Pressable onPress={() => handleLike(item)} style={styles.actionBtn}>
+              <Heart
+                size={36}
+                color={item.isLiked ? '#ff0050' : '#fff'}
+                fill={item.isLiked ? '#ff0050' : 'transparent'}
+                strokeWidth={2}
+              />
+              <Text style={styles.actionCount}>{item.likesCount ?? 0}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setCommentReel({ id: item.id, reel: item })}
+              style={styles.actionBtn}
+            >
+              <MessageCircle size={32} color="#fff" strokeWidth={2} />
+              <Text style={styles.actionCount}>{item.commentsCount ?? 0}</Text>
+            </Pressable>
+            <Pressable onPress={() => handleShare(item)} style={styles.actionBtn}>
+              <Send size={30} color="#fff" strokeWidth={2} />
+              <Text style={styles.actionCount}>{item.sharesCount ?? 0}</Text>
+            </Pressable>
+          </View>
+          {/* Caption & user */}
+          <View style={styles.captionOverlay}>
+            <Text
+              onPress={() => navigation.navigate('Profiles', { userId: item.user?.id })}
+              style={styles.username}
+            >
+              @{item.user?.username || 'user'}
+            </Text>
+            {item.caption ? (
+              <Text style={styles.caption} numberOfLines={2}>
+                {item.caption}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      );
+    },
+    [activeIndex, isFocused, navigation, handleLike, handleShare, setCommentReel]
+  );
+
+  if (loading && reels.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.orange || '#D48A4A'} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      {/* Spacer to push content below status/notification bar */}
+      {topOffset > 0 && <View style={[styles.topSpacer, { height: topOffset }]} />}
+      <View style={styles.contentWrap}>
+        {/* Header: X (left) -> Reels (center) -> + (right) */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => navigation.getParent()?.navigate('Home')}
+            style={styles.addBtn}
+            hitSlop={12}
+          >
+            <X size={28} color="#fff" strokeWidth={2.5} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Reels</Text>
+          <Pressable
+            onPress={() => navigation.navigate('PostReel')}
+            style={styles.addBtn}
+            hitSlop={12}
+          >
+            <Plus size={28} color="#fff" strokeWidth={2.5} />
+          </Pressable>
+        </View>
+
+        <FlatList
+          ref={flatListRef}
+          data={reels}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderReelItem}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={videoHeight}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.orange || '#D48A4A']}
+              tintColor={colors.orange || '#D48A4A'}
+            />
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            ) : null
+          }
+        />
+
+        <ReelCommentsOverlay
+          visible={!!commentReel}
+          onClose={() => setCommentReel(null)}
+          reelId={commentReel?.id}
+          reel={commentReel?.reel}
+          onCommentAdded={(reelId, newCount) => {
+            setReels((prev) =>
+              prev.map((r) =>
+                r.id === reelId ? { ...r, commentsCount: newCount } : r
+              )
+            );
+          }}
+        />
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  topSpacer: { width: '100%', backgroundColor: 'transparent' },
+  contentWrap: { flex: 1 },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    zIndex: 10,
+  },
+  addBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  videoContainer: {
+    height,
+    width,
+    backgroundColor: '#000',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPlaceholder: {
+    backgroundColor: '#000',
+  },
+  actionsColumn: {
+    position: 'absolute',
+    right: 12,
+    bottom: 120,
+    alignItems: 'center',
+    gap: 20,
+  },
+  avatarBtn: { marginBottom: 8 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#fff',
+    overflow: 'hidden',
+    backgroundColor: '#333',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarInner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholder: { backgroundColor: '#555' },
+  avatarText: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  actionBtn: { alignItems: 'center' },
+  actionCount: { fontSize: 12, color: '#fff', marginTop: 4, fontWeight: '600' },
+  captionOverlay: {
+    position: 'absolute',
+    left: 12,
+    right: 70,
+    bottom: 100,
+  },
+  username: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  caption: { fontSize: 13, color: '#fff', opacity: 0.9 },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
+});
+
+export default ReelsScreen;

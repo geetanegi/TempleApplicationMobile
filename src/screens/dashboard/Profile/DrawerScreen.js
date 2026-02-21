@@ -62,11 +62,13 @@ const DrawerScreen = ({navigation}) => {
   };
   const settingsOptions = [
     { id: '1', label: 'Account', icon: 'person', screen: 'AccountScreen' },
-    { id: '2', label: 'Support', icon: 'headset-mic', screen: 'SupportScreen' },
-    { id: '3', label: 'Privacy Policy', icon: 'lock', screen: 'PrivacyPolicyScreen' },
-    { id: '4', label: 'Terms & Condition', icon: 'gavel', screen: 'TermsAndConditionScreen' },
-    { id: '5', label: 'Configuration', icon: 'settings', screen: 'ConfigurationScreen' },
-    { id: '6', label: 'Logout', icon: 'logout', screen: null },
+    { id: '2', label: 'Feedback', icon: 'feedback', screen: 'FeedbackScreen' },
+    { id: '3', label: 'Support', icon: 'headset-mic', screen: 'SupportScreen' },
+    { id: '4', label: 'Privacy Policy', icon: 'lock', screen: 'PrivacyPolicyScreen' },
+    { id: '5', label: 'Terms & Condition', icon: 'gavel', screen: 'TermsAndConditionScreen' },
+    { id: '6', label: 'Configuration', icon: 'settings', screen: 'ConfigurationScreen' },
+    { id: '7', label: 'YouTube Videos', icon: 'play-circle-outline', screen: 'YouTubeVideosScreen' },
+    { id: '8', label: 'Logout', icon: 'logout', screen: null },
   ];
 
   const onSettingPress = (item) => {

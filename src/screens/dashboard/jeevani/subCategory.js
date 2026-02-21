@@ -13,7 +13,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import { ChevronLeft } from 'lucide-react-native';
 
-import InputText from '../../../components/InputText';
+import SearchInput from '../Main/SearchInput';
 import { APP_TEXT, colors } from '../../../global/theme';
 import { musicList } from '../../../dummy';
 import MusicCard from '../../../components/musicCard';
@@ -59,12 +59,10 @@ const SubCategoryPage = () => {
 
         {/* Search bar */}
         <View style={styles.searchSection}>
-          <InputText
-            placeholder={APP_TEXT.SEARCH}
-            iconName="search"
+          <SearchInput
             value={searchText}
             onChangeText={setSearchText}
-            inputsty={styles.searchInput}
+            placeholder={APP_TEXT.SEARCH}
           />
         </View>
       </View>
@@ -177,20 +175,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 12,
-  },
-
-  searchInput: {
-    marginTop: 0,
-    marginBottom: 0,
-    borderRadius: 28,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#fff',
-    height: 52,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
   },
 
   listContent: {

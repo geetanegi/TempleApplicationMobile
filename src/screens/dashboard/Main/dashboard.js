@@ -91,6 +91,7 @@ const MainDashboard = () => {
         location: item.user?.location || 'Unknown',
         image: item.photoUrl || null,
         videoUrl: item.videoUrl || null,
+        thumbnailUrl: item.thumbnailUrl || null,
         likes: item.likesCount ?? item.likes ?? 0,
         comments: item.commentsCount ?? item.comments ?? 0,
         shares: item.sharesCount ?? item.shares ?? 0,
@@ -393,7 +394,7 @@ const MainDashboard = () => {
           data={filteredPosts}
           keyExtractor={item => item.id}
           style={styles.postList}
-          contentContainerStyle={[st.pd_H20, st.pdB20, { paddingBottom: 90 }]}
+          contentContainerStyle={[st.pdB20, { paddingBottom: 90, paddingHorizontal: 16 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -411,6 +412,7 @@ const MainDashboard = () => {
               createdAt={item.createdAt}
               image={item.image}
               videoUrl={item.videoUrl}
+              thumbnailUrl={item.thumbnailUrl}
               likes={item.likes}
               comments={item.comments}
               shares={item.shares}
@@ -420,6 +422,9 @@ const MainDashboard = () => {
               initialIsShared={item.isShared}
               onAuthorPress={(authorUserId) =>
                 navigation.navigate('Profiles', { userId: authorUserId })
+              }
+              onImagePress={() =>
+                navigation.navigate('PostPreview', { postId: item.postId })
               }
               onLikeChange={(newLiked, newCount) => {
                 setPosts(prev =>
