@@ -7,12 +7,12 @@ import {
   Image,
   Pressable,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Modal,
   Animated,
   Dimensions,
   Alert,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
@@ -93,6 +93,28 @@ const CommentScreen = ({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const scrollAtTop = useRef(true);
+  const flatListRef = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const h = e?.endCoordinates?.height ?? 0;
+        setKeyboardHeight(Platform.OS === 'android' ? Math.max(0, h - 140) : Math.max(0, h - 100));
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+      },
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const runCloseAnimation = useRef(() => {
     Animated.parallel([
       Animated.timing(translateY, {
@@ -146,6 +168,7 @@ const CommentScreen = ({
   useEffect(() => {
     if (!visible) {
       setReplyingTo(null);
+      setKeyboardHeight(0);
     }
   }, [visible]);
 
@@ -204,7 +227,9 @@ const CommentScreen = ({
     const v = item?.avatar;
     if (typeof v === 'string' && v.trim()) return resolveProfilePictureUrl(v) || v;
     if (v && typeof v === 'object' && typeof v.imageUrl === 'string') return resolveProfilePictureUrl(v.imageUrl) || v.imageUrl;
-    return getProfilePictureUrlByUserId(item?.userId) || AVATAR;
+    const userAvatar = item?.user?.avatarUrl;
+    if (typeof userAvatar === 'string' && userAvatar.trim()) return resolveProfilePictureUrl(userAvatar) || userAvatar;
+    return getProfilePictureUrlByUserId(item?.user?.id ?? item?.userId) || AVATAR;
   };
 
   const handleDeletePress = (item) => {
@@ -226,7 +251,8 @@ const CommentScreen = ({
   const renderItem = ({item}) => {
     const isReply = item.isReply === true;
     const avatarUri = getAvatarUri(item);
-    const canDelete = typeof onDeleteComment === 'function' && currentUserId != null && String(item?.userId) === String(currentUserId);
+    const userDisplay = item?.user?.username || item?.user?.name || 'User';
+    const canDelete = typeof onDeleteComment === 'function' && currentUserId != null && String(item?.user?.id ?? item?.userId) === String(currentUserId);
     return (
       <View style={[styles.row, isReply && styles.replyRow]}>
         <Image
@@ -237,7 +263,7 @@ const CommentScreen = ({
 
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
-            <Text style={styles.nameText}>{item?.user ?? 'User'}</Text>
+            <Text style={styles.nameText}>{userDisplay}</Text>
             <Text style={styles.timeText}>  •  19h</Text>
             {canDelete && (
               <Pressable
@@ -250,13 +276,13 @@ const CommentScreen = ({
             )}
           </View>
 
-          <Text style={styles.bodyText}>{item?.text ?? ''}</Text>
+          <Text style={styles.bodyText}>{item?.content ?? item?.text ?? ''}</Text>
 
           {!isReply && (
             <Pressable
               hitSlop={10}
               style={styles.replyBtn}
-              onPress={() => setReplyingTo({ id: item.id, user: item?.user ?? 'User' })}
+              onPress={() => setReplyingTo({ id: item.id, user: userDisplay })}
             >
               <Text style={styles.replyText}>Reply</Text>
             </Pressable>
@@ -302,25 +328,30 @@ const CommentScreen = ({
               <Text style={styles.headerTitle}>Comments</Text>
             </View>
 
-            <KeyboardAvoidingView
-              style={styles.flex}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
+            {/* List stays fixed – only input moves up with keyboard */}
             <FlatList
+              ref={flatListRef}
               data={data}
               keyExtractor={(item, index) => `comment-${item?.id ?? item?.parentCommentId ?? index}-${index}`}
               renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                onScroll={(e) => {
-                  const y = e.nativeEvent.contentOffset.y;
-                  scrollAtTop.current = y <= SCROLL_AT_TOP_THRESHOLD;
-                }}
-                scrollEventThrottle={16}
-              />
+              style={styles.flex}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onScroll={(e) => {
+                const y = e.nativeEvent.contentOffset.y;
+                scrollAtTop.current = y <= SCROLL_AT_TOP_THRESHOLD;
+              }}
+              scrollEventThrottle={16}
+            />
 
-            {/* Fixed input – current user's profile avatar (same API as FollowListScreen) */}
+            {/* Input bar: absolute at bottom, moves up by keyboardHeight – sits just above keyboard */}
+            <View
+              style={[
+                styles.inputDockOuter,
+                styles.inputDockAbsolute,
+                { bottom: keyboardHeight },
+              ]}>
             <View style={styles.inputDock}>
               <Image style={styles.meAvatar} source={{ uri: getMyAvatarUri(currentUserId) }} />
 
@@ -344,6 +375,9 @@ const CommentScreen = ({
                     style={styles.input}
                     returnKeyType="send"
                     onSubmitEditing={onSend}
+                    onFocus={() => {
+                      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+                    }}
                   />
 
                   <Pressable onPress={onSend} hitSlop={10} style={styles.actionBtn}>
@@ -352,7 +386,7 @@ const CommentScreen = ({
                 </View>
               </View>
             </View>
-          </KeyboardAvoidingView>
+            </View>
         </LinearGradient>
       </Animated.View>
     </GestureDetector>
@@ -478,21 +512,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // bottom input
-  inputDock: {
+  // bottom input – absolute, overlays content, moves up by keyboardHeight only
+  inputDockOuter: {
+    backgroundColor: '#F6F2E6',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    paddingBottom: 14,
+  },
+  inputDockAbsolute: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 10,
+    elevation: 10,
+  },
+  inputDock: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 14,
+    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(246,242,230,0.96)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.08)',
   },
 
   meAvatar: {

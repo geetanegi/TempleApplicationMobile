@@ -60,34 +60,17 @@ const colors = {
 };
 
 const images = {
-  scanner: require('../../images/scanner.png'),
-
   // cource screen Icon
-  golfPoint: require('../../images/golfPoint.png'),
-  golfPinShot: require('../../images/golfPinShot.png'),
-  Add: require('../../images/Add.png'),
-  Remove: require('../../images/delete.png'),
-  delete: require('../../images/delete.png'),
-  splashBG: require('../../images/splash-background.png'),
-  splashLogo: require('../../images/splash-items.png'),
+
+
   loginBG: require('../../images/bg5.png'),
-  loginLogo: require('../../images/acecamlogo.png'),
+
   menu: require('../../images/menu.png'),
   logo: require('../../assets/images/logo.png'),
-  SplashScreen: require('../../images/backgroungimg.png'),
-  Nodatafound: require('../../images/Nodatafound.png'),
-  // communitybg: require('../../images/screenBg.png'),
-  Success: require('../../images/success.png'),
-  house: require('../../images/house.png'),
-  user: require('../../images/userimg.png'),
-  golfVedio: require('../../images/golfVedio.png'),
-  dropDown: require('../../images/dropdown.png'),
-  // usgaGhin: require('../../images/USGA.png'),
-  // golfTrophy: require('../../images/trophy.png'),
 
-  trophy: require('../../images/trophy.png'),
-  closeIcon: require('../../images/close.png'),
-  // video: '../../images/video.mp4',
+
+  user: require('../../images/userimg.png'),
+
   chalisa: require('../../images/chalisa.png'),
   pujapath: require('../../images/pujapath.png'),
   stotra: require('../../images/stotra.png'),
@@ -95,52 +78,18 @@ const images = {
   vidhi: require('../../images/vidhi.png'),
   bhakti: require('../../images/bhakti.png'),
   aarti: require('../../images/aarti.png'),
-  pdfimg: require('../../images/pdfimg.png'),
-  googlelogo: '../../images/glogo.png',
-  instagramlogo: '../../images/ilogo.png',
-  Instagram: '../../images/Instagram.png',
-  twitter: '../../images/twitter.png',
-  Facebook: '../../images/Facebook.png',
-  TikTok: '../../images/TikTok.png',
-  Google: '../../images/Google.png',
-  LogoScan: '../../images/LogoScan.png',
-
   //Home Screen Icons
-  LeftCourceImg: require('../../images/LeftCourceImg.png'),
+
   backIconHeader: require('../../images/backIconHeader.png'),
 
   //enter queue screen images
-  playerCover: require('../../images/playerCover.png'),
-  backgroundGolf: require('../../images/backgroundGolf.png'),
-  sports_golf: require('../../images/sports_golf.png'),
 
-  holeInOne: require('../../images/holeInOne.png'),
-  backButton: require('../../images/backButton.png'),
-  submitScore: require('../../images/submitScore.png'),
-  skipButton: require('../../images/skipButton.png'),
-  holeOne: require('../../images/holeOne.png'),
-  publishIcon: require('../../images/publishIcon.png'),
-  menuIcon: require('../../images/menuIcon.png'),
-  lockIcon: require('../../images/lockIcon.png'),
-  requestVedioIcon: require('../../images/requestVedioIcon.png'),
-  pendingRequest: require('../../images/pendingRequest.png'),
-  re_Request: require('../../images/re-request-icon.png'),
 
-  ball: require('../../images/ball.png'),
 
-  Button_cancel: require('../../images/Button_cancel.png'),
-  button_Request: require('../../images/button_Request.png'),
 
-  icon_delete: require('../../images/icon_delete.png'),
-  Button_No: require('../../images/Button_No.png'),
-  logoBuddha: require('../../images/b10.png'),
-  Button_Yes: require('../../images/Button_Yes.png'),
-  // Home Icons
-  home: require('../../images/home.png'),
-  jainism: require('../../images/jainism.png'),
-  location: require('../../images/location.png'),
-  notification: require('../../images/notification.png'),
-  jainSansaarLogo: require('../../images/jainsansaar.png'), // Update this path with your logo image
+
+  
+  jainSansaarLogo: require('../../images/jainsansaar.png'),
 };
 
 const NAVIGATION = {

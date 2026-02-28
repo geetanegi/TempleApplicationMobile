@@ -7,12 +7,12 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Modal,
   Animated,
   Dimensions,
   Image,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { X, Send } from 'lucide-react-native';
@@ -39,11 +39,31 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
   const [loading, setLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const h = e?.endCoordinates?.height ?? 0;
+        setKeyboardHeight(Platform.OS === 'android' ? Math.max(0, h - 140) : Math.max(0, h - 100));
+      },
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const scrollAtTop = useRef(true);
+  const flatListRef = useRef(null);
 
   const runCloseAnimation = useCallback(() => {
     Animated.parallel([
@@ -96,6 +116,13 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
   ).current;
 
   useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     if (visible && reelId) {
       setLoading(true);
       getReelComments(reelId)
@@ -107,6 +134,7 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
         .finally(() => setLoading(false));
     } else {
       setInputText('');
+      if (!visible) setKeyboardHeight(0);
     }
   }, [visible, reelId]);
 
@@ -192,7 +220,7 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
   if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={runCloseAnimation}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={runCloseAnimation} statusBarTranslucent>
       <Pressable style={StyleSheet.absoluteFill} onPress={runCloseAnimation}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
       </Pressable>
@@ -219,17 +247,15 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
               </View>
             </View>
 
-            <KeyboardAvoidingView
-              style={styles.flex}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-            >
+            {/* List stays fixed – only input moves up with keyboard */}
+            <View style={styles.contentArea}>
               {loading ? (
                 <View style={styles.centered}>
                   <ActivityIndicator size="large" color={colors.orange || '#D48A4A'} />
                 </View>
               ) : (
                 <FlatList
+                  ref={flatListRef}
                   data={comments}
                   keyExtractor={(item) => String(item.id)}
                   renderItem={renderComment}
@@ -245,35 +271,48 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
                   }}
                   scrollEventThrottle={16}
                   keyboardShouldPersistTaps="handled"
+                  onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                 />
               )}
+            </View>
 
+            {/* Input bar: absolute at bottom, moves up by keyboardHeight only – page stays fixed */}
+            <View
+              style={[
+                styles.inputAvoid,
+                styles.inputAbsolute,
+                { bottom: keyboardHeight },
+              ]}
+            >
               <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Add a comment..."
-                  placeholderTextColor="#888"
-                  value={inputText}
-                  onChangeText={setInputText}
-                  multiline
-                  maxLength={500}
-                />
-                <Pressable
-                  onPress={submitComment}
-                  disabled={!inputText.trim() || submitting}
-                  style={[
-                    styles.sendBtn,
-                    (!inputText.trim() || submitting) && styles.sendBtnDisabled,
-                  ]}
-                >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Send size={22} color="#fff" strokeWidth={2} />
-                  )}
-                </Pressable>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Add a comment..."
+                    placeholderTextColor="#888"
+                    value={inputText}
+                    onChangeText={setInputText}
+                    multiline
+                    maxLength={500}
+                    onFocus={() => {
+                      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+                    }}
+                  />
+                  <Pressable
+                    onPress={submitComment}
+                    disabled={!inputText.trim() || submitting}
+                    style={[
+                      styles.sendBtn,
+                      (!inputText.trim() || submitting) && styles.sendBtnDisabled,
+                    ]}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Send size={22} color="#fff" strokeWidth={2} />
+                    )}
+                  </Pressable>
               </View>
-            </KeyboardAvoidingView>
+            </View>
           </View>
         </Animated.View>
       </GestureDetector>
@@ -285,6 +324,9 @@ export default ReelCommentsOverlay;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  contentArea: {
+    flex: 1,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -389,19 +431,25 @@ const styles = StyleSheet.create({
     color: '#ccc',
     lineHeight: 20,
   },
-  inputRow: {
+  inputAvoid: {
+    backgroundColor: 'rgba(26,26,26,0.98)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingBottom: 20,
+  },
+  inputAbsolute: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 10,
+    elevation: 10,
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    paddingBottom: 24,
-    backgroundColor: 'rgba(26,26,26,0.98)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   input: {
     flex: 1,

@@ -131,8 +131,9 @@ export default function PostPreviewScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.cardWrap}>
+   
         <PostCard
+          expandMedia
           postId={post.postId}
           authorUserId={post.authorUserId}
           currentUserId={currentUserId}
@@ -177,7 +178,7 @@ export default function PostPreviewScreen() {
             );
           }}
         />
-        </View>
+  
       </ScrollView>
     </SafeAreaView>
   );

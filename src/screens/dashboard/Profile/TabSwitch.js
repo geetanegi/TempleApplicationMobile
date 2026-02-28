@@ -28,7 +28,7 @@ const TabSwitch = () => {
     <View style={styles.imageContainer}>
       <Image
         // resizeMethod='contain'
-        source={images.golfTrophy}
+        source={images.trophy}
         style={styles.image}
       />
     </View>

@@ -823,15 +823,14 @@ const styles = StyleSheet.create({
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginTop: 0,
     paddingHorizontal: 16,
   },
   profileLeft: {
     flexDirection: 'column',
     alignItems: 'flex-start',
-    flex: 1,
-    marginRight: 16,
+    marginRight: 50,
   },
   profileRight: {
     flexDirection: 'row',

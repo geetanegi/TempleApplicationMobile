@@ -13,7 +13,7 @@ const urlWithParams = (baseUrl, params) => {
   return search ? `${baseUrl}?${search}` : baseUrl;
 };
 
-export const getRandomReels = async (page = 0, size = 10, currentUserId = null) => {
+export const getRandomReels = async (page = 0, size = 3, currentUserId = null) => {
   const params = { page, size };
   if (currentUserId != null) params.currentUserId = currentUserId;
   const url = urlWithParams(API.SOCIAL_REELS(), params);

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,8 +34,16 @@ const ReelCommentsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const flatListRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     if (reelId) {
       setLoading(true);
       getReelComments(reelId)
@@ -115,6 +123,7 @@ const ReelCommentsScreen = () => {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={comments}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderComment}
@@ -124,12 +133,16 @@ const ReelCommentsScreen = () => {
               <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
             </View>
           }
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+        enabled={true}
+        style={styles.inputAvoid}
       >
         <View style={styles.inputRow}>
           <TextInput
@@ -140,6 +153,9 @@ const ReelCommentsScreen = () => {
             onChangeText={setInputText}
             multiline
             maxLength={500}
+            onFocus={() => {
+              setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+            }}
           />
           <Pressable
             onPress={submitComment}
@@ -171,7 +187,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 24 },
+  list: { padding: 16, paddingBottom: 80 },
   empty: { paddingVertical: 40, alignItems: 'center' },
   emptyText: { fontSize: 15, color: '#888' },
   commentRow: { flexDirection: 'row', marginBottom: 16 },
@@ -218,6 +234,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendBtnDisabled: { opacity: 0.5 },
+  inputAvoid: {
+    paddingBottom: 20,
+  },
 });
 
 export default ReelCommentsScreen;

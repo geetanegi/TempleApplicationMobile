@@ -17,7 +17,6 @@ import {
   Send,
   MoreVertical,
   Trash2,
-  Archive,
   Clock3,
   Play,
   User,
@@ -56,7 +55,6 @@ const PostCard = ({
   contentText = '',
   shareUrl, // optional: pass actual url from parent
   onDelete, // optional callbacks
-  onArchive,
   // Social API: when set, like/follow/comment call backend
   postId,
   authorUserId,
@@ -71,8 +69,10 @@ const PostCard = ({
   onLikeChangeWithPostId, // (postId, newLiked, newCount)
   onDeleteWithPostId, // (postId)
   onImagePressWithPostId, // (postId)
+  expandMedia = false, // when true (e.g. PostPreviewScreen), show media much larger
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
+  const mediaHeight = expandMedia ? Math.min(Math.round(screenH * 0.6), 520) : 340;
 
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -431,16 +431,6 @@ const PostCard = ({
                 <Trash2 size={16} color="#666" />
                 <Text style={styles.menuText}>Delete</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  onArchive?.();
-                }}>
-                <Archive size={16} color="#666" />
-                <Text style={styles.menuText}>Archive</Text>
-              </TouchableOpacity>
             </View>
           </Modal>
         )}
@@ -461,10 +451,10 @@ const PostCard = ({
         {!!videoUrl && (
           <View style={styles.imageWrap}>
             {videoPlaying ? (
-              <View style={styles.videoContainer}>
+              <View style={[styles.videoContainer, { height: mediaHeight }]}>
                 <VideoPlayer
                   source={{ uri: String(videoUrl || '') }}
-                  style={styles.postImage}
+                  style={[styles.postImage, { height: mediaHeight }]}
                   resizeMode="contain"
                   autoplay
                   showDuration
@@ -484,7 +474,7 @@ const PostCard = ({
               </View>
             ) : (
               <Pressable
-                style={styles.videoThumbWrap}
+                style={[styles.videoThumbWrap, { height: mediaHeight }]}
                 onPress={() => {
                 if (postId != null && (onImagePressWithPostId || onImagePress)) {
                   onImagePressWithPostId?.(postId) ?? onImagePress?.();
@@ -495,7 +485,7 @@ const PostCard = ({
               >
                 <Image
                   source={{ uri: thumbnailUrl || videoUrl }}
-                  style={styles.postImage}
+                  style={[styles.postImage, { height: mediaHeight }]}
                   resizeMode="contain"
                 />
                 <View style={styles.videoPlayOverlay}>
@@ -517,7 +507,7 @@ const PostCard = ({
             }}
               style={styles.imagePressable}
             >
-              <Image source={{uri: image}} style={styles.postImage} resizeMode="contain" />
+              <Image source={{uri: image}} style={[styles.postImage, { height: mediaHeight }]} resizeMode="contain" />
             </Pressable>
           </View>
         )}

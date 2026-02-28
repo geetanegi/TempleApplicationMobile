@@ -18,24 +18,12 @@ import st from '../../../global/styles';
 
 // Screens
 import Community from '../../dashboard/community/CommunityList';
-import CourceDetails from '../../dashboard/betCentral/HoleScreen';
-import CourceCart from '../../dashboard/betCentral/TeeScreen';
-import PayingCart from '../../dashboard/betCentral/CheckoutCart';
+
 import ProfilePage from '../../dashboard/Profile/Profilepage';
-import EnterQueueHome from '../../dashboard/EnterQueue/EnterQueueHome';
-import RecordResult from '../../dashboard/EnterQueue/RecordYourResult';
-import AchievementScreen from '../../dashboard/EnterQueue/AchievmentScreen';
-import TeeBoxScreen from '../../dashboard/EnterQueue/TeeScreen';
-import CountdownBox from '../../dashboard/EnterQueue/CountdownBox';
-import TeeBoxResults from '../../dashboard/EnterQueue/TeeBoxResult';
-import HitTheGreen from '../../dashboard/EnterQueue/HitTheGreen';
-import CourseScreen from '../../dashboard/betCentral/CourseScreen';
-import VedioHighlights from '../../dashboard/HighlightHub/VedioHighlights';
-import LeaderBoard from '../../dashboard/LeaderBoard/LeaderBoard';
-import AllLeaderBoardVedio from '../../dashboard/LeaderBoard/AllLeaderBoardVedio';
-import PlayerLeaderboard from '../../dashboard/LeaderBoard/PlayerLeaderboard';
+
+
+
 import MainDashboard from '../../dashboard/Main/dashboard';
-import JeevaniScreen from '../../dashboard/jeevani';
 import SongsPage from '../../dashboard/songs';
 import NotificationScreen from '../../dashboard/notification';
 import VideoScreen from '../../dashboard/Main/videoScreen';
@@ -50,7 +38,6 @@ import ImageScreen from '../../dashboard/Main/imageScreen';
 import StoryUploadScreen from '../../dashboard/Main/StoryUploadScreen';
 import StoryViewScreen from '../../dashboard/Main/StoryViewScreen';
 import ImagePicker from '../../../components/Posts/imagepicker';
-import VideosReelsScreen from '../../dashboard/VideosReels/VideosReelsScreen';
 import YouTubePlayerScreen from '../../dashboard/VideosReels/YouTubePlayerScreen';
 import ReelsStack from '../../dashboard/Reels/ReelsStack';
 import TempleList from '../../dashboard/TempleList';
@@ -83,25 +70,6 @@ import ChatScreen from '../../dashboard/chat/ChatScreen';
 
 
 
-const BetCentralStack = () => (
-  <HomeStack.Navigator screenOptions={{headerShown: false}}>
-    <HomeStack.Screen name="CourseScreen" component={CourseScreen} />
-    <HomeStack.Screen name="CourceDetails" component={CourceDetails} />
-    <HomeStack.Screen name="CourceCart" component={CourceCart} />
-    <HomeStack.Screen name="PayingCart" component={PayingCart} />
-  </HomeStack.Navigator>
-);
-
-const LeaderBoardStack = () => (
-  <HomeStack.Navigator screenOptions={{headerShown: false}}>
-    <HomeStack.Screen name="LeaderBoard" component={LeaderBoard} />
-    <HomeStack.Screen
-      name="AllLeaderBoardVedio"
-      component={AllLeaderBoardVedio}
-    />
-    <HomeStack.Screen name="PlayerLeaderboard" component={PlayerLeaderboard} />
-  </HomeStack.Navigator>
-);
 
 const ProfileStack = () => (
   <HomeStack.Navigator screenOptions={{headerShown: false}}>
@@ -149,18 +117,6 @@ const ProfileTabStack = () => (
   </HomeStack.Navigator>
 );
 
-const QueStack = () => (
-  <HomeStack.Navigator screenOptions={{headerShown: false}}>
-    <HomeStack.Screen name="EnterQue" component={EnterQueueHome} />
-    <HomeStack.Screen name="RecordResults" component={RecordResult} />
-    <HomeStack.Screen name="AchievementScreen" component={AchievementScreen} />
-    <HomeStack.Screen name="TeeBoxScreen" component={TeeBoxScreen} />
-    <HomeStack.Screen name="CountdownBox" component={CountdownBox} />
-    <HomeStack.Screen name="TeeBoxResults" component={TeeBoxResults} />
-    <HomeStack.Screen name="HitTheGreen" component={HitTheGreen} />
-    <HomeStack.Screen name="VedioHighlights" component={VedioHighlights} />
-  </HomeStack.Navigator>
-);
 
 const HomeStackScreens = () => (
   <HomeStack.Navigator>
@@ -456,7 +412,7 @@ export default function BottomNavigation() {
         component={HomeStackScreens}
         options={({route}) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
-          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'ChatScreen';
+          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'ChatScreen' || routeName === 'PostPreview';
           return {
             tabBarIcon: renderCustomTabIcon(HomeIcon),
             headerShown: false,

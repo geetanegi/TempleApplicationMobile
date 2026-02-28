@@ -467,7 +467,13 @@ const EditProfileScreen = () => {
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              const tabNav = navigation.getParent()?.getParent?.();
+              (tabNav || navigation.getParent() || navigation).navigate('Profile', {
+                screen: 'ProfileMain',
+              });
+              navigation.goBack();
+            }}
             activeOpacity={0.8}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
