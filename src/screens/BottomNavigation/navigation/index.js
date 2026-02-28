@@ -28,7 +28,6 @@ import SongsPage from '../../dashboard/songs';
 import NotificationScreen from '../../dashboard/notification';
 import VideoScreen from '../../dashboard/Main/videoScreen';
 import PostScreen from '../../dashboard/posts';
-import VideoPlayer from '../../../components/VideoPlayer';
 import SubCategoryPage from '../../dashboard/jeevani/subCategory';
 import JevaaniScreen from '../../dashboard/jeevani';
 import SearchScreen from '../../dashboard/search';
@@ -183,7 +182,7 @@ const HomeStackScreens = () => (
       component={ImagePicker}
     />
     <HomeStack.Screen name="Posts" component={PostScreen} />
-    <HomeStack.Screen
+    {/* <HomeStack.Screen
       name="VideoPlayer"
       options={{
         headerTitleAlign: 'center',
@@ -191,7 +190,7 @@ const HomeStackScreens = () => (
         headerTitleStyle: {fontSize: 18},
       }}
       component={VideoPlayer}
-    />
+    /> */}
     <HomeStack.Screen
       name="PostPreview"
       options={{ headerShown: false }}
