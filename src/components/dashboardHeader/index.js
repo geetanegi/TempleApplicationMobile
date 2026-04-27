@@ -19,6 +19,7 @@ const HeaderDashboard = ({
   onRightPress1,
   onRightPress2,
   rightIcon1BadgeCount,
+  rightIcon2BadgeCount,
 }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -93,7 +94,16 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onRightPress2 ? onRightPress2 : () => handleNav(rightNav2)}
           >
-            <RightIcon2 size={22} color={colors.DARK_BLACK} fill={colors.white} />
+            <View style={styles.iconWrap}>
+              <RightIcon2 size={22} color={colors.DARK_BLACK} fill={colors.white} />
+              {rightIcon2BadgeCount != null && rightIcon2BadgeCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {rightIcon2BadgeCount > 99 ? '99+' : rightIcon2BadgeCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />
@@ -157,7 +167,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -10,
+    top: -4,
     right: -2,
     minWidth: 14,
     height: 14,

@@ -15,6 +15,7 @@ import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs
 import BottomNavigator from '../screens/BottomNavigation/navigation';
 import DrawerScreen from '../screens/dashboard/Profile/DrawerScreen';
 import PlaceholderScreen from '../screens/dashboard/Profile/PlaceholderScreen';
+import LegalDocumentScreen from '../screens/legal/LegalDocumentScreen';
 import FeedbackScreen from '../screens/dashboard/Feedback/FeedbackScreen';
 
 import VideosReelsScreen from '../screens/dashboard/VideosReels/VideosReelsScreen';
@@ -103,14 +104,14 @@ const DrawerStack = () => {
       />
       <Drawer.Screen
         name="PrivacyPolicyScreen"
-        component={PlaceholderScreen}
-        initialParams={{ title: 'Privacy Policy' }}
+        component={LegalDocumentScreen}
+        initialParams={{ document: 'privacy' }}
         options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
       />
       <Drawer.Screen
         name="TermsAndConditionScreen"
-        component={PlaceholderScreen}
-        initialParams={{ title: 'Terms & Condition' }}
+        component={LegalDocumentScreen}
+        initialParams={{ document: 'terms' }}
         options={{ headerShown: false, drawerItemStyle: { height: 0 } }}
       />
       <Drawer.Screen

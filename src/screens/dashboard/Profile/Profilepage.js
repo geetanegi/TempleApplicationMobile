@@ -233,29 +233,36 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [loadProfile, loadPosts, loadReels]);
 
+  const initialLoadDone = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
-      const isInitialLoad = !profile && !loading;
+      const isInitialLoad = !initialLoadDone.current;
+
       const shouldRefresh =
         isInitialLoad ||
-        route.params?.refreshProfile === true ||
         (Date.now() - lastFetchedAt.current) > FOCUS_REFRESH_THROTTLE_MS;
 
       if (shouldRefresh) {
         lastFetchedAt.current = Date.now();
-        const hadRefreshProfile = route.params?.refreshProfile === true;
-        if (hadRefreshProfile) {
-          navigation.setParams?.({ refreshProfile: undefined });
-        }
         if (isInitialLoad) setLoading(true);
         Promise.all([loadProfile(), loadPosts(), loadReels()]).finally(() => {
+          initialLoadDone.current = true;
           if (isInitialLoad) setLoading(false);
-          if (hadRefreshProfile) setAvatarCacheBuster((b) => b + 1);
         });
       }
-    }, [userId, profile, loading, loadProfile, loadPosts, loadReels, route.params?.refreshProfile, navigation]),
+    }, [userId, loadProfile, loadPosts, loadReels]),
   );
+
+  React.useEffect(() => {
+    if (route.params?.refreshProfile !== true || !userId) return;
+    navigation.setParams?.({ refreshProfile: undefined });
+    lastFetchedAt.current = Date.now();
+    Promise.all([loadProfile(), loadPosts(), loadReels()]).then(() => {
+      setAvatarCacheBuster((b) => b + 1);
+    });
+  }, [route.params?.refreshProfile, userId, loadProfile, loadPosts, loadReels, navigation]);
 
   // Fetch is-following state when viewing another user's profile
   useEffect(() => {
@@ -424,22 +431,34 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.profileRight}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>{posts.length}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
+            <Text style={styles.statValue} numberOfLines={1}>
+              {posts.length}
+            </Text>
+            <Text style={styles.statLabel} numberOfLines={2}>
+              Posts
+            </Text>
           </View>
           <Pressable
             style={styles.statBox}
             onPress={() => navigation.navigate('FollowList', { userId, listType: 'followers' })}
           >
-            <Text style={styles.statValue}>{followersCount}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
+            <Text style={styles.statValue} numberOfLines={1}>
+              {followersCount}
+            </Text>
+            <Text style={styles.statLabel} numberOfLines={2}>
+              Followers
+            </Text>
           </Pressable>
           <Pressable
             style={styles.statBox}
             onPress={() => navigation.navigate('FollowList', { userId, listType: 'following' })}
           >
-            <Text style={styles.statValue}>{followingCount}</Text>
-            <Text style={styles.statLabel}>Following</Text>
+            <Text style={styles.statValue} numberOfLines={1}>
+              {followingCount}
+            </Text>
+            <Text style={styles.statLabel} numberOfLines={2}>
+              Following
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -504,8 +523,8 @@ export default function ProfileScreen() {
         <BioWithLinks text={about} style={styles.bio} />
       </View>
 
-      {/* Temple section - for temple users */}
-      {profile?.isTempleMember && (
+      {/* Temple section */}
+      {/* {profile?.temple && (
         <View style={styles.templeSection}>
           {profile?.temple?.latitude != null && profile?.temple?.longitude != null ? (
             <>
@@ -572,7 +591,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
-      )}
+      )} */}
 
       {/* Create new post - only for own profile */}
       {isOwnProfile && (
@@ -823,20 +842,28 @@ const styles = StyleSheet.create({
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     marginTop: 0,
     paddingHorizontal: 16,
+    width: '100%',
+    maxWidth: '100%',
   },
   profileLeft: {
     flexDirection: 'column',
     alignItems: 'flex-start',
-    marginRight: 50,
+    flexShrink: 1,
+    flexGrow: 0,
+    minWidth: 0,
+    maxWidth: '48%',
+    marginRight: 8,
   },
   profileRight: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 20,
+    justifyContent: 'space-between',
+    minWidth: 0,
+    gap: 4,
   },
   avatar: {
     width: 74,
@@ -855,28 +882,36 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: 10,
     marginBottom: 2,
+    alignSelf: 'stretch',
   },
   statBox: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
-    minWidth: 56,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '800',
     color: COLORS.text,
     lineHeight: 22,
+    textAlign: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.sub,
     marginTop: 2,
     fontWeight: '600',
+    textAlign: 'center',
+    width: '100%',
   },
   username: {
     fontSize: 13,
     fontWeight: '500',
     color: COLORS.sub,
     marginBottom: 4,
+    alignSelf: 'stretch',
   },
   aboutRow: {
     marginTop: 10,

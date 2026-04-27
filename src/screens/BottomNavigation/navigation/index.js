@@ -52,6 +52,7 @@ import ProfileIcon from '../../../components/icons/ProfileIcon';
 import { getUserId } from '../../../redux/store/getState';
 import { getUserProfileById } from '../../../utils/apicalls/profileHandler';
 import { setTempleBarRefreshCallback } from '../../../utils/templeBarRefresh';
+import { prefetchReels } from '../../../utils/reelsPrefetchService';
 
 // --------------------------------
 // Stack Navigators
@@ -97,6 +98,11 @@ const ProfileTabStack = () => (
       component={FollowListScreen}
     />
     <HomeStack.Screen name="Profiles" component={ProfileScreen} />
+    <HomeStack.Screen
+      name="EditProfileScreen"
+      options={{headerShown: true, title: 'Edit Profile'}}
+      component={EditProfileScreen}
+    />
     <HomeStack.Screen
       name="LocateTempleScreen"
       options={({ navigation }) => ({
@@ -372,6 +378,7 @@ export default function BottomNavigation() {
 
   useEffect(() => {
     checkTempleUserNeedsLocate();
+    prefetchReels();
   }, [checkTempleUserNeedsLocate]);
 
   useEffect(() => {
@@ -493,7 +500,7 @@ export default function BottomNavigation() {
         component={ProfileTabStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
-          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen' || routeName === 'CreateContentChoice';
+          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen' || routeName === 'CreateContentChoice' || routeName === 'EditProfileScreen';
           const isFollowList = routeName === 'FollowList';
           return {
             headerShown: false,

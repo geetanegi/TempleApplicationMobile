@@ -19,7 +19,6 @@ import Checkbox from 'react-native-check-box';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ValidatePassword,
-  ValidateUserName,
 } from '../../../utils/helperfunctions/validations';
 import { setLogin } from '../../../redux/reducers/Login';
 import { storeTokenData } from '../../../utils/apicalls/tokenApi';
@@ -75,12 +74,20 @@ const Login = ({ navigation }) => {
     }
   };
 
+  const isValidEmailShape = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
+
   const handleChange = (text, field) => {
     setInputs(prev => ({ ...prev, [field]: text }));
 
     if (field === 'username') {
-      const v = ValidateUserName(text);
-      setErrors(prev => ({ ...prev, username: v === 'success' ? '' : v }));
+      const t = (text || '').trim();
+      if (!t) {
+        setErrors(prev => ({ ...prev, username: 'Email or username is required' }));
+      } else if (t.includes('@') && !isValidEmailShape(t)) {
+        setErrors(prev => ({ ...prev, username: 'Enter a valid email address' }));
+      } else {
+        setErrors(prev => ({ ...prev, username: '' }));
+      }
     }
 
     if (field === 'password') {
@@ -90,18 +97,28 @@ const Login = ({ navigation }) => {
   };
 
   const onLogin = async () => {
-    if (errors.username || errors.password) return;
+    const loginId = (inputs.username || '').trim();
+    if (!loginId) {
+      setErrors(prev => ({ ...prev, username: 'Email or username is required' }));
+      return;
+    }
+    if (loginId.includes('@') && !isValidEmailShape(loginId)) {
+      setErrors(prev => ({ ...prev, username: 'Enter a valid email address' }));
+      return;
+    }
+    if (errors.password) return;
 
     if (isChecked) {
-      await AsyncStorage.setItem('username', inputs.username);
+      await AsyncStorage.setItem('username', loginId);
       await AsyncStorage.setItem('password', inputs.password);
     }
 
     setIsLoading(true);
-    const invalidCredentialsMessage = 'Username and password did not match. Please try again.';
+    const invalidCredentialsMessage =
+      'Email/username and password did not match. Please try again.';
 
     postNoAuth(API.LOGIN_AUTH, {
-      username: inputs.username,
+      username: loginId,
       password: inputs.password,
       mode: 'Mobile',
     })
@@ -148,11 +165,14 @@ const Login = ({ navigation }) => {
           <Text style={styles.title}>Log In to your Account</Text>
           <Text style={styles.fieldLabel}>EMAIL OR USERNAME</Text>
           <AdminInput
-            holderName="Email or Username"
+            holderName="Email or username"
             isRequired
             value={inputs.username}
             error={errors.username}
             onChangeText={t => handleChange(t, 'username')}
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="username"
             inputBackgroundColor="#FFF"
             inputTextColor="#000"
             placeholderColor="#6B7280"
@@ -215,6 +235,22 @@ const Login = ({ navigation }) => {
               onPress={() => navigation.navigate(NAVIGATION.TO_FORGET_PASSWORD)}
             >
               Forgot Password
+            </Text>
+          </View>
+
+          <View style={styles.legalRow}>
+            <Text
+              style={styles.legalLink}
+              onPress={() => navigation.navigate(NAVIGATION.TO_PRIVACY_POLICY)}
+            >
+              Privacy Policy
+            </Text>
+            <Text style={styles.legalSep}>·</Text>
+            <Text
+              style={styles.legalLink}
+              onPress={() => navigation.navigate(NAVIGATION.TO_TERMS_OF_SERVICE)}
+            >
+              Terms & Conditions
             </Text>
           </View>
         </View>
@@ -315,6 +351,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  legalRow: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+
+  legalLink: {
+    color: colors.PRIMARY_BUTTON,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+
+  legalSep: {
+    marginHorizontal: 8,
+    fontSize: 13,
+    color: '#6B7280',
   },
 
   linkText: {

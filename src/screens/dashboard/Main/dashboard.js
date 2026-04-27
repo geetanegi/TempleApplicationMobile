@@ -8,6 +8,8 @@ import {
   Image,
   Pressable,
   RefreshControl,
+  Text,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,7 +20,7 @@ import HeaderDashboard from '../../../components/dashboardHeader';
 import PostCard from '../../../components/PostCard';
 import SearchInput from './SearchInput';
 import LinearGradient from 'react-native-linear-gradient';
-import { getAllPosts, getStoriesFeed, getFollowing, deletePost, getNotificationsCount } from '../../../utils/apicalls/socialHandler';
+import { getAllPosts, getStoriesFeed, getFollowing, deletePost, getNotificationsCount, getUnreadMessageCount } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { connectWebSocket } from '../../../utils/services/websocketService';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
@@ -83,11 +85,15 @@ const MainDashboard = () => {
   const [storyFeed, setStoryFeed] = useState([]);
   const [following, setFollowing] = useState([]);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const lastFetchTimeRef = useRef(0);
 
   const currentUserId = getUserId();
   const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
   const [focusBuster, setFocusBuster] = useState(0);
+  const [toastNotification, setToastNotification] = useState(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimerRef = useRef(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +105,7 @@ const MainDashboard = () => {
     }, [currentUserId]),
   );
 
-  const avatarCacheBuster = profilePicTimestamp ?? focusBuster;
+  const avatarCacheBuster = profilePicTimestamp || Date.now();
 
   const loadPosts = useCallback(async () => {
     try {
@@ -110,7 +116,7 @@ const MainDashboard = () => {
         id: String(item.id),
         postId: item.id,
         authorUserId: item.user?.id ?? item.userId,
-        userName: item.user?.username || item.user?.name || 'Unknown',
+        userName: item.user?.name || item.user?.username || 'Unknown',
         location: item.user?.location || 'Unknown',
         image: item.photoUrl || null,
         videoUrl: item.videoUrl || null,
@@ -118,7 +124,7 @@ const MainDashboard = () => {
         likes: item.likesCount ?? item.likes ?? 0,
         comments: item.commentsCount ?? item.comments ?? 0,
         shares: item.sharesCount ?? item.shares ?? 0,
-        avatar: resolveProfilePictureUrl(item.user?.userProfile ?? item.user?.profileImageUrl) || getProfilePictureUrlByUserId(item.user?.id) || 'https://i.pravatar.cc/150',
+        avatar: resolveProfilePictureUrl(item.user?.userProfile ?? item.user?.profileImageUrl) || getProfilePictureUrlByUserId(item.user?.id) || null,
         contentText: item.contentText || '',
         createdAt: item.createdAt,
         isLiked: !!item.isLiked,
@@ -194,40 +200,80 @@ const MainDashboard = () => {
     }
   }, [currentUserId]);
 
+  const loadMessageCount = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const res = await getUnreadMessageCount(currentUserId);
+      const count = res?.data != null ? Number(res.data) : 0;
+      setMessageCount(count);
+    } catch (err) {
+      console.error('Error fetching message count:', err);
+    }
+  }, [currentUserId]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadPosts();
     loadStoryFeed();
     loadFollowing();
     loadNotificationCount();
-  }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount]);
+    loadMessageCount();
+  }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount, loadMessageCount]);
 
   useEffect(() => {
     loadNotificationCount();
-  }, [loadNotificationCount]);
+    loadMessageCount();
+  }, [loadNotificationCount, loadMessageCount]);
+
+  const showToast = useCallback((notification) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastNotification(notification);
+    Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    toastTimerRef.current = setTimeout(() => {
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setToastNotification(null);
+      });
+    }, 4000);
+  }, [toastOpacity]);
+
+  useEffect(() => {
+    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+  }, []);
 
   useEffect(() => {
     if (!currentUserId) return;
     connectWebSocket(currentUserId, {
       onNotifications: (payload) => {
-        if (payload?.count != null) setNotificationCount(payload.count);
-        else setNotificationCount((c) => c + 1);
+        if (payload?.count != null) setNotificationCount(Number(payload.count));
+        else if (payload?.notification) setNotificationCount((c) => c + 1);
+
+        if (payload?.messageUnreadCount != null) {
+          setMessageCount(Number(payload.messageUnreadCount));
+        } else if (payload?.notification?.notificationType === 'MESSAGE') {
+          loadMessageCount();
+        }
+
+        if (payload?.notification) {
+          showToast(payload.notification);
+        }
       },
     }).catch(() => {});
-  }, [currentUserId]);
+  }, [currentUserId, showToast, loadMessageCount]);
 
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
       if (now - lastFetchTimeRef.current < FOCUS_REFRESH_THROTTLE_MS) {
         loadNotificationCount();
+        loadMessageCount();
         return;
       }
       loadPosts();
       loadStoryFeed();
       loadFollowing();
       loadNotificationCount();
-    }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount])
+      loadMessageCount();
+    }, [loadPosts, loadStoryFeed, loadFollowing, loadNotificationCount, loadMessageCount])
   );
 
   const handleLikeChange = useCallback((postId, newLiked, newCount) => {
@@ -393,7 +439,7 @@ const MainDashboard = () => {
                       {myAvatar ? (
                         <Image
                           key={myAvatar}
-                          source={{ uri: myAvatar, cache: 'reload' }}
+                          source={{ uri: myAvatar, cache: 'reload', headers: { 'Cache-Control': 'no-cache' } }}
                           style={styles.storyImgInGradient}
                           resizeMode="cover"
                         />
@@ -409,7 +455,7 @@ const MainDashboard = () => {
                     {myAvatar ? (
                       <Image
                         key={myAvatar}
-                        source={{ uri: myAvatar, cache: 'reload' }}
+                        source={{ uri: myAvatar, cache: 'reload', headers: { 'Cache-Control': 'no-cache' } }}
                         style={styles.storyImg}
                         resizeMode="cover"
                       />
@@ -520,7 +566,26 @@ const MainDashboard = () => {
         rightNav1="Notifications"
         rightNav2="Chat"
         rightIcon1BadgeCount={notificationCount}
+        rightIcon2BadgeCount={messageCount}
       />
+
+      {toastNotification && (
+        <Animated.View style={[styles.toastBanner, { opacity: toastOpacity }]}>
+          <Pressable
+            style={styles.toastInner}
+            onPress={() => {
+              if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+              Animated.timing(toastOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => setToastNotification(null));
+              navigation.navigate('Notifications');
+            }}
+          >
+            <Bell size={18} color="#fff" />
+            <Text style={styles.toastText} numberOfLines={2}>
+              {toastNotification.message || 'New notification'}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       <View style={styles.content}>
         <View style={[st.pd_H20, st.mt_B10]}>
@@ -672,6 +737,33 @@ const styles = StyleSheet.create({
   storyIconWrap: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  toastBanner: {
+    position: 'absolute',
+    top: 80,
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    elevation: 10,
+    borderRadius: 12,
+    backgroundColor: '#1e293b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  toastInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  toastText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 10,
   },
 });
 

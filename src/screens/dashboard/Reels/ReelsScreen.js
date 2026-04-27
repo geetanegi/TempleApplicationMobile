@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Video from 'react-native-video';
-import { Plus, Heart, MessageCircle, Send, User, X, MoreVertical } from 'lucide-react-native';
+import { Plus, Heart, MessageCircle, Send, User, X, MoreVertical, Trash2 } from 'lucide-react-native';
 import ReelCommentsOverlay from './ReelCommentsOverlay';
 import Share from 'react-native-share';
 import { getUserId } from '../../../redux/store/getState';
 import {
-  getRandomReels,
+  getReelsFeed,
   getReelById,
   likeReel,
   unlikeReel,
@@ -33,11 +33,13 @@ import {
   resolveProfilePictureUrl,
 } from '../../../utils/apicalls/profileHandler';
 import { colors } from '../../../global/theme';
+import {
+  consumePrefetchedReels,
+  prefetchReels,
+} from '../../../utils/reelsPrefetchService';
 
 const { height, width } = Dimensions.get('window');
-const PAGE_SIZE = 3;
-const SCROLL_TOP_THRESHOLD = 80;
-// Fixed offset to clear status/notification bar; ensures + button is clickable
+const PAGE_SIZE = 5;
 const STATUS_BAR_OFFSET = Platform.OS === 'android' ? 56 : 0;
 
 const ReelsScreen = () => {
@@ -48,105 +50,82 @@ const ReelsScreen = () => {
   const topOffset = STATUS_BAR_OFFSET;
   const videoHeight = height - topOffset;
   const currentUserId = getUserId();
+
   const [reels, setReels] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loadingPrev, setLoadingPrev] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [hasPrev, setHasPrev] = useState(false);
   const [commentReel, setCommentReel] = useState(null);
+  const [menuReelId, setMenuReelId] = useState(null);
+
   const flatListRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
   const lastLoadedReelIdRef = useRef(null);
-  const loadingPrevRef = useRef(false);
-  const prependCountRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
-  const loadReels = useCallback(
-    async (pageNum = 0, append = false, prepend = false) => {
+  // ---- Data fetching (uses new /reels/feed endpoint) ----
+
+  const loadFeed = useCallback(
+    async (pageNum = 0, append = false) => {
       if (pageNum === 0 && !append) setLoading(true);
-      else if (prepend) setLoadingPrev(true);
-      else setLoadingMore(true);
+      else {
+        setLoadingMore(true);
+        loadingMoreRef.current = true;
+      }
       try {
-        const res = await getRandomReels(pageNum, PAGE_SIZE, currentUserId);
-        const data = res?.data ?? [];
-        const list = Array.isArray(data) ? data : [];
-        if (prepend && list.length > 0) {
-          setReels((prev) => {
-            const ids = new Set(prev.map((r) => r.id));
-            const newItems = list.filter((r) => !ids.has(r.id));
-            prependCountRef.current = newItems.length;
-            return [...newItems, ...prev];
-          });
-          setPage((p) => Math.max(0, p - 1));
-          setHasPrev(pageNum > 0);
-          setTimeout(() => {
-            flatListRef.current?.scrollToOffset({
-              offset: prependCountRef.current * videoHeight,
-              animated: false,
-            });
-          }, 50);
-        } else if (append) {
+        const res = await getReelsFeed(pageNum, PAGE_SIZE, currentUserId);
+        const feed = res?.data;
+        const list = Array.isArray(feed?.reels) ? feed.reels : (Array.isArray(feed) ? feed : []);
+        const serverHasMore = feed?.hasMore ?? list.length >= PAGE_SIZE;
+
+        if (append) {
           setReels((prev) => {
             const ids = new Set(prev.map((r) => r.id));
             const newItems = list.filter((r) => !ids.has(r.id));
             return [...prev, ...newItems];
           });
-          setPage(pageNum);
         } else {
           setReels(list);
         }
-        setHasMore(list.length >= PAGE_SIZE);
-        if (!prepend) setHasPrev(pageNum > 0);
-        if (!append && !prepend) setHasPrev(false); // initial load: no prev page
+        setPage(pageNum);
+        setHasMore(serverHasMore);
       } catch (err) {
         console.warn('Reels load error:', err);
-        setHasMore(false);
-        if (prepend) setHasPrev(false);
+        if (!append) setHasMore(false);
       } finally {
         setLoading(false);
         setLoadingMore(false);
-        setLoadingPrev(false);
-        if (prepend) loadingPrevRef.current = false;
+        loadingMoreRef.current = false;
       }
     },
-    [currentUserId, videoHeight]
+    [currentUserId],
   );
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setPage(0);
-    loadReels(0, false).finally(() => setRefreshing(false));
-  }, [loadReels]);
+  // ---- Initial load: prefer prefetched data for instant display ----
 
-  const onEndReached = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    loadReels(page + 1, true, false);
-  }, [page, loadReels, loadingMore, hasMore]);
+  useFocusEffect(
+    useCallback(() => {
+      if (initialReelId || initialLoadDoneRef.current) return;
+      initialLoadDoneRef.current = true;
 
-  const onScroll = useCallback(
-    (e) => {
-      const y = e.nativeEvent.contentOffset.y;
-      if (
-        y <= SCROLL_TOP_THRESHOLD &&
-        hasPrev &&
-        !loadingPrevRef.current &&
-        !loading &&
-        page > 0
-      ) {
-        loadingPrevRef.current = true;
-        const prevPage = page - 1;
-        loadReels(prevPage, false, true).finally(() => {
-          loadingPrevRef.current = false;
-        });
+      const prefetched = consumePrefetchedReels();
+      if (prefetched && Array.isArray(prefetched.reels) && prefetched.reels.length > 0) {
+        setReels(prefetched.reels);
+        setPage(0);
+        setHasMore(prefetched.hasMore ?? prefetched.reels.length >= PAGE_SIZE);
+        setLoading(false);
+        return;
       }
-    },
-    [hasPrev, loading, page, loadReels]
+
+      loadFeed(0, false);
+    }, [loadFeed, initialReelId]),
   );
 
-  // Load specific reel when navigated with reelId param (e.g. from Profile)
+  // ---- Load specific reel when navigated with reelId param ----
+
   useEffect(() => {
     if (!initialReelId) return;
     const reelIdStr = String(initialReelId);
@@ -155,14 +134,16 @@ const ReelsScreen = () => {
     let cancelled = false;
     setLoading(true);
     initialLoadDoneRef.current = true;
+
     Promise.all([
       getReelById(initialReelId, currentUserId),
-      getRandomReels(0, PAGE_SIZE, currentUserId),
+      getReelsFeed(0, PAGE_SIZE, currentUserId),
     ])
       .then(([reelRes, feedRes]) => {
         if (cancelled) return;
         const reelData = reelRes?.data;
-        const feedList = Array.isArray(feedRes?.data) ? feedRes.data : [];
+        const feed = feedRes?.data;
+        const feedList = Array.isArray(feed?.reels) ? feed.reels : (Array.isArray(feed) ? feed : []);
         const inFeed = feedList.some((r) => String(r.id) === reelIdStr);
         const list = inFeed
           ? feedList
@@ -170,7 +151,7 @@ const ReelsScreen = () => {
             ? [{ ...reelData, id: reelData.id }, ...feedList]
             : feedList;
         setReels(list);
-        setHasMore(feedList.length >= PAGE_SIZE);
+        setHasMore(feed?.hasMore ?? feedList.length >= PAGE_SIZE);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -181,19 +162,11 @@ const ReelsScreen = () => {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
     return () => { cancelled = true; };
   }, [initialReelId, currentUserId]);
 
-  // First load (no reelId) - run once when component mounts/focuses and no reel requested
-  useFocusEffect(
-    useCallback(() => {
-      if (initialReelId || initialLoadDoneRef.current) return;
-      initialLoadDoneRef.current = true;
-      loadReels(0, false);
-    }, [loadReels, initialReelId])
-  );
-
-  // Scroll to the reel when we have initialReelId and reels are loaded
+  // Scroll to target reel after loading with reelId
   useEffect(() => {
     if (!initialReelId || reels.length === 0) return;
     const index = reels.findIndex((r) => String(r.id) === String(initialReelId));
@@ -205,10 +178,26 @@ const ReelsScreen = () => {
       });
       setActiveIndex(index);
       navigation.setParams({ reelId: undefined });
-      lastLoadedReelIdRef.current = null; // Reset so next navigation with reelId will load again
+      lastLoadedReelIdRef.current = null;
     }, 200);
     return () => clearTimeout(timer);
   }, [initialReelId, reels, navigation, videoHeight]);
+
+  // ---- Prefetch next batch when user is nearing the end ----
+
+  const onEndReached = useCallback(() => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadFeed(page + 1, true);
+  }, [page, loadFeed, hasMore]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPage(0);
+    prefetchReels();
+    loadFeed(0, false).finally(() => setRefreshing(false));
+  }, [loadFeed]);
+
+  // ---- Viewability tracking ----
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
@@ -218,7 +207,7 @@ const ReelsScreen = () => {
 
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50,
-    minimumViewTime: 150,
+    minimumViewTime: 100,
   }).current;
 
   const getItemLayout = useCallback(
@@ -227,8 +216,10 @@ const ReelsScreen = () => {
       offset: videoHeight * index,
       index,
     }),
-    [videoHeight]
+    [videoHeight],
   );
+
+  // ---- Interactions ----
 
   const handleLike = useCallback(
     async (reel) => {
@@ -237,54 +228,48 @@ const ReelsScreen = () => {
       const newCount = (reel.likesCount ?? 0) + (isLiked ? -1 : 1);
       setReels((prev) =>
         prev.map((r) =>
-          r.id === reel.id
-            ? { ...r, isLiked: !isLiked, likesCount: newCount }
-            : r
-        )
+          r.id === reel.id ? { ...r, isLiked: !isLiked, likesCount: newCount } : r,
+        ),
       );
       try {
         if (isLiked) await unlikeReel(reel.id, currentUserId);
         else await likeReel(reel.id, currentUserId);
-      } catch (e) {
+      } catch {
         setReels((prev) =>
           prev.map((r) =>
-            r.id === reel.id ? { ...r, isLiked, likesCount: reel.likesCount } : r
-          )
+            r.id === reel.id ? { ...r, isLiked, likesCount: reel.likesCount } : r,
+          ),
         );
       }
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   const handleDeleteReel = useCallback(
     async (reel) => {
       const isOwn = currentUserId && String(reel.user?.id ?? reel.userId) === String(currentUserId);
       if (!isOwn) return;
-      Alert.alert(
-        'Delete Reel',
-        'Are you sure you want to delete this reel?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteReel(reel.id, currentUserId);
-                setReels((prev) => prev.filter((r) => r.id !== reel.id));
-                setCommentReel((c) => (c?.id === reel.id ? null : c));
-              } catch (e) {
-                Alert.alert(
-                  'Error',
-                  e?.response?.data?.message || e?.message || 'Failed to delete reel'
-                );
-              }
-            },
+      Alert.alert('Delete Reel', 'Are you sure you want to delete this reel?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReel(reel.id, currentUserId);
+              setReels((prev) => prev.filter((r) => r.id !== reel.id));
+              setCommentReel((c) => (c?.id === reel.id ? null : c));
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e?.response?.data?.message || e?.message || 'Failed to delete reel',
+              );
+            }
           },
-        ]
-      );
+        },
+      ]);
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   const handleShare = useCallback(
@@ -294,8 +279,8 @@ const ReelsScreen = () => {
       const newCount = (reel.sharesCount ?? 0) + (isShared ? -1 : 1);
       setReels((prev) =>
         prev.map((r) =>
-          r.id === reel.id ? { ...r, isShared: !isShared, sharesCount: newCount } : r
-        )
+          r.id === reel.id ? { ...r, isShared: !isShared, sharesCount: newCount } : r,
+        ),
       );
       try {
         if (isShared) {
@@ -312,25 +297,30 @@ const ReelsScreen = () => {
         if (e?.message !== 'User did not share') {
           setReels((prev) =>
             prev.map((r) =>
-              r.id === reel.id ? { ...r, isShared: reel.isShared, sharesCount: reel.sharesCount } : r
-            )
+              r.id === reel.id
+                ? { ...r, isShared: reel.isShared, sharesCount: reel.sharesCount }
+                : r,
+            ),
           );
         }
       }
     },
-    [currentUserId]
+    [currentUserId],
   );
+
+  // ---- Render ----
 
   const renderReelItem = useCallback(
     ({ item, index }) => {
       const isActive = activeIndex === index;
+      const isNearby = Math.abs(activeIndex - index) <= 1;
       const avatarUrl =
         getProfilePictureUrlByUserId(item.user?.id) ||
         resolveProfilePictureUrl(item.user?.userProfile);
 
       return (
         <View style={[styles.videoContainer, { height: videoHeight }]} collapsable={false}>
-          {isFocused ? (
+          {isFocused && isNearby ? (
             <Video
               source={{ uri: item.videoUrl }}
               poster={item.thumbnailUrl || undefined}
@@ -353,10 +343,10 @@ const ReelsScreen = () => {
                 hideSettingButton: true,
               }}
               bufferConfig={{
-                minBufferMs: 5000,
-                maxBufferMs: 15000,
-                bufferForPlaybackMs: 1500,
-                bufferForPlaybackAfterRebufferMs: 2500,
+                minBufferMs: 10000,
+                maxBufferMs: 30000,
+                bufferForPlaybackMs: 500,
+                bufferForPlaybackAfterRebufferMs: 1500,
               }}
             />
           ) : item.thumbnailUrl ? (
@@ -364,6 +354,7 @@ const ReelsScreen = () => {
           ) : (
             <View style={[styles.video, styles.videoPlaceholder]} />
           )}
+
           {/* Right side action buttons */}
           <View style={styles.actionsColumn}>
             <Pressable
@@ -400,15 +391,36 @@ const ReelsScreen = () => {
               <Send size={30} color="#fff" strokeWidth={2} />
               <Text style={styles.actionCount}>{item.sharesCount ?? 0}</Text>
             </Pressable>
-            {currentUserId && String(item.user?.id ?? item.userId ?? '') === String(currentUserId) ? (
+            {currentUserId &&
+            String(item.user?.id ?? item.userId ?? '') === String(currentUserId) ? (
               <Pressable
-                onPress={() => handleDeleteReel(item)}
+                onPress={() => setMenuReelId((prev) => (prev === item.id ? null : item.id))}
                 style={styles.actionBtn}
               >
                 <MoreVertical size={28} color="#fff" strokeWidth={2} />
               </Pressable>
             ) : null}
           </View>
+
+          {/* Tooltip menu */}
+          {menuReelId === item.id && (
+            <>
+              <Pressable style={styles.tooltipBackdrop} onPress={() => setMenuReelId(null)} />
+              <View style={styles.tooltipContainer}>
+                <Pressable
+                  style={styles.tooltipOption}
+                  onPress={() => {
+                    setMenuReelId(null);
+                    handleDeleteReel(item);
+                  }}
+                >
+                  <Trash2 size={18} color="#ff3b30" strokeWidth={2} />
+                  <Text style={styles.tooltipOptionTextDanger}>Delete</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+
           {/* Caption & user */}
           <View style={styles.captionOverlay}>
             <Text
@@ -426,8 +438,21 @@ const ReelsScreen = () => {
         </View>
       );
     },
-    [activeIndex, isFocused, navigation, currentUserId, handleLike, handleShare, handleDeleteReel, setCommentReel]
+    [
+      activeIndex,
+      isFocused,
+      navigation,
+      currentUserId,
+      handleLike,
+      handleShare,
+      handleDeleteReel,
+      setCommentReel,
+      menuReelId,
+      videoHeight,
+    ],
   );
+
+  const keyExtractor = useCallback((item) => String(item.id), []);
 
   if (loading && reels.length === 0) {
     return (
@@ -440,10 +465,9 @@ const ReelsScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      {/* Spacer to push content below status/notification bar */}
       {topOffset > 0 && <View style={[styles.topSpacer, { height: topOffset }]} />}
       <View style={styles.contentWrap}>
-        {/* Header: X (left) -> Reels (center) -> + (right) */}
+        {/* Header */}
         <View style={styles.header}>
           <Pressable
             onPress={() => navigation.getParent()?.navigate('Home')}
@@ -465,13 +489,13 @@ const ReelsScreen = () => {
         <FlatList
           ref={flatListRef}
           data={reels}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={keyExtractor}
           renderItem={renderReelItem}
           getItemLayout={getItemLayout}
-          initialNumToRender={1}
-          maxToRenderPerBatch={2}
-          windowSize={3}
-          removeClippedSubviews={true}
+          initialNumToRender={2}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           pagingEnabled
           showsVerticalScrollIndicator={false}
           snapToInterval={videoHeight}
@@ -479,10 +503,8 @@ const ReelsScreen = () => {
           decelerationRate="fast"
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          onScroll={onScroll}
-          scrollEventThrottle={200}
           onEndReached={onEndReached}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={1.5}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -508,8 +530,15 @@ const ReelsScreen = () => {
           onCommentAdded={(reelId, newCount) => {
             setReels((prev) =>
               prev.map((r) =>
-                r.id === reelId ? { ...r, commentsCount: newCount } : r
-              )
+                r.id === reelId ? { ...r, commentsCount: newCount } : r,
+              ),
+            );
+          }}
+          onCommentDeleted={(reelId, newCount) => {
+            setReels((prev) =>
+              prev.map((r) =>
+                r.id === reelId ? { ...r, commentsCount: newCount } : r,
+              ),
             );
           }}
         />
@@ -604,6 +633,37 @@ const styles = StyleSheet.create({
   },
   caption: { fontSize: 13, color: '#fff', opacity: 0.9 },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
+  tooltipBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+  tooltipContainer: {
+    position: 'absolute',
+    right: 52,
+    bottom: 120,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    paddingVertical: 4,
+    minWidth: 130,
+    zIndex: 21,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  tooltipOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  tooltipOptionTextDanger: {
+    color: '#ff3b30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
 
 export default ReelsScreen;

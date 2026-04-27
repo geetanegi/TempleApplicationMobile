@@ -44,6 +44,26 @@ const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const MS_7_DAYS = 7 * MS_PER_DAY;
 
+/**
+ * Safely parse a date value that may arrive as epoch millis (number),
+ * ISO string (with or without timezone), or Jackson array [y,m,d,h,min,s,nano].
+ */
+function parseDate(value) {
+  if (value == null) return null;
+  if (typeof value === 'number') return new Date(value);
+  if (Array.isArray(value)) {
+    const [y, m, d, h = 0, min = 0, s = 0] = value;
+    return new Date(Date.UTC(y, m - 1, d, h, min, s));
+  }
+  if (typeof value === 'string') {
+    if (!/[Zz]$/.test(value) && !/[+-]\d{2}:\d{2}$/.test(value)) {
+      return new Date(value + 'Z');
+    }
+    return new Date(value);
+  }
+  return new Date(value);
+}
+
 function getNotificationSections(list) {
   const now = Date.now();
   const oneHourAgo = now - MS_PER_HOUR;
@@ -57,8 +77,9 @@ function getNotificationSections(list) {
   const last7Days = [];
 
   for (const item of list) {
-    const createdAt = item?.createdDate ?? item?.createdAt;
-    const ts = createdAt ? new Date(createdAt).getTime() : 0;
+    const raw = item?.createdDate ?? item?.createdAt;
+    const d = parseDate(raw);
+    const ts = d ? d.getTime() : 0;
     if (isNaN(ts) || ts < sevenDaysAgo) continue;
 
     if (ts >= oneHourAgo) {
@@ -79,10 +100,11 @@ function getNotificationSections(list) {
 
 function formatDateTime(createdAt) {
   if (createdAt == null) return '';
-  const d = new Date(createdAt);
-  if (isNaN(d.getTime())) return '';
+  const d = parseDate(createdAt);
+  if (!d || isNaN(d.getTime())) return '';
   const now = new Date();
   const diffMs = now - d;
+  if (diffMs < 0) return 'Just now';
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);

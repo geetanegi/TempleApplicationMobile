@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,11 @@ import {
   UIManager,
   Image,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
@@ -32,7 +35,7 @@ import {
   ValidateGHIN,
   Validatehdcp,
 } from '../../../utils/helperfunctions/validations';
-import { updateProfile, updateProfilePicture, resolveProfilePictureUrl, getProfilePictureUrlByUserId, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
+import { updateProfile, updateProfilePicture, resolveProfilePictureUrl, getProfilePictureUrlByUserId, getProfilePictureUpdatedAt, checkUsernameAvailability } from '../../../utils/apicalls/profileHandler';
 import Toast from 'react-native-simple-toast';
 import ImageCropPicker from 'react-native-image-crop-picker';
 
@@ -61,6 +64,7 @@ const INITIALINPUT = {
 const EditProfileScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const headerHeight = useHeaderHeight();
   const item = route.params?.profile ?? null;
 
   const [inputs, setInputs] = useState(INITIALINPUT);
@@ -69,6 +73,24 @@ const EditProfileScreen = () => {
   const [newPictureUri, setNewPictureUri] = useState(null);
   const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
   const [focusBuster, setFocusBuster] = useState(0);
+  const [usernameStatus, setUsernameStatus] = useState(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const usernameCheckRef = useRef(null);
+  const originalUsernameRef = useRef('');
+  const [keyboardInset, setKeyboardInset] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardInset(e?.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardInset(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,6 +108,7 @@ const EditProfileScreen = () => {
             dateOfBirth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           } catch (_) {}
         }
+        originalUsernameRef.current = item.username ?? '';
         setInputs(prev => ({
           ...prev,
           id: item.id ?? null,
@@ -115,7 +138,20 @@ const EditProfileScreen = () => {
       Toast.show('Profile data not loaded.');
       return;
     }
-    const errKeys = isTempleMember ? ['location', 'city'] : [];
+    if (inputs.username && inputs.username.trim().length < 3) {
+      handleError('Username should be at least 3 characters long', 'username');
+      Toast.show('Username should be at least 3 characters long.');
+      return;
+    }
+    if (usernameStatus && !usernameStatus.available) {
+      Toast.show('Please choose a different username.');
+      return;
+    }
+    if (checkingUsername) {
+      Toast.show('Checking username availability...');
+      return;
+    }
+    const errKeys = ['username'];
     const hasErr = errKeys.some(k => !isEmpty(errors[k]));
     if (hasErr) return;
     handleSubmitPress();
@@ -126,6 +162,7 @@ const EditProfileScreen = () => {
     try {
       const userId = inputs.id;
       await updateProfile(userId, {
+        username: inputs.username,
         description: inputs.description,
         location: inputs.location,
         city: inputs.city,
@@ -135,12 +172,7 @@ const EditProfileScreen = () => {
         setNewPictureUri(null);
       }
       Toast.show('Profile updated.');
-      const tabNav = navigation.getParent()?.getParent?.();
-      (tabNav || navigation.getParent() || navigation).navigate('Profile', {
-        screen: 'ProfileMain',
-        params: { refreshProfile: true },
-      });
-      navigation.goBack();
+      navigation.navigate('ProfileMain', { refreshProfile: true });
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Update failed';
       Toast.show(msg);
@@ -166,7 +198,46 @@ const EditProfileScreen = () => {
       });
   };
 
+  const debouncedCheckUsername = useCallback((username, userId) => {
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    if (!username || !username.trim() || username.trim() === originalUsernameRef.current) {
+      setUsernameStatus(null);
+      setCheckingUsername(false);
+      handleError('', 'username');
+      return;
+    }
+    setCheckingUsername(true);
+    setUsernameStatus(null);
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        const result = await checkUsernameAvailability(username.trim(), userId);
+        if (result.available) {
+          setUsernameStatus({ available: true, message: 'Username is available' });
+          handleError('', 'username');
+        } else {
+          setUsernameStatus({ available: false, message: result.message || 'Username is already taken' });
+          handleError(result.message || 'Username is already taken', 'username');
+        }
+      } catch {
+        setUsernameStatus(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+  }, []);
+
   const handleOnchange = (text, input) => {
+    if (input === 'username') {
+      if (text && text.trim().length > 0 && text.trim().length < 3) {
+        handleError('Username should be at least 3 characters long', 'username');
+        setUsernameStatus(null);
+        setCheckingUsername(false);
+        if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+      } else {
+        debouncedCheckUsername(text, inputs.id);
+      }
+    }
+
     // Restrict bio to 4 lines max
     if (input === 'description') {
       const lines = text.split('\n');
@@ -339,13 +410,22 @@ const EditProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior="padding"
+        keyboardVerticalOffset={headerHeight}
       >
-        {/* Profile picture – prominent and changeable */}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: 48 + (Platform.OS === 'android' ? keyboardInset : 0) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+        {/* Profile picture - prominent and changeable */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
             onPress={handleChangePicture}
@@ -390,9 +470,25 @@ const EditProfileScreen = () => {
             labelAbove
             labelIcon={<AtSign size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={inputs.username}
-            editableField={false}
+            onChangeText={t => handleOnchange(t, 'username')}
+            editableField={true}
+            placeholder="Enter username"
             placeholderTextColor={colors.DARK_GREY}
+            error={errors.username}
           />
+          {checkingUsername && (
+            <View style={styles.usernameStatusRow}>
+              <ActivityIndicator size="small" color={THEME.textMuted} />
+              <Text style={[styles.usernameStatusText, { color: THEME.textMuted }]}>Checking availability...</Text>
+            </View>
+          )}
+          {!checkingUsername && usernameStatus && (
+            <View style={styles.usernameStatusRow}>
+              <Text style={[styles.usernameStatusText, { color: usernameStatus.available ? '#16a34a' : '#dc2626' }]}>
+                {usernameStatus.message}
+              </Text>
+            </View>
+          )}
 
           <FloatingInput
             label="Bio"
@@ -408,36 +504,34 @@ const EditProfileScreen = () => {
             placeholderTextColor={colors.DARK_GREY}
           />
 
-          {isTempleMember && (
-            <View style={styles.row}>
-              <View style={styles.half}>
-                <FloatingInput
-                  label="Location"
-                  labelAbove
-                  labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
-                  value={inputs.location}
-                  onChangeText={t => handleOnchange(t, 'location')}
-                  error={errors.location}
-                  editableField={true}
-                  placeholder="e.g. Mumbai"
-                  placeholderTextColor={colors.DARK_GREY}
-                />
-              </View>
-              <View style={styles.half}>
-                <FloatingInput
-                  label="City"
-                  labelAbove
-                  labelIcon={<Building2 size={16} color={THEME.textMuted} strokeWidth={2} />}
-                  value={inputs.city}
-                  onChangeText={t => handleOnchange(t, 'city')}
-                  error={errors.city}
-                  editableField={true}
-                  placeholder="e.g. Mumbai"
-                  placeholderTextColor={colors.DARK_GREY}
-                />
-              </View>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <FloatingInput
+                label="Location"
+                labelAbove
+                labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
+                value={inputs.location}
+                onChangeText={t => handleOnchange(t, 'location')}
+                error={errors.location}
+                editableField={true}
+                placeholder="e.g. Mumbai"
+                placeholderTextColor={colors.DARK_GREY}
+              />
             </View>
-          )}
+            <View style={styles.half}>
+              <FloatingInput
+                label="City"
+                labelAbove
+                labelIcon={<Building2 size={16} color={THEME.textMuted} strokeWidth={2} />}
+                value={inputs.city}
+                onChangeText={t => handleOnchange(t, 'city')}
+                error={errors.city}
+                editableField={true}
+                placeholder="e.g. Mumbai"
+                placeholderTextColor={colors.DARK_GREY}
+              />
+            </View>
+          </View>
 
           <FloatingInput
             label="Phone Number"
@@ -491,7 +585,8 @@ const EditProfileScreen = () => {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -512,6 +607,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: THEME.bg,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scroll: { flex: 1 },
   scrollContent: {
@@ -598,6 +696,18 @@ const styles = StyleSheet.create({
     minWidth: 110,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  usernameStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginTop: -4,
+    marginBottom: 8,
+    gap: 6,
+  },
+  usernameStatusText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   buttonDisabled: { opacity: 0.7 },
   saveButtonText: {

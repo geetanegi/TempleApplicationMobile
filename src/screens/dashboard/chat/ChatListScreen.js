@@ -185,21 +185,27 @@ export default function ChatListScreen() {
   }, [followingNotInThreads, query]);
 
   const renderThread = ({ item }) => {
-
     const mostRecentContent = item.lastMessagePreview || 'No messages yet';
+    const hasMessages = mostRecentContent !== 'No messages yet';
     const isFromMe = String(item.lastMessageSenderId) === String(currentUserId);
+    /** Last message is from the other person — they are waiting on your reply. */
+    const needsReply = hasMessages && !isFromMe;
     const previewText =
       mostRecentContent !== 'No messages yet' && isFromMe
         ? `You: ${mostRecentContent}`
         : mostRecentContent;
     return (
-      <TouchableOpacity style={styles.row} onPress={() => openThread(item)} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={[styles.row, needsReply && styles.rowAwaitingReply]}
+        onPress={() => openThread(item)}
+        activeOpacity={0.7}
+      >
         <AvatarOrIcon userId={item.otherUserId} />
         <View style={styles.rowText}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, needsReply && styles.nameAwaitingReply]} numberOfLines={1}>
             {item.otherUsername || 'User'}
           </Text>
-          <Text style={styles.preview} numberOfLines={1}>
+          <Text style={[styles.preview, needsReply && styles.previewAwaitingReply]} numberOfLines={1}>
             {previewText}
           </Text>
         </View>
@@ -301,10 +307,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#eee',
   },
+  rowAwaitingReply: {
+    backgroundColor: 'rgba(253, 124, 32, 0.09)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.orange || '#fd7c20',
+    paddingLeft: 12,
+  },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#eee' },
   avatarPlaceholder: { backgroundColor: colors.orange || '#D48A4A', justifyContent: 'center', alignItems: 'center' },
   rowText: { marginLeft: 14, flex: 1 },
   name: { fontSize: 17, fontWeight: '600', color: '#000' },
+  nameAwaitingReply: {
+    fontWeight: '700',
+    color: '#111',
+  },
   preview: { fontSize: 14, color: '#666', marginTop: 2 },
+  previewAwaitingReply: {
+    color: '#333',
+    fontWeight: '500',
+  },
   empty: { textAlign: 'center', color: '#666', marginTop: 24, paddingHorizontal: 24 },
 });

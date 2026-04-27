@@ -68,7 +68,7 @@ export default function PostPreviewScreen() {
         id: String(item.id),
         postId: item.id,
         authorUserId: authorId,
-        userName: item.user?.username || item.user?.name || 'Unknown',
+        userName: item.user?.name || item.user?.username || 'Unknown',
         createdAt: item.createdAt,
         image: item.photoUrl || null,
         videoUrl: item.videoUrl || null,

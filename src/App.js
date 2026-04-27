@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import {Platform} from 'react-native';
+import Orientation from 'react-native-orientation-locker';
 import Route from './route';
 import {Provider} from 'react-redux';
 import {PersistGate} from 'redux-persist/integration/react';
@@ -20,6 +22,12 @@ const App = () => {
   }
   React.useEffect(() => {
     setup();
+  }, []);
+
+  React.useEffect(() => {
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      Orientation.lockToPortrait();
+    }
   }, []);
 
   return (

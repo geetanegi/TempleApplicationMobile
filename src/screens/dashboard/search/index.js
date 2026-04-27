@@ -106,6 +106,16 @@ const SearchScreen = () => {
     }
   };
 
+  const removeRecentSearch = async (text) => {
+    const next = recentSearches.filter((s) => s !== text);
+    setRecentSearches(next);
+    try {
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const runUserSearch = useCallback(async (q) => {
     const trimmed = (q || '').trim();
     if (!trimmed) {
@@ -273,15 +283,25 @@ const SearchScreen = () => {
                 <>
                   <Text style={styles.subheading}>Recent Search</Text>
                   <View style={styles.recentList}>
-                    {(recentSearches.length ? recentSearches : ['Temple events', 'Aarti timings', 'Nearby temples']).slice(0, 10).map((item, index) => (
+                    {(recentSearches.length ? recentSearches : []).slice(0, 10).map((item, index) => (
                       <Pressable
                         key={`${item}-${index}`}
                         style={styles.recentItem}
                         onPress={() => handleRecentPress(item)}
                       >
-                        <Text style={styles.recentText}>{item}</Text>
+                        <Text style={styles.recentText} numberOfLines={1}>{item}</Text>
+                        <Pressable
+                          onPress={() => removeRecentSearch(item)}
+                          hitSlop={10}
+                          style={styles.recentRemoveBtn}
+                        >
+                          <X size={16} color={colors.grey || '#9ca3af'} />
+                        </Pressable>
                       </Pressable>
                     ))}
+                    {recentSearches.length === 0 && (
+                      <Text style={styles.emptyText}>No recent searches</Text>
+                    )}
                   </View>
                 </>
               )}
@@ -436,6 +456,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   recentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
@@ -443,6 +466,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.DARK_BLACK,
     fontWeight: '500',
+    flex: 1,
+  },
+  recentRemoveBtn: {
+    padding: 6,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   recentSubtext: {
     fontSize: 13,

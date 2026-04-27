@@ -20,15 +20,15 @@ import { colors } from '../../../global/theme';
 import { addStoryView, deleteStory } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 
-/** Same avatar resolution as FollowListScreen: profile picture by userId, then placeholder */
 function getAvatarUriForUserId(userId) {
-  if (userId == null) return 'https://i.pravatar.cc/150?img=3';
+  if (userId == null) return null;
   const url = getProfilePictureUrlByUserId(userId);
   const resolved = resolveProfilePictureUrl(url || '');
   if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
-    return resolved;
+    const sep = resolved.includes('?') ? '&' : '?';
+    return `${resolved}${sep}t=${Date.now()}`;
   }
-  return 'https://i.pravatar.cc/150?img=3';
+  return null;
 }
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -241,15 +241,25 @@ const StoryViewScreen = () => {
         </View>
       </View>
 
-      {/* User header over story: same avatar API as FollowListScreen (profile picture by userId) */}
       {story?.user && (
         <View style={[styles.userHeaderOverlay, { top: insets.top + 8 + SEGMENT_HEIGHT + 6 }]}>
-          <Image
-            source={{
-              uri: getAvatarUriForUserId(story.user.id ?? story.userId),
-            }}
-            style={styles.userHeaderAvatar}
-          />
+          {getAvatarUriForUserId(story.user.id ?? story.userId) ? (
+            <Image
+              key={getAvatarUriForUserId(story.user.id ?? story.userId)}
+              source={{
+                uri: getAvatarUriForUserId(story.user.id ?? story.userId),
+                cache: 'reload',
+                headers: { 'Cache-Control': 'no-cache' },
+              }}
+              style={styles.userHeaderAvatar}
+            />
+          ) : (
+            <View style={[styles.userHeaderAvatar, { backgroundColor: '#555', justifyContent: 'center', alignItems: 'center' }]}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                {(story.user.name || story.user.username || '?').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
           <Text style={styles.userHeaderName} numberOfLines={1}>
             {story.user.name || story.user.username || 'Unknown'}
           </Text>

@@ -11,6 +11,8 @@ import {
   Platform,
   PermissionsAndroid,
   ActivityIndicator,
+  Linking,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -116,30 +118,34 @@ const TempleLocator = () => {
   });
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState(null);
-  const [temples, setTemples] = useState([]);
+  /** All temples from API (search includes rows without coordinates). */
+  const [allTempleItems, setAllTempleItems] = useState([]);
   const [templesLoading, setTemplesLoading] = useState(true);
+  const pendingRetryAfterSettingsRef = useRef(false);
+  /** Last Geolocation error code (1=denied, 2=unavailable, 3=timeout) — Android messages often omit "unavailable" as a substring. */
+  const lastGeolocationErrorCodeRef = useRef(null);
 
   const requestLocationPermission = async () => {
+    if (Platform.OS === 'ios') {
+      return new Promise(resolve => {
+        Geolocation.requestAuthorization(
+          () => resolve(true),
+          () => resolve(false)
+        );
+      });
+    }
     if (Platform.OS !== 'android') return true;
     try {
-      const fine = await PermissionsAndroid.request(
+      const results = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Location Access',
-          message: 'Temple Locator needs your location to show nearby places and your position on the map.',
-          buttonPositive: 'OK',
-        }
-      );
-      if (fine !== PermissionsAndroid.RESULTS.GRANTED) return false;
-      const coarse = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        {
-          title: 'Location Access',
-          message: 'Temple Locator needs your location to show your position on the map.',
-          buttonPositive: 'OK',
-        }
+      ]);
+      const fine = results[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+      const coarse = results[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION];
+      return (
+        fine === PermissionsAndroid.RESULTS.GRANTED ||
+        coarse === PermissionsAndroid.RESULTS.GRANTED
       );
-      return coarse === PermissionsAndroid.RESULTS.GRANTED || fine === PermissionsAndroid.RESULTS.GRANTED;
     } catch (e) {
       return false;
     }
@@ -161,6 +167,7 @@ const TempleLocator = () => {
       };
       Geolocation.getCurrentPosition(
         position => {
+          lastGeolocationErrorCodeRef.current = null;
           const { latitude, longitude } = position.coords;
           const userRegion = {
             latitude,
@@ -176,7 +183,9 @@ const TempleLocator = () => {
         },
         err => {
           setLocationLoading(false);
-          const isTimeout = err?.code === 3;
+          const code = err?.code;
+          lastGeolocationErrorCodeRef.current = code ?? null;
+          const isTimeout = code === 3;
           const message = isTimeout
             ? 'Location request timed out. Please ensure Location is on and try again.'
             : (err?.message || 'Could not get location');
@@ -187,16 +196,89 @@ const TempleLocator = () => {
     });
   };
 
+  /** Re-prompt permission / OS location UI, then retry fix (used when map shows Retry). */
+  const handleRetryLocation = async () => {
+    const prevErr = locationError;
+    const lastCode = lastGeolocationErrorCodeRef.current;
+    setLocationLoading(true);
+    setLocationError(null);
+
+    const granted = await requestLocationPermission();
+    if (!granted) {
+      setLocationLoading(false);
+      setLocationError('Location permission denied');
+      try {
+        await Linking.openSettings();
+        pendingRetryAfterSettingsRef.current = true;
+      } catch (e) {
+        /* ignore */
+      }
+      return;
+    }
+
+    // Android: code 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT (GPS off / location off / no fix).
+    // Messages like "Location not available" do not contain the substring "unavailable".
+    const looksLikeLocationServicesIssue =
+      lastCode === 2 ||
+      lastCode === 3 ||
+      (prevErr &&
+        /(location is on|timed out|not available|no location provider|fusedlocation|settings\)|temporarily unavailable)/i.test(
+          prevErr
+        ));
+
+    // App permission denied at native layer while JS permission looked OK
+    const looksLikeAppPermissionIssue = lastCode === 1;
+
+    if (Platform.OS === 'android' && looksLikeAppPermissionIssue) {
+      try {
+        await Linking.openSettings();
+        pendingRetryAfterSettingsRef.current = true;
+      } catch (e) {
+        /* ignore */
+      }
+      setLocationLoading(false);
+      return;
+    }
+
+    if (looksLikeLocationServicesIssue) {
+      try {
+        if (Platform.OS === 'android') {
+          try {
+            await Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+          } catch (e) {
+            await Linking.openSettings();
+          }
+        } else {
+          await Linking.openSettings();
+        }
+        pendingRetryAfterSettingsRef.current = true;
+      } catch (e) {
+        /* ignore */
+      }
+      setLocationLoading(false);
+      return;
+    }
+
+    fetchCurrentLocation();
+  };
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', next => {
+      if (next !== 'active' || !pendingRetryAfterSettingsRef.current) return;
+      pendingRetryAfterSettingsRef.current = false;
+      fetchCurrentLocation();
+    });
+    return () => sub.remove();
+  }, []);
+
   const loadTemples = useCallback(async () => {
     setTemplesLoading(true);
     try {
       const list = await getTempleList();
-      const withCoords = (Array.isArray(list) ? list : []).filter(
-        t => t.latitude != null && t.longitude != null,
-      );
-      setTemples(withCoords.map(toTempleItem));
+      const arr = Array.isArray(list) ? list : [];
+      setAllTempleItems(arr.map(toTempleItem));
     } catch {
-      setTemples([]);
+      setAllTempleItems([]);
     } finally {
       setTemplesLoading(false);
     }
@@ -241,28 +323,37 @@ const TempleLocator = () => {
     }, [loadTemples]),
   );
 
-  const templesWithFallback = temples.length > 0 ? temples : DUMMY_TEMPLES;
+  /** Map pins only where lat/lng exist; fallback dummy data if API empty. */
+  const templesForMap = useMemo(() => {
+    const withCoords = allTempleItems.filter(
+      t => t.latitude != null && t.longitude != null,
+    );
+    return withCoords.length > 0 ? withCoords : DUMMY_TEMPLES;
+  }, [allTempleItems]);
 
-  // Search bar shows only temple users (results from temple list only)
+  /** Search uses every temple from the API (including no coordinates — matches DB bulk imports). */
+  const searchDataset =
+    allTempleItems.length > 0 ? allTempleItems : DUMMY_TEMPLES;
+
   const filteredTemples = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     if (!q) return [];
-    return templesWithFallback.filter(
+    return searchDataset.filter(
       t =>
-        t.name.toLowerCase().includes(q) ||
-        t.location.toLowerCase().includes(q)
+        (t.name || '').toLowerCase().includes(q) ||
+        (t.location || '').toLowerCase().includes(q),
     );
-  }, [searchText, templesWithFallback]);
+  }, [searchText, searchDataset]);
 
   const mapMarkers = useMemo(() => {
     if (activeTab === 'mandir') {
-      return templesWithFallback.filter(t => t.type === 'mandir' || !t.type);
+      return templesForMap.filter(t => t.type === 'mandir' || !t.type);
     }
     if (activeTab === 'dharmshala') {
-      return templesWithFallback.filter(t => t.type === 'dharmshala');
+      return templesForMap.filter(t => t.type === 'dharmshala');
     }
     return [];
-  }, [activeTab, templesWithFallback]);
+  }, [activeTab, templesForMap]);
 
   const showSearchResults = searchText.trim().length > 0;
 
@@ -338,7 +429,7 @@ const TempleLocator = () => {
           {locationError && !locationLoading && (
             <View style={styles.mapOverlay}>
               <Text style={styles.mapOverlayError}>{locationError}</Text>
-              <Pressable style={styles.retryButton} onPress={fetchCurrentLocation}>
+              <Pressable style={styles.retryButton} onPress={handleRetryLocation}>
                 <Text style={styles.retryButtonText}>Retry</Text>
               </Pressable>
             </View>

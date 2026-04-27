@@ -175,14 +175,10 @@ export const ValidateTempleName = password => {
 
 
 export const ValidateUserName = password => {
-  var reg = /^[a-zA-Z0-9]+$/;
-
   if (ValueEmpty(password)) {
     return 'Username is Required';
   } else if (password.length < 3|| password.length > 25) {
     return 'Username should be 3-25 characters long';
-  } else if (!reg.test(password)) {
-    return 'Username should be alphanumeric';
   }
 
   return 'success';

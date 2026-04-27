@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,19 @@ import {
   Image,
   Keyboard,
   Platform,
+  InteractionManager,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import { X, Send } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { getUserId } from '../../../redux/store/getState';
 import {
   getReelComments,
   commentOnReel,
+  deleteReelComment,
 } from '../../../utils/apicalls/reelHandler';
 import {
   getProfilePictureUrlByUserId,
@@ -27,32 +33,54 @@ import {
 } from '../../../utils/apicalls/profileHandler';
 import { colors } from '../../../global/theme';
 
+const AVATAR = 'https://i.pravatar.cc/150?img=3';
+
 const { height: SCREEN_H } = Dimensions.get('window');
-const SHEET_HEIGHT = Math.round(SCREEN_H * 0.65);
+const SHEET_HEIGHT = Math.round(SCREEN_H * 0.78);
+/** Space under list so items can scroll above the floating input dock */
+const LIST_BOTTOM_PADDING_FOR_INPUT = 108;
 const DRAG_CLOSE_THRESHOLD = 70;
 const VELOCITY_CLOSE_THRESHOLD = 350;
 const SCROLL_AT_TOP_THRESHOLD = 10;
 
-const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded }) => {
+function getMyAvatarUri(userId) {
+  if (userId == null) return AVATAR;
+  const url = getProfilePictureUrlByUserId(userId);
+  const resolved = resolveProfilePictureUrl(url || '');
+  if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
+    return resolved;
+  }
+  return AVATAR;
+}
+
+function getCommentAvatarUri(item) {
+  const v =
+    getProfilePictureUrlByUserId(item?.user?.id) ||
+    resolveProfilePictureUrl(item?.user?.userProfile || item?.user?.avatarUrl);
+  if (typeof v === 'string' && v.trim()) return v;
+  return AVATAR;
+}
+
+const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded, onCommentDeleted }) => {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const currentUserId = getUserId();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        const h = e?.endCoordinates?.height ?? 0;
-        setKeyboardHeight(Platform.OS === 'android' ? Math.max(0, h - 140) : Math.max(0, h - 100));
-      },
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0),
-    );
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -64,6 +92,10 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
   const dragY = useRef(new Animated.Value(0)).current;
   const scrollAtTop = useRef(true);
   const flatListRef = useRef(null);
+  const inputRef = useRef(null);
+  /** True after posting until scrollToEnd runs (scrollToEnd is unreliable before content size is known). */
+  const scrollAfterPostRef = useRef(false);
+  const postedScrollFallbackTimerRef = useRef(null);
 
   const runCloseAnimation = useCallback(() => {
     Animated.parallel([
@@ -116,13 +148,6 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
   ).current;
 
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
-    });
-    return () => sub.remove();
-  }, []);
-
-  useEffect(() => {
     if (visible && reelId) {
       setLoading(true);
       getReelComments(reelId)
@@ -134,7 +159,12 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
         .finally(() => setLoading(false));
     } else {
       setInputText('');
-      if (!visible) setKeyboardHeight(0);
+      setKeyboardHeight(0);
+      scrollAfterPostRef.current = false;
+      if (postedScrollFallbackTimerRef.current != null) {
+        clearTimeout(postedScrollFallbackTimerRef.current);
+        postedScrollFallbackTimerRef.current = null;
+      }
     }
   }, [visible, reelId]);
 
@@ -170,6 +200,39 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
     }
   }, [visible, backdropOpacity, translateY]);
 
+  const runPostedScrollToEnd = useCallback(() => {
+    if (!scrollAfterPostRef.current || !visible) return;
+    if (!flatListRef.current) return;
+    scrollAfterPostRef.current = false;
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        });
+      });
+    });
+  }, [visible]);
+
+  /** Fallback if onContentSizeChange did not run. */
+  useLayoutEffect(() => {
+    if (!scrollAfterPostRef.current || !visible) return;
+    if (postedScrollFallbackTimerRef.current != null) {
+      clearTimeout(postedScrollFallbackTimerRef.current);
+    }
+    postedScrollFallbackTimerRef.current = setTimeout(() => {
+      postedScrollFallbackTimerRef.current = null;
+      if (scrollAfterPostRef.current) {
+        runPostedScrollToEnd();
+      }
+    }, 400);
+    return () => {
+      if (postedScrollFallbackTimerRef.current != null) {
+        clearTimeout(postedScrollFallbackTimerRef.current);
+        postedScrollFallbackTimerRef.current = null;
+      }
+    };
+  }, [comments, visible, runPostedScrollToEnd]);
+
   const submitComment = useCallback(async () => {
     const content = inputText.trim();
     if (!content || !currentUserId || !reelId || submitting) return;
@@ -181,7 +244,10 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
       if (newComment) {
         setComments((prev) => [...prev, newComment]);
         onCommentAdded?.(reelId, (reel?.commentsCount ?? 0) + 1);
+        scrollAfterPostRef.current = true;
       }
+      inputRef.current?.blur?.();
+      Keyboard.dismiss();
     } catch (e) {
       setInputText(content);
     } finally {
@@ -189,66 +255,161 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
     }
   }, [inputText, currentUserId, reelId, submitting, reel?.commentsCount, onCommentAdded]);
 
+  const inputDockPadBottom = keyboardHeight > 0 ? 10 : 10 + insets.bottom;
+
+  const renderFloatingInputDock = () => (
+    <View
+      style={[
+        styles.floatingInputDock,
+        { bottom: keyboardHeight, paddingBottom: inputDockPadBottom },
+      ]}
+    >
+      <View style={styles.inputDock}>
+        <Image style={styles.meAvatar} source={{ uri: getMyAvatarUri(currentUserId) }} />
+        <View style={styles.inputWrap}>
+          <View style={styles.inputPill}>
+            <TextInput
+              ref={inputRef}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Add a comment"
+              placeholderTextColor="#8E8E8E"
+              style={styles.input}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              onSubmitEditing={submitComment}
+              multiline
+              maxLength={500}
+            />
+            <Pressable
+              onPress={submitComment}
+              hitSlop={10}
+              disabled={!inputText.trim() || submitting}
+              style={[
+                styles.actionBtn,
+                (!inputText.trim() || submitting) && styles.actionBtnDisabled,
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <FontAwesome name="send" size={16} color="#FFFFFF" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const openProfile = (userId) => {
+    if (userId == null) return;
+    navigation.navigate('Profiles', { userId });
+  };
+
+  const handleDeletePress = useCallback(
+    (item) => {
+      if (reelId == null || currentUserId == null) return;
+      Alert.alert('Delete comment', 'Are you sure you want to delete this comment?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const cid = item.id;
+            setDeletingId(cid);
+            try {
+              await deleteReelComment(reelId, cid, currentUserId);
+              const nextCount = Math.max(0, comments.length - 1);
+              setComments((prev) =>
+                prev.filter((c) => String(c.id) !== String(item.id)),
+              );
+              onCommentDeleted?.(reelId, nextCount);
+            } catch (e) {
+              console.warn('Delete reel comment error:', e);
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]);
+    },
+    [reelId, currentUserId, comments.length, onCommentDeleted],
+  );
+
   const renderComment = ({ item }) => {
-    const avatarUrl =
-      getProfilePictureUrlByUserId(item.user?.id) ||
-      resolveProfilePictureUrl(item.user?.userProfile || item.user?.avatarUrl);
+    const avatarUri = getCommentAvatarUri(item);
+    const userDisplay = item.user?.name || item.user?.username || 'User';
+    const uid = item.user?.id ?? item.userId;
+    const canDelete =
+      currentUserId != null && String(uid) === String(currentUserId);
 
     return (
-      <View style={styles.commentRow}>
-        <View style={styles.avatarWrap}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} resizeMode="cover" />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>
-                {(item.user?.name || item.user?.username || '?').charAt(0)}
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.commentBody}>
-          <Text style={styles.commentUser}>
-            {item.user?.username || item.user?.name || 'User'}
-          </Text>
-          <Text style={styles.commentText}>{item.content}</Text>
+      <View style={styles.row}>
+        <Pressable onPress={() => openProfile(uid)} disabled={uid == null} hitSlop={4}>
+          <Image style={styles.avatar} source={{ uri: avatarUri }} resizeMode="cover" />
+        </Pressable>
+        <View style={styles.textBlock}>
+          <View style={styles.titleRow}>
+            <Pressable onPress={() => openProfile(uid)} disabled={uid == null} hitSlop={4}>
+              <Text style={styles.nameText}>{userDisplay}</Text>
+            </Pressable>
+            {canDelete && (
+              <Pressable
+                hitSlop={10}
+                style={styles.deleteIconWrap}
+                onPress={() => handleDeletePress(item)}
+                disabled={String(deletingId) === String(item.id)}
+              >
+                {String(deletingId) === String(item.id) ? (
+                  <ActivityIndicator size="small" color="#8E8E8E" />
+                ) : (
+                  <FontAwesome name="trash-o" size={16} color="#8E8E8E" />
+                )}
+              </Pressable>
+            )}
+          </View>
+          <Text style={styles.bodyText}>{item.content}</Text>
         </View>
       </View>
     );
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={runCloseAnimation} statusBarTranslucent>
-      <Pressable style={StyleSheet.absoluteFill} onPress={runCloseAnimation}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-      </Pressable>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={runCloseAnimation}
+      statusBarTranslucent
+    >
+      <View style={styles.modalRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={runCloseAnimation}>
+          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
+        </Pressable>
 
-      <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[
-            styles.sheetWrap,
-            {
-              transform: [{ translateY: Animated.add(translateY, dragY) }],
-            },
-          ]}
-        >
-          <View style={styles.sheet}>
-            <View style={styles.dragArea} collapsable={false}>
-              <View style={styles.handleWrap}>
-                <View style={styles.handle} />
-              </View>
-              <View style={styles.headerRow}>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.sheetWrap,
+              {
+                transform: [{ translateY: Animated.add(translateY, dragY) }],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['#E9D3A3', '#F6F2E6', '#F6F2E6']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.sheet}
+            >
+              <View style={styles.dragArea} collapsable={false}>
+                <View style={styles.handleWrap}>
+                  <View style={styles.handle} />
+                </View>
                 <Text style={styles.headerTitle}>Comments</Text>
-                <Pressable onPress={runCloseAnimation} hitSlop={12} style={styles.closeBtn}>
-                  <X size={24} color="#fff" strokeWidth={2} />
-                </Pressable>
               </View>
-            </View>
 
-            {/* List stays fixed – only input moves up with keyboard */}
-            <View style={styles.contentArea}>
               {loading ? (
                 <View style={styles.centered}>
                   <ActivityIndicator size="large" color={colors.orange || '#D48A4A'} />
@@ -259,7 +420,12 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
                   data={comments}
                   keyExtractor={(item) => String(item.id)}
                   renderItem={renderComment}
-                  contentContainerStyle={styles.list}
+                  style={styles.flex}
+                  contentContainerStyle={[
+                    styles.listContent,
+                    { paddingBottom: LIST_BOTTOM_PADDING_FOR_INPUT },
+                  ]}
+                  showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
                     <View style={styles.empty}>
                       <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
@@ -270,52 +436,23 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded })
                     scrollAtTop.current = y <= SCROLL_AT_TOP_THRESHOLD;
                   }}
                   scrollEventThrottle={16}
+                  onContentSizeChange={(contentWidth, contentHeight) => {
+                    if (contentHeight <= 0) return;
+                    if (!scrollAfterPostRef.current) return;
+                    runPostedScrollToEnd();
+                  }}
                   keyboardShouldPersistTaps="handled"
-                  onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                  keyboardDismissMode="on-drag"
                 />
               )}
-            </View>
+            </LinearGradient>
+          </Animated.View>
+        </GestureDetector>
 
-            {/* Input bar: absolute at bottom, moves up by keyboardHeight only – page stays fixed */}
-            <View
-              style={[
-                styles.inputAvoid,
-                styles.inputAbsolute,
-                { bottom: keyboardHeight },
-              ]}
-            >
-              <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Add a comment..."
-                    placeholderTextColor="#888"
-                    value={inputText}
-                    onChangeText={setInputText}
-                    multiline
-                    maxLength={500}
-                    onFocus={() => {
-                      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-                    }}
-                  />
-                  <Pressable
-                    onPress={submitComment}
-                    disabled={!inputText.trim() || submitting}
-                    style={[
-                      styles.sendBtn,
-                      (!inputText.trim() || submitting) && styles.sendBtnDisabled,
-                    ]}
-                  >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Send size={22} color="#fff" strokeWidth={2} />
-                    )}
-                  </Pressable>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-      </GestureDetector>
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {renderFloatingInputDock()}
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -324,66 +461,56 @@ export default ReelCommentsOverlay;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  contentArea: {
+  modalRoot: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheetWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     height: SHEET_HEIGHT,
+    width: '100%',
   },
   sheet: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,26,0.96)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     overflow: 'hidden',
   },
   dragArea: {
-    minHeight: 52,
+    minHeight: 56,
     paddingBottom: 4,
     justifyContent: 'flex-start',
   },
   handleWrap: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 4,
+    paddingBottom: 6,
   },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    width: 70,
+    height: 5,
+    borderRadius: 99,
+    backgroundColor: '#111',
+    opacity: 0.55,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  closeBtn: {
-    padding: 4,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111',
+    paddingVertical: 10,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 100,
+  listContent: {
+    paddingHorizontal: 18,
+    paddingTop: 6,
   },
   empty: {
     paddingVertical: 40,
@@ -391,85 +518,97 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#888',
+    color: '#6B6B6B',
+    fontWeight: '600',
   },
-  commentRow: {
+  row: {
     flexDirection: 'row',
-    marginBottom: 16,
+    gap: 12,
+    paddingVertical: 14,
   },
-  avatarWrap: {
-    marginRight: 12,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#DDD',
   },
-  avatarImg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#444',
+  textBlock: {
+    flex: 1,
+    paddingRight: 10,
   },
-  avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.orange || '#D48A4A',
-    justifyContent: 'center',
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
   },
-  avatarLetter: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
+  deleteIconWrap: {
+    marginLeft: 'auto',
+    padding: 6,
   },
-  commentBody: { flex: 1 },
-  commentUser: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 2,
+  nameText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111',
   },
-  commentText: {
+  bodyText: {
     fontSize: 14,
-    color: '#ccc',
     lineHeight: 20,
+    color: '#111',
   },
-  inputAvoid: {
-    backgroundColor: 'rgba(26,26,26,0.98)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    paddingBottom: 20,
-  },
-  inputAbsolute: {
+  floatingInputDock: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    zIndex: 10,
-    elevation: 10,
+    backgroundColor: '#F6F2E6',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    paddingTop: 10,
+    zIndex: 20,
+    elevation: 20,
   },
-  inputRow: {
+  inputDock: {
+    paddingHorizontal: 8,
+    paddingVertical: 0,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 10,
+  },
+  meAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#DDD',
+  },
+  inputWrap: {
+    flex: 1,
+  },
+  inputPill: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.16)',
+    paddingLeft: 14,
+    paddingRight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     fontSize: 15,
-    color: '#fff',
-    marginRight: 8,
+    color: '#111',
+    paddingVertical: 0,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.orange || '#D48A4A',
-    justifyContent: 'center',
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: '#111',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendBtnDisabled: { opacity: 0.5 },
+  actionBtnDisabled: {
+    opacity: 0.45,
+  },
 });

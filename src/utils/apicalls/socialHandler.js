@@ -3,7 +3,7 @@ import { getAuth, getAuthWithParams } from './getApi';
 import { postAuth } from './postApi';
 import { putAuth } from './putApi';
 import { deleteAuthWithParams } from './deleteApi';
-import { retrieveData } from './index';
+import { retrieveData, uploadApi } from './index';
 
 /**
  * Build URL with query string from params object.
@@ -250,15 +250,34 @@ export const deleteStory = async (storyId, userId) => {
 };
 
 export const createStory = async (userId, mediaType, fileUri) => {
+  const normalizedUri = normalizeFileUri(fileUri);
+  const isVideo = mediaType.toUpperCase() === 'VIDEO';
   const formData = new FormData();
   formData.append('userId', String(userId));
   formData.append('mediaType', mediaType.toUpperCase());
   formData.append('file', {
-    uri: fileUri,
-    type: mediaType.toUpperCase() === 'VIDEO' ? 'video/mp4' : 'image/jpeg',
-    name: mediaType.toUpperCase() === 'VIDEO' ? 'story.mp4' : 'story.jpg',
+    uri: normalizedUri,
+    type: isVideo ? 'video/mp4' : 'image/jpeg',
+    name: isVideo ? 'story.mp4' : 'story.jpg',
   });
-  return uploadApi(API.SOCIAL_STORY_CREATE, formData);
+
+  const token = await retrieveData();
+  const res = await fetch(API.SOCIAL_STORY_CREATE, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const err = new Error(errData?.data?.message || errData?.message || 'Story upload failed');
+    err.data = errData;
+    throw err;
+  }
+  return res.json();
 };
 
 // ----------- Chat -----------
@@ -282,6 +301,15 @@ export const sendChatMessage = async (threadId, senderId, clientMessageId, conte
     urlWithParams(url, { threadId, senderId, clientMessageId, contentType, content: content ?? '' }),
     {}
   );
+};
+
+export const getUnreadMessageCount = async (userId) => {
+  return getAuth(API.SOCIAL_CHAT_UNREAD_COUNT(userId));
+};
+
+export const markChatThreadRead = async (threadId, userId) => {
+  const url = urlWithParams(API.SOCIAL_CHAT_MARK_THREAD_READ(threadId), { userId });
+  return postAuth(url, {});
 };
 
 // ----------- Notifications -----------

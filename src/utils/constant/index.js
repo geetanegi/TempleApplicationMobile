@@ -10,8 +10,9 @@
 // };
 export const environment = {
   baseUrl: 'http://13.203.150.178:8080/jain-app/api/',
-  /** Privacy policy URL - host docs/privacy-policy.html on your site or GitHub Pages */
-  Privacy_policy: 'https://your-domain.com/privacy-policy.html',
+  /** Set after you host legal-hosting/*.html — used for Play Console and optional “open in browser” in the app */
+  Privacy_policy: '',
+  Terms_of_service: '',
   // WebSocket base: same host as API but path /ws (no /api)
   get wsBaseUrl() {
     const u = this.baseUrl.replace(/\/api\/?$/, '');

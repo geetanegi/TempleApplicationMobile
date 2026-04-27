@@ -122,6 +122,8 @@ const NAVIGATION = {
   TO_DASHBOARD: 'Dashboard',
   TO_COMMUNITY: 'Community',
   TO_MAIN: 'Main',
+  TO_PRIVACY_POLICY: 'PrivacyPolicy',
+  TO_TERMS_OF_SERVICE: 'TermsOfService',
 };
 
 const API_CONSTANTS = {

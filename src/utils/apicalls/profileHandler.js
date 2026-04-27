@@ -7,6 +7,7 @@ import {getAuth} from './getApi';
 import {postAuth} from './postApi';
 import {getFollowersCount, getFollowingCount} from './socialHandler';
 import {retrieveData} from './index';
+import {storeTokenData} from './tokenApi';
 
 const PROFILE_PIC_UPDATED_PREFIX = 'profilePicUpdatedAt_';
 
@@ -104,6 +105,17 @@ export const getProfileWithCounts = async (userId) => {
 };
 
 /**
+ * Check if a username is available (excluding the current user).
+ * @returns {{ available: boolean, message: string }}
+ */
+export const checkUsernameAvailability = async (username, userId) => {
+  const url = API.SOCIAL_CHECK_USERNAME(username, userId);
+  const config = await getApiHeader(true);
+  const res = await axios.get(url, config);
+  return res?.data?.data ?? res?.data;
+};
+
+/**
  * Update profile fields (social backend).
  * @param {number|string} userId
  * @param {{ firstName?: string, lastName?: string, description?: string, location?: string, contactNumber?: string, alternateEmail?: string }} body
@@ -122,7 +134,11 @@ export const updateProfile = async (userId, body) => {
   const url = `${API.SOCIAL_PROFILE_UPDATE}?${params.toString()}`;
   const config = await getApiHeader(true);
   const res = await axios.put(url, null, config);
-  return res?.data?.data ?? res?.data;
+  const raw = res?.data?.data ?? res?.data;
+  if (raw?.token) {
+    await storeTokenData(raw.token);
+  }
+  return raw?.profile ?? raw;
 };
 
 /** Normalize file URI for FormData - Android may need file:// prefix for absolute paths */
@@ -189,6 +205,7 @@ export const searchUsers = async (query, page = 0, size = 30) => {
         username: trimmed,
         firstName: trimmed,
         lastName: trimmed,
+        email: trimmed,
       },
       pageSortingParam: {
         pageNumber: page,

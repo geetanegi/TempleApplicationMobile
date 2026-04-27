@@ -15,9 +15,9 @@ import {
 import { Send, ChevronLeft, User } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { getUserId } from '../../../redux/store/getState';
-import { getChatMessages, sendChatMessage } from '../../../utils/apicalls/socialHandler';
+import { getChatMessages, sendChatMessage, markChatThreadRead } from '../../../utils/apicalls/socialHandler';
 import { connectWebSocket, subscribeChatThread, unsubscribeChatThread } from '../../../utils/services/websocketService';
 import { preloadChatSounds, playSendSound, playReceiveSound } from '../../../utils/chatSounds';
 import { formatDateTimeIST } from '../../../utils/helperfunctions/dateTimeUtils';
@@ -71,6 +71,14 @@ export default function ChatScreen() {
     loadMessages();
   }, [loadMessages]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (threadId && currentUserId) {
+        markChatThreadRead(threadId, currentUserId).catch(() => {});
+      }
+    }, [threadId, currentUserId]),
+  );
+
   useEffect(() => () => {
     if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
   }, []);
@@ -95,7 +103,10 @@ export default function ChatScreen() {
     connectWebSocket(currentUserId, {}).then(() => {
       subscribeChatThread(threadId, (message) => {
         const isFromOther = message.senderId !== currentUserId && message.senderUsername !== 'You';
-        if (isFromOther) playReceiveSound();
+        if (isFromOther) {
+          playReceiveSound();
+          markChatThreadRead(threadId, currentUserId).catch(() => {});
+        }
         setMessages((prev) => {
           const exists = prev.some((m) => m.id === message.id || m.clientMessageId === message.clientMessageId);
           if (exists) return prev;

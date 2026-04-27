@@ -20,6 +20,13 @@ export const getRandomReels = async (page = 0, size = 3, currentUserId = null) =
   return getAuth(url);
 };
 
+export const getReelsFeed = async (page = 0, size = 5, currentUserId = null) => {
+  const params = { page, size };
+  if (currentUserId != null) params.currentUserId = currentUserId;
+  const url = urlWithParams(API.SOCIAL_REELS_FEED(), params);
+  return getAuth(url);
+};
+
 export const getUserReels = async (userId, currentUserId = null) => {
   const url = urlWithParams(API.SOCIAL_REELS_BY_USER(userId), { currentUserId });
   return getAuth(url);

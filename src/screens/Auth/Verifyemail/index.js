@@ -14,7 +14,6 @@ import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
 import AdminInput from '../../../components/adminInput';
 import TransparentHeader from '../../../components/TransparentHeader';
 import ApplicationButton from '../../../components/ApplicationButton';
-import { ValidateUserName } from '../../../utils/helperfunctions/validations';
 import { API } from '../../../utils/endpoints';
 import { postNoAuth } from '../../../utils/apicalls/postApi';
 import Loader from '../../../components/loader';
@@ -35,8 +34,11 @@ const Verifyemail = ({ navigation }) => {
   const handleChange = (text, field) => {
     setInputs(prev => ({ ...prev, [field]: text }));
     if (field === 'username') {
-      const v = ValidateUserName(text);
-      setErrors(prev => ({ ...prev, username: v === 'success' ? '' : v }));
+      if (!text || !text.trim()) {
+        setErrors(prev => ({ ...prev, username: 'Email or Username is required' }));
+      } else {
+        setErrors(prev => ({ ...prev, username: '' }));
+      }
     }
   };
 
@@ -125,6 +127,22 @@ const Verifyemail = ({ navigation }) => {
               onPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
             >
               Back to Login
+            </Text>
+          </View>
+
+          <View style={styles.legalRow}>
+            <Text
+              style={styles.legalLink}
+              onPress={() => navigation.navigate(NAVIGATION.TO_PRIVACY_POLICY)}
+            >
+              Privacy Policy
+            </Text>
+            <Text style={styles.legalSep}>·</Text>
+            <Text
+              style={styles.legalLink}
+              onPress={() => navigation.navigate(NAVIGATION.TO_TERMS_OF_SERVICE)}
+            >
+              Terms & Conditions
             </Text>
           </View>
         </View>
@@ -222,6 +240,26 @@ const styles = StyleSheet.create({
     color: colors.PRIMARY_BUTTON,
     fontWeight: '600',
     fontSize: 14,
+  },
+
+  legalRow: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+
+  legalLink: {
+    color: colors.PRIMARY_BUTTON,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+
+  legalSep: {
+    marginHorizontal: 8,
+    fontSize: 13,
+    color: '#6B7280',
   },
 
   bottomSwipe: {

@@ -240,7 +240,7 @@ const PostReelScreen = () => {
         <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
           <X size={28} color="#000" strokeWidth={2} />
         </Pressable>
-        <Text style={styles.headerTitle}>New Reel</Text>
+        <Text style={styles.headerTitle}>New Clip</Text>
         <Pressable
           onPress={handlePost}
           disabled={posting || !videoUri}

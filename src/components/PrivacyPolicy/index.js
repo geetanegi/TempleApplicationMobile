@@ -5,13 +5,16 @@ import { environment } from '../../utils/constant';
 
 const PrivacyPolicy = () => {
   const openPrivacyPolicy = () => {
-    if (environment.Privacy_policy) {
-      Linking.openURL(environment.Privacy_policy);
+    const url = (environment.Privacy_policy || '').trim();
+    if (url && !url.includes('your-domain.com')) {
+      Linking.openURL(url);
     }
   };
   return (
     <Pressable onPress={() => openPrivacyPolicy()}>
-      <Text style={styles.privacyTxt}>© 2025 Jainsansaar. All rights reserved. Terms & Conditions and Privacy Policy</Text>
+      <Text style={styles.privacyTxt}>
+        © 2025 Jainsansaar. All rights reserved. Terms & Conditions and Privacy Policy
+      </Text>
     </Pressable>
   );
 };

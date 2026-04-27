@@ -10,7 +10,9 @@ import {
   Animated,
   useWindowDimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import Orientation from 'react-native-orientation-locker';
 import {
   Heart,
   MessageCircle,
@@ -21,7 +23,7 @@ import {
   Play,
   User,
 } from 'lucide-react-native';
-import VideoPlayer from 'react-native-video-player';
+import Video from 'react-native-video';
 import { colors } from '../../global/theme';
 import Share from 'react-native-share';
 import CommentScreen from '../../screens/dashboard/comment';
@@ -93,6 +95,94 @@ const PostCard = ({
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [freezeVideoLayout, setFreezeVideoLayout] = useState(false);
+
+  const inNativeFullscreenRef = useRef(false);
+  const nativeFullscreenLockTimerRef = useRef(null);
+  const lastVideoBoxLayoutRef = useRef({ w: 0, h: 0 });
+  const frozenMetricsRef = useRef({ w: 0, h: 0 });
+
+  const clearFullscreenPortraitTimer = useCallback(() => {
+    if (nativeFullscreenLockTimerRef.current) {
+      clearTimeout(nativeFullscreenLockTimerRef.current);
+      nativeFullscreenLockTimerRef.current = null;
+    }
+  }, []);
+
+  /** Must mirror latest videoPlaying for unmount cleanup (refs see last committed render). */
+  const videoPlayingRef = useRef(false);
+  videoPlayingRef.current = videoPlaying;
+
+  /**
+   * Never call lockToPortrait from mount or from unrelated PostCards. FlatList recycles cells on
+   * rotation/layout; off-screen cards unmounting/mounting was forcing portrait while another post
+   * stayed in native fullscreen landscape.
+   */
+  React.useEffect(() => {
+    return () => {
+      clearFullscreenPortraitTimer();
+      if (
+        videoPlayingRef.current &&
+        (Platform.OS === 'ios' || Platform.OS === 'android')
+      ) {
+        Orientation.lockToPortrait();
+      }
+    };
+  }, [clearFullscreenPortraitTimer]);
+
+  const prevVideoPlayingRef = useRef(false);
+  React.useEffect(() => {
+    if (!videoPlaying) {
+      clearFullscreenPortraitTimer();
+      inNativeFullscreenRef.current = false;
+      setFreezeVideoLayout(false);
+      if (
+        prevVideoPlayingRef.current &&
+        (Platform.OS === 'ios' || Platform.OS === 'android')
+      ) {
+        Orientation.lockToPortrait();
+      }
+    }
+    prevVideoPlayingRef.current = videoPlaying;
+  }, [videoPlaying, clearFullscreenPortraitTimer]);
+
+  const onVideoFullscreenWillPresent = useCallback(() => {
+    const w = lastVideoBoxLayoutRef.current.w || screenW;
+    frozenMetricsRef.current = { w, h: mediaHeight };
+    inNativeFullscreenRef.current = true;
+    clearFullscreenPortraitTimer();
+    setFreezeVideoLayout(true);
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      Orientation.unlockAllOrientations();
+    }
+  }, [clearFullscreenPortraitTimer, mediaHeight, screenW]);
+
+  const onVideoFullscreenDidPresent = useCallback(() => {
+    inNativeFullscreenRef.current = true;
+    clearFullscreenPortraitTimer();
+  }, [clearFullscreenPortraitTimer]);
+
+  /** Native stack sometimes emits dismiss during rotation; debounce lock + unfreeze. */
+  const onVideoFullscreenDidDismiss = useCallback(() => {
+    inNativeFullscreenRef.current = false;
+    clearFullscreenPortraitTimer();
+    nativeFullscreenLockTimerRef.current = setTimeout(() => {
+      nativeFullscreenLockTimerRef.current = null;
+      if (!inNativeFullscreenRef.current && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+        Orientation.lockToPortrait();
+      }
+      setFreezeVideoLayout(false);
+    }, 650);
+  }, [clearFullscreenPortraitTimer]);
+
+  const onVideoBoxLayout = useCallback(
+    (e) => {
+      if (freezeVideoLayout) return;
+      const { width, height } = e.nativeEvent.layout;
+      lastVideoBoxLayoutRef.current = { w: width, h: height };
+    },
+    [freezeVideoLayout],
+  );
 
   const displayTimeAgo = createdAt != null ? formatDateTimeIST(createdAt) : (timeText || '');
   const displayLikeCount = likeCount;
@@ -185,29 +275,42 @@ const PostCard = ({
     setVisible(true);
   }, [postId, currentUserId, comments, normalizeComment]);
 
+  const extractNewCommentId = (postRes) => {
+    const inner = postRes?.data;
+    if (inner && typeof inner === 'object' && inner.id != null) return inner.id;
+    if (postRes?.id != null) return postRes.id;
+    return null;
+  };
+
   const handleSubmitComment = useCallback(async (content) => {
-    if (!content?.trim() || postId == null || currentUserId == null) return;
+    if (!content?.trim() || postId == null || currentUserId == null) return undefined;
     try {
-      await commentOnPost(postId, currentUserId, content.trim());
+      const postRes = await commentOnPost(postId, currentUserId, content.trim());
       const res = await getComments(postId);
       const data = res?.data;
       const list = Array.isArray(data) ? data.map(normalizeComment) : [];
       setCommentList(list);
+      const nid = extractNewCommentId(postRes);
+      return nid != null ? nid : 'end';
     } catch (e) {
       console.warn('Comment API error:', e);
+      return undefined;
     }
   }, [postId, currentUserId, normalizeComment]);
 
   const handleSubmitReply = useCallback(async (parentCommentId, content) => {
-    if (!content?.trim() || postId == null || currentUserId == null || !parentCommentId) return;
+    if (!content?.trim() || postId == null || currentUserId == null || !parentCommentId) return undefined;
     try {
-      await replyToComment(postId, currentUserId, parentCommentId, content.trim());
+      const postRes = await replyToComment(postId, currentUserId, parentCommentId, content.trim());
       const res = await getComments(postId);
       const data = res?.data;
       const list = Array.isArray(data) ? data.map(normalizeComment) : [];
       setCommentList(list);
+      const nid = extractNewCommentId(postRes);
+      return nid != null ? nid : 'end';
     } catch (e) {
       console.warn('Reply API error:', e);
+      return undefined;
     }
   }, [postId, currentUserId, normalizeComment]);
 
@@ -451,14 +554,35 @@ const PostCard = ({
         {!!videoUrl && (
           <View style={styles.imageWrap}>
             {videoPlaying ? (
-              <View style={[styles.videoContainer, { height: mediaHeight }]}>
-                <VideoPlayer
+              <View
+                onLayout={onVideoBoxLayout}
+                style={[
+                  styles.videoContainer,
+                  freezeVideoLayout
+                    ? {
+                        width: frozenMetricsRef.current.w,
+                        height: frozenMetricsRef.current.h,
+                        alignSelf: 'center',
+                      }
+                    : { width: '100%', height: mediaHeight },
+                ]}
+              >
+                <Video
                   source={{ uri: String(videoUrl || '') }}
-                  style={[styles.postImage, { height: mediaHeight }]}
+                  style={[
+                    styles.postImage,
+                    {
+                      height: freezeVideoLayout ? frozenMetricsRef.current.h : mediaHeight,
+                    },
+                  ]}
+                  controls
                   resizeMode="contain"
-                  autoplay
-                  showDuration
-                  controlsTimeout={4000}
+                  paused={false}
+                  fullscreenAutorotate
+                  fullscreenOrientation="all"
+                  onFullscreenPlayerWillPresent={onVideoFullscreenWillPresent}
+                  onFullscreenPlayerDidPresent={onVideoFullscreenDidPresent}
+                  onFullscreenPlayerDidDismiss={onVideoFullscreenDidDismiss}
                   onEnd={() => setVideoPlaying(false)}
                   onError={(e) => {
                     if (__DEV__) console.warn('PostCard video error', e);

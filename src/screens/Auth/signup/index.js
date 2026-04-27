@@ -3,15 +3,15 @@ import {
   Text,
   View,
   ScrollView,
-  Pressable,
   Keyboard,
   BackHandler,
   SafeAreaView,
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
@@ -35,9 +35,8 @@ import { API } from '../../../utils/endpoints';
 import { postNoAuth } from '../../../utils/apicalls/postApi';
 import Loader from '../../../components/loader';
 import PopUpMessage from '../../../components/popup';
-import useNetworkStatus from '../../../hooks/networkStatus';
 import { useFocusEffect } from '@react-navigation/native';
-import { historyDownload } from '../../../utils/helperfunctions/functions';
+import axios from 'axios';
 
 const INITIALINPUT = {
   firstName: '',
@@ -67,9 +66,72 @@ const Signup = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState();
   const [subtitle, setSubtitle] = useState('');
-  const isConnected = useNetworkStatus();
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
   const [warning, setWarning] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const usernameCheckRef = useRef(null);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const emailCheckRef = useRef(null);
+
+  const debouncedCheckUsername = useCallback((username) => {
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    if (!username || !username.trim()) {
+      setUsernameStatus(null);
+      setCheckingUsername(false);
+      return;
+    }
+    setCheckingUsername(true);
+    setUsernameStatus(null);
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        const url = API.CHECK_USERNAME(username.trim());
+        const res = await axios.get(url);
+        const data = res?.data?.data ?? res?.data;
+        if (data.available) {
+          setUsernameStatus({ available: true, message: 'Username is available' });
+          handleError('', 'username');
+        } else {
+          setUsernameStatus({ available: false, message: data.message || 'Username is already taken' });
+          handleError(data.message || 'Username is already taken', 'username');
+        }
+      } catch {
+        setUsernameStatus(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+  }, []);
+
+  const debouncedCheckEmail = useCallback((email) => {
+    if (emailCheckRef.current) clearTimeout(emailCheckRef.current);
+    if (!email || !email.trim()) {
+      setEmailStatus(null);
+      setCheckingEmail(false);
+      return;
+    }
+    setCheckingEmail(true);
+    setEmailStatus(null);
+    emailCheckRef.current = setTimeout(async () => {
+      try {
+        const url = API.CHECK_EMAIL(email.trim());
+        const res = await axios.get(url);
+        const data = res?.data?.data ?? res?.data;
+        if (data.available) {
+          setEmailStatus({ available: true, message: 'Email is available' });
+          handleError('', 'emailId');
+        } else {
+          setEmailStatus({ available: false, message: data.message || 'This email is already registered' });
+          handleError(data.message || 'This email is already registered', 'emailId');
+        }
+      } catch {
+        setEmailStatus(null);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+  }, []);
 
   const handleSubmitPress = async () => {
     const url = API.REGISTER_USER;
@@ -135,6 +197,23 @@ const Signup = ({ navigation }) => {
   const validation = () => {
     Keyboard.dismiss();
 
+    if (usernameStatus && !usernameStatus.available) {
+      Toast.show('Please choose a different username.');
+      return;
+    }
+    if (checkingUsername) {
+      Toast.show('Checking username availability...');
+      return;
+    }
+    if (emailStatus && !emailStatus.available) {
+      Toast.show('Please use a different email.');
+      return;
+    }
+    if (checkingEmail) {
+      Toast.show('Checking email availability...');
+      return;
+    }
+
     if (!isChecked) {
       handleError('You must agree to the Terms and Conditions to proceed', 'Terms');
     }
@@ -188,7 +267,14 @@ const Signup = ({ navigation }) => {
   const handleOnchange = (text, input) => {
     if (input === 'username') {
       const valid = ValidateUserName(text);
-      valid === 'success' ? handleError('', 'username') : handleError(valid, 'username');
+      if (valid === 'success') {
+        handleError('', 'username');
+        debouncedCheckUsername(text);
+      } else {
+        handleError(valid, 'username');
+        setUsernameStatus(null);
+        setCheckingUsername(false);
+      }
     } else if (input === 'password') {
       const valid = ValidatePassword(text);
       valid === 'success' ? handleError('', 'password') : handleError(valid, 'password');
@@ -209,7 +295,14 @@ const Signup = ({ navigation }) => {
       valid === 'success' ? handleError('', 'lastName') : handleError(valid, 'lastName');
     } else if (input === 'emailId') {
       const valid = ValidateMail(text);
-      valid === 'success' ? handleError('', 'emailId') : handleError(valid, 'emailId');
+      if (valid === 'success') {
+        handleError('', 'emailId');
+        debouncedCheckEmail(text);
+      } else {
+        handleError(valid, 'emailId');
+        setEmailStatus(null);
+        setCheckingEmail(false);
+      }
     } else if (input === 'mobile') {
       const valid = ValidateMobile(text);
       valid === 'success' ? handleError('', 'mobile') : handleError(valid, 'mobile');
@@ -252,27 +345,6 @@ const Signup = ({ navigation }) => {
         }}
       />
     );
-  };
-
-  const getpdfFile = async (pdfTitle, url) => {
-    if (!isConnected) {
-      onPopupMessageModalClick(true);
-      setTitle('No Internet Connection');
-      setSubtitle('Please check your Wi-Fi or mobile network connection and try again.');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const result = await historyDownload(pdfTitle, url);
-      if (result) {
-        Toast.show('Terms and Condition has been downloaded successfully');
-      }
-    } catch (e) {
-      // ignore
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const minDate = new Date();
@@ -350,6 +422,19 @@ const Signup = ({ navigation }) => {
               inputFontSize={15}
               inputMinHeight={48}
             />
+            {checkingUsername && (
+              <View style={styles.usernameStatusRow}>
+                <ActivityIndicator size="small" color="#6B7280" />
+                <Text style={[styles.usernameStatusText, { color: '#6B7280' }]}>Checking availability...</Text>
+              </View>
+            )}
+            {!checkingUsername && usernameStatus && (
+              <View style={styles.usernameStatusRow}>
+                <Text style={[styles.usernameStatusText, { color: usernameStatus.available ? '#16a34a' : '#dc2626' }]}>
+                  {usernameStatus.message}
+                </Text>
+              </View>
+            )}
             <View style={styles.gap} />
 
             <Text style={styles.fieldLabel}>PASSWORD</Text>
@@ -407,6 +492,19 @@ const Signup = ({ navigation }) => {
               inputFontSize={15}
               inputMinHeight={48}
             />
+            {checkingEmail && (
+              <View style={styles.usernameStatusRow}>
+                <ActivityIndicator size="small" color="#6B7280" />
+                <Text style={[styles.usernameStatusText, { color: '#6B7280' }]}>Checking availability...</Text>
+              </View>
+            )}
+            {!checkingEmail && emailStatus && (
+              <View style={styles.usernameStatusRow}>
+                <Text style={[styles.usernameStatusText, { color: emailStatus.available ? '#16a34a' : '#dc2626' }]}>
+                  {emailStatus.message}
+                </Text>
+              </View>
+            )}
             <View style={styles.gap} />
 
             <Text style={styles.fieldLabel}>PHONE</Text>
@@ -424,7 +522,7 @@ const Signup = ({ navigation }) => {
               inputMinHeight={48}
             />
 
-            <View style={[styles.row, { marginTop: 14 }]}>
+            {/* <View style={[styles.row, { marginTop: 14 }]}>
               <View style={styles.checkboxWrap}>
                 <Checkbox
                   isChecked={isCheckedTemple}
@@ -433,31 +531,44 @@ const Signup = ({ navigation }) => {
                 />
               </View>
               <Text style={styles.checkboxText}>{APP_TEXT.REGISTER_AS_TEMPLE}</Text>
-            </View>
+            </View> */}
 
-            <View style={{ marginTop: 16 }}>
-              <Pressable
-                onPress={() =>
-                  getpdfFile(
-                    'terms and condition',
-                    'https://morth.nic.in/sites/default/files/dd12-13_0.pdf',
-                  )
-                }
-              >
-                <View style={styles.row}>
-                  <View style={styles.checkboxWrap}>
-                    <Checkbox
-                      isChecked={isChecked}
-                      onClick={() => setIsChecked(!isChecked)}
-                      checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
-                    />
-                  </View>
-                  <Text style={styles.termsText}>
-                    {APP_TEXT.AGREEING_TO}{' '}
-                    <Text style={styles.termsLink}>{APP_TEXT.TERMS_AND_CONDITION}</Text>
-                  </Text>
+            <View style={styles.termsBlock}>
+              <View style={styles.termsRow}>
+                <View style={styles.checkboxWrap}>
+                  <Checkbox
+                    isChecked={isChecked}
+                    onClick={() => {
+                      setIsChecked(!isChecked);
+                      if (errors.Terms) {
+                        handleError('', 'Terms');
+                      }
+                    }}
+                    checkedCheckBoxColor={colors.PRIMARY_BLUE_TEXT}
+                  />
                 </View>
-              </Pressable>
+                <Text style={styles.termsTextWrap}>
+                  I agree to the{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() =>
+                      navigation.navigate(NAVIGATION.TO_TERMS_OF_SERVICE)
+                    }
+                  >
+                    Terms & Conditions
+                  </Text>
+                  {' '}and the{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() =>
+                      navigation.navigate(NAVIGATION.TO_PRIVACY_POLICY)
+                    }
+                  >
+                    Privacy Policy
+                  </Text>
+                  .
+                </Text>
+              </View>
 
               {!isChecked && !!errors?.Terms ? (
                 <Text style={styles.errorText}>{errors?.Terms}</Text>
@@ -561,11 +672,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  termsText: {
+  termsBlock: {
+    marginTop: 16,
+  },
+
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  termsTextWrap: {
     marginLeft: 12,
+    flex: 1,
     color: colors.PRIMARY_DARK,
     fontSize: 14,
-    flex: 1,
+    lineHeight: 20,
   },
 
   termsLink: {
@@ -578,6 +699,19 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
     marginTop: 4,
+  },
+
+  usernameStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginTop: 4,
+    gap: 6,
+  },
+
+  usernameStatusText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 
   signupButton: {

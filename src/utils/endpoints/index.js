@@ -12,6 +12,10 @@ class Endpoints {
   FORGET_PASSWORD = this.baseUrl + 'auth/forgot-password';
   VERIFY_FORGOT_OTP = this.baseUrl + 'auth/verify-forgot-otp';
   RESET_PASSWORD = this.baseUrl + 'auth/reset-password';
+  CHECK_USERNAME = (username) =>
+    this.baseUrl.replace(/\/api\/?$/, '/') + `user/social/profile/check-username?username=${encodeURIComponent(username)}`;
+  CHECK_EMAIL = (email) =>
+    this.baseUrl.replace(/\/api\/?$/, '/') + `user/social/profile/check-email?email=${encodeURIComponent(email)}`;
   FORGET_REGISTER_USER_PASSWORD=this.baseUrl + 'identity/auth/forgot-register-user-password';
   GET_ALL_PROFILE=this.baseUrl + 'core/user/all-active-players';
   UPDATE_PROFILE=this.baseUrl +'core/user/update-profile';
@@ -50,6 +54,8 @@ class Endpoints {
   SOCIAL_PROFILE_UPDATE = this.socialBase + 'profile/update';
   /** Update profile picture (multipart file) */
   SOCIAL_PROFILE_PICTURE = this.socialBase + 'profile/picture';
+  SOCIAL_CHECK_USERNAME = (username, userId) =>
+    this.socialBase + `profile/check-username?username=${encodeURIComponent(username)}${userId ? `&userId=${userId}` : ''}`;
   SOCIAL_POSTS = this.socialBase + 'posts';
   SOCIAL_POST_CREATE = this.socialBase + 'post';
   SOCIAL_POST_DELETE = (postId) => this.socialBase + `post/${postId}`;
@@ -77,6 +83,8 @@ class Endpoints {
   SOCIAL_CHAT_THREAD_MESSAGES = (threadId, page = 0, size = 50) =>
     this.socialBase + `chat/thread/${threadId}/messages?page=${page}&size=${size}`;
   SOCIAL_CHAT_SEND_MESSAGE = () => this.socialBase + 'chat/message';
+  SOCIAL_CHAT_UNREAD_COUNT = (userId) => this.socialBase + `chat/unread-count?userId=${userId}`;
+  SOCIAL_CHAT_MARK_THREAD_READ = (threadId) => this.socialBase + `chat/thread/${threadId}/read`;
   // Notifications (social)
   SOCIAL_NOTIFICATIONS = (userId, page = 0, size = 20) =>
     this.socialBase + `notifications?userId=${userId}&page=${page}&size=${size}`;
@@ -93,6 +101,7 @@ class Endpoints {
 
   // Reels
   SOCIAL_REELS = () => this.socialBase + 'reels';
+  SOCIAL_REELS_FEED = () => this.socialBase + 'reels/feed';
   SOCIAL_REELS_BY_USER = (userId) => this.socialBase + `reels/user/${userId}`;
   SOCIAL_REEL_CREATE = this.socialBase + 'reel';
   SOCIAL_REEL_DELETE = (reelId) => this.socialBase + `reel/${reelId}`;

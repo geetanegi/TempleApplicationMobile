@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Keyboard,
+  Image,
+  InteractionManager,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,14 +37,11 @@ const ReelCommentsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const flatListRef = useRef(null);
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
-    });
-    return () => sub.remove();
-  }, []);
+  const inputRef = useRef(null);
+  const scrollAfterPostRef = useRef(false);
+  const postedScrollFallbackTimerRef = useRef(null);
 
   useEffect(() => {
     if (reelId) {
@@ -56,6 +56,47 @@ const ReelCommentsScreen = () => {
     }
   }, [reelId]);
 
+  const runPostedScrollToEnd = useCallback(() => {
+    if (!scrollAfterPostRef.current) return;
+    if (!flatListRef.current) return;
+    scrollAfterPostRef.current = false;
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        });
+      });
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!scrollAfterPostRef.current) return;
+    if (postedScrollFallbackTimerRef.current != null) {
+      clearTimeout(postedScrollFallbackTimerRef.current);
+    }
+    postedScrollFallbackTimerRef.current = setTimeout(() => {
+      postedScrollFallbackTimerRef.current = null;
+      if (scrollAfterPostRef.current) {
+        runPostedScrollToEnd();
+      }
+    }, 400);
+    return () => {
+      if (postedScrollFallbackTimerRef.current != null) {
+        clearTimeout(postedScrollFallbackTimerRef.current);
+        postedScrollFallbackTimerRef.current = null;
+      }
+    };
+  }, [comments, runPostedScrollToEnd]);
+
+  useEffect(() => {
+    return () => {
+      scrollAfterPostRef.current = false;
+      if (postedScrollFallbackTimerRef.current != null) {
+        clearTimeout(postedScrollFallbackTimerRef.current);
+      }
+    };
+  }, []);
+
   const submitComment = useCallback(async () => {
     const content = inputText.trim();
     if (!content || !currentUserId || !reelId || submitting) return;
@@ -66,7 +107,10 @@ const ReelCommentsScreen = () => {
       const newComment = res?.data;
       if (newComment) {
         setComments((prev) => [...prev, newComment]);
+        scrollAfterPostRef.current = true;
       }
+      inputRef.current?.blur?.();
+      Keyboard.dismiss();
     } catch (e) {
       setInputText(content);
     } finally {
@@ -74,33 +118,91 @@ const ReelCommentsScreen = () => {
     }
   }, [inputText, currentUserId, reelId, submitting]);
 
+  const openProfile = (userId) => {
+    if (userId == null) return;
+    navigation.navigate('Profiles', { userId });
+  };
+
+  const handleDeletePress = useCallback(
+    (item) => {
+      if (reelId == null || currentUserId == null) return;
+      Alert.alert('Delete comment', 'Are you sure you want to delete this comment?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const cid = item.id;
+            setDeletingId(cid);
+            try {
+              await deleteReelComment(reelId, cid, currentUserId);
+              setComments((prev) =>
+                prev.filter((c) => String(c.id) !== String(item.id)),
+              );
+            } catch (e) {
+              console.warn('Delete reel comment error:', e);
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]);
+    },
+    [reelId, currentUserId],
+  );
+
   const renderComment = ({ item }) => {
     const avatarUrl =
       getProfilePictureUrlByUserId(item.user?.id) ||
       resolveProfilePictureUrl(item.user?.avatarUrl);
-    const isOwn = item.user?.id === currentUserId;
+    const uid = item.user?.id ?? item.userId;
+    const initial = (item.user?.name || item.user?.username || '?').charAt(0);
+    const canDelete =
+      currentUserId != null && String(uid) === String(currentUserId);
 
     return (
       <View style={styles.commentRow}>
-        <View style={styles.avatarWrap}>
+        <Pressable
+          style={styles.avatarWrap}
+          onPress={() => openProfile(uid)}
+          disabled={uid == null}
+          hitSlop={4}
+        >
           {avatarUrl ? (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>
-                {(item.user?.name || item.user?.username || '?').charAt(0)}
-              </Text>
-            </View>
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>
-                {(item.user?.name || item.user?.username || '?').charAt(0)}
-              </Text>
+              <Text style={styles.avatarLetter}>{initial}</Text>
             </View>
           )}
-        </View>
+        </Pressable>
         <View style={styles.commentBody}>
-          <Text style={styles.commentUser}>
-            {item.user?.username || item.user?.name || 'User'}
-          </Text>
+          <View style={styles.commentTitleRow}>
+            <Pressable
+              style={styles.commentUserPress}
+              onPress={() => openProfile(uid)}
+              disabled={uid == null}
+              hitSlop={4}
+            >
+              <Text style={styles.commentUser} numberOfLines={1}>
+                {item.user?.name || item.user?.username || 'User'}
+              </Text>
+            </Pressable>
+            {canDelete && (
+              <Pressable
+                hitSlop={10}
+                style={styles.deleteIconWrap}
+                onPress={() => handleDeletePress(item)}
+                disabled={String(deletingId) === String(item.id)}
+              >
+                {String(deletingId) === String(item.id) ? (
+                  <ActivityIndicator size="small" color="#888" />
+                ) : (
+                  <Ionicons name="trash-outline" size={18} color="#888" />
+                )}
+              </Pressable>
+            )}
+          </View>
           <Text style={styles.commentText}>{item.content}</Text>
         </View>
       </View>
@@ -134,7 +236,11 @@ const ReelCommentsScreen = () => {
             </View>
           }
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={(contentWidth, contentHeight) => {
+            if (contentHeight <= 0) return;
+            if (!scrollAfterPostRef.current) return;
+            runPostedScrollToEnd();
+          }}
         />
       )}
 
@@ -146,6 +252,7 @@ const ReelCommentsScreen = () => {
       >
         <View style={styles.inputRow}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             placeholder="Add a comment..."
             placeholderTextColor="#999"
@@ -153,6 +260,7 @@ const ReelCommentsScreen = () => {
             onChangeText={setInputText}
             multiline
             maxLength={500}
+            blurOnSubmit={false}
             onFocus={() => {
               setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
             }}
@@ -192,6 +300,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 15, color: '#888' },
   commentRow: { flexDirection: 'row', marginBottom: 16 },
   avatarWrap: { marginRight: 12 },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#eee',
+  },
   avatarPlaceholder: {
     width: 36,
     height: 36,
@@ -202,7 +316,20 @@ const styles = StyleSheet.create({
   },
   avatarLetter: { fontSize: 16, fontWeight: '700', color: '#fff' },
   commentBody: { flex: 1 },
-  commentUser: { fontSize: 14, fontWeight: '700', color: '#000', marginBottom: 2 },
+  commentTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  commentUserPress: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  commentUser: { fontSize: 14, fontWeight: '700', color: '#000' },
+  deleteIconWrap: {
+    padding: 4,
+  },
   commentText: { fontSize: 14, color: '#333', lineHeight: 20 },
   inputRow: {
     flexDirection: 'row',

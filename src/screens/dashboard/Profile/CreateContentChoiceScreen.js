@@ -66,7 +66,7 @@ export default function CreateContentChoiceScreen() {
             <View style={styles.iconWrap}>
               <Film size={56} color={COLORS.orange} strokeWidth={2} />
             </View>
-            <Text style={styles.optionTitle}>Post a Reel</Text>
+            <Text style={styles.optionTitle}>Post a Clip</Text>
             <Text style={styles.optionSubtext}>
               Create a short video reel
             </Text>
