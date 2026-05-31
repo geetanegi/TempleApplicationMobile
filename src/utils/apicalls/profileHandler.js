@@ -89,14 +89,41 @@ export const getUserProfileById = async (userId) => {
  */
 export const getProfileWithCounts = async (userId) => {
   try {
+    const parseCount = (val) => {
+      // Accept: number | numeric string | { data: number } | { count: number } | { data: { count } } etc.
+      if (val == null) return 0;
+      if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+      if (typeof val === 'string') {
+        const n = Number(val);
+        return Number.isFinite(n) ? n : 0;
+      }
+      if (typeof val === 'object') {
+        const v =
+          val?.data?.data ?? // axios-ish: { data: { data: X } }
+          val?.data ??      // axios-ish: { data: X }
+          val?.count ??
+          val?.total ??
+          val?.totalElements ??
+          val?.value ??
+          val?.result ??
+          val?.data?.count ??
+          val?.data?.total ??
+          val?.data?.totalElements ??
+          val?.data?.value ??
+          val?.data?.result;
+        return parseCount(v);
+      }
+      return 0;
+    };
+
     const [profileRes, followersRes, followingRes] = await Promise.all([
       getUserProfileById(userId),
-      getFollowersCount(userId).then(r => r?.data ?? r).catch(() => 0),
-      getFollowingCount(userId).then(r => r?.data ?? r).catch(() => 0),
+      getFollowersCount(userId).catch(() => 0),
+      getFollowingCount(userId).catch(() => 0),
     ]);
     const profile = profileRes && typeof profileRes === 'object' ? profileRes : undefined;
-    const followersCount = typeof followersRes === 'number' ? followersRes : Number(followersRes) || 0;
-    const followingCount = typeof followingRes === 'number' ? followingRes : Number(followingRes) || 0;
+    const followersCount = parseCount(followersRes);
+    const followingCount = parseCount(followingRes);
     return { profile, followersCount, followingCount };
   } catch (err) {
     console.log('getProfileWithCounts error', err);

@@ -1,6 +1,7 @@
+import { Platform } from 'react-native';
 import { API } from '../endpoints';
 import { getAuth, getAuthWithParams } from './getApi';
-import { postAuth } from './postApi';
+import { postAuth, postAuthFlat } from './postApi';
 import { putAuth } from './putApi';
 import { deleteAuthWithParams } from './deleteApi';
 import { retrieveData, uploadApi } from './index';
@@ -324,4 +325,39 @@ export const getNotificationsCount = async (userId) => {
 
 export const markNotificationsSeen = async (notificationIds) => {
   return putAuth(API.SOCIAL_NOTIFICATIONS_SEEN(), notificationIds ?? []);
+};
+
+/**
+ * Register FCM token with social API. Body is flat JSON: { userId, token, platform } (must match user_master.id).
+ * On success the server stores/updates `user_fcm_token` for that user.
+ */
+export const registerFcmDeviceToken = async (userId, token) => {
+  const uid = Number(userId);
+  if (!Number.isFinite(uid) || uid <= 0 || !token) {
+    if (__DEV__) {
+      console.warn('[FCM] register skipped: invalid userId or token', { userId, hasToken: !!token });
+    }
+    return null;
+  }
+  try {
+    const res = await postAuthFlat(API.SOCIAL_FCM_REGISTER(), {
+      userId: uid,
+      token,
+      platform: Platform.OS,
+    });
+    if (__DEV__) {
+      console.log(
+        '[FCM] backend registered token for userId=',
+        uid,
+        'token prefix=',
+        String(token).slice(0, 20) + '…',
+      );
+    }
+    return res;
+  } catch (e) {
+    if (__DEV__) {
+      console.warn('[FCM] backend register failed userId=', uid, 'status=', e?.status, e?.message);
+    }
+    return null;
+  }
 };

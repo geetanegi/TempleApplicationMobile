@@ -11,17 +11,23 @@ import {
   Platform,
   ActivityIndicator,
   Keyboard,
+  InteractionManager,
+  Linking,
 } from 'react-native';
-import { Send, ChevronLeft, User } from 'lucide-react-native';
+import { Send, ChevronLeft, User, Play } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { getUserId } from '../../../redux/store/getState';
-import { getChatMessages, sendChatMessage, markChatThreadRead } from '../../../utils/apicalls/socialHandler';
+import { getChatMessages, sendChatMessage, markChatThreadRead, getPostById } from '../../../utils/apicalls/socialHandler';
+import { getReelById } from '../../../utils/apicalls/reelHandler';
 import { connectWebSocket, subscribeChatThread, unsubscribeChatThread } from '../../../utils/services/websocketService';
 import { preloadChatSounds, playSendSound, playReceiveSound } from '../../../utils/chatSounds';
 import { formatDateTimeIST } from '../../../utils/helperfunctions/dateTimeUtils';
 import { colors } from '../../../global/theme';
+
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+const CHAT_PAGE_SIZE = 30;
 
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -43,33 +49,120 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSpinner, setShowSpinner] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [avatarError, setAvatarError] = useState(false);
+  const [reelPreviewMap, setReelPreviewMap] = useState({});
+  const [postPreviewMap, setPostPreviewMap] = useState({});
   const flatListRef = useRef(null);
   const loaderTimerRef = useRef(null);
+  const requestedReelIdsRef = useRef(new Set());
+  const requestedPostIdsRef = useRef(new Set());
 
-  const loadMessages = useCallback(async () => {
+  const extractReelIdFromText = useCallback((value) => {
+    const text = String(value || '');
+    const match =
+      text.match(/(?:https?:\/\/)?(?:www\.)?jainsansaar\.app\/reel\/([^?\s]+)/i) ||
+      text.match(/\/reel\/([^?\s]+)/i) ||
+      text.match(/reelId=([^&\s]+)/i);
+    if (!match?.[1]) return null;
+    const cleaned = String(match[1]).replace(/[)\].,;!?]+$/g, '');
+    return cleaned || null;
+  }, []);
+
+  const extractPostIdFromText = useCallback((value) => {
+    const text = String(value || '');
+    const match =
+      text.match(/(?:https?:\/\/)?(?:www\.)?jainsansaar\.app\/post\/([^?\s]+)/i) ||
+      text.match(/jainsansaar:\/\/post\/([^?\s]+)/i) ||
+      text.match(/\/post\/([^?\s]+)/i) ||
+      text.match(/postId=([^&\s]+)/i);
+    if (!match?.[1]) return null;
+    const cleaned = String(match[1]).replace(/[)\].,;!?]+$/g, '');
+    return cleaned || null;
+  }, []);
+
+  const openReelInApp = useCallback((reelId) => {
+    if (!reelId) return;
+    const tabNav = navigation.getParent()?.getParent?.();
+    if (tabNav) {
+      tabNav.navigate('Video', {
+        screen: 'ReelsFeed',
+        params: { reelId },
+      });
+      return;
+    }
+    navigation.navigate('Video', {
+      screen: 'ReelsFeed',
+      params: { reelId },
+    });
+  }, [navigation]);
+
+  const openPostInApp = useCallback((postId) => {
+    if (!postId) return;
+    const tabNav = navigation.getParent()?.getParent?.();
+    (tabNav || navigation.getParent() || navigation).navigate('Home', {
+      screen: 'PostPreview',
+      params: { postId: Number(postId) || postId },
+    });
+  }, [navigation]);
+
+  const loadMessages = useCallback(async (pageNum = 0, append = false) => {
     if (!threadId) return;
-    if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
-    loaderTimerRef.current = setTimeout(() => setShowSpinner(true), 600); // Only show spinner if API takes >600ms
+    if (!append) {
+      if (loaderTimerRef.current) clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = setTimeout(() => setShowSpinner(true), 600);
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     try {
-      const res = await getChatMessages(threadId, 0, 50);
-      const list = Array.isArray(res?.data) ? res.data : [];
-      setMessages(list);
+      const res = await getChatMessages(threadId, pageNum, CHAT_PAGE_SIZE);
+      const list = Array.isArray(res?.data) ? [...res.data] : [];
+      // Keep messages newest-first for inverted list.
+      list.sort((a, b) => {
+        const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+
+      if (append) {
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id || m.clientMessageId));
+          const older = list.filter((m) => !seen.has(m.id || m.clientMessageId));
+          return [...prev, ...older];
+        });
+      } else {
+        setMessages(list);
+      }
+
+      setPage(pageNum);
+      setHasMore(list.length >= CHAT_PAGE_SIZE);
     } catch (e) {
       console.warn('Load messages error', e);
     } finally {
-      if (loaderTimerRef.current) {
-        clearTimeout(loaderTimerRef.current);
-        loaderTimerRef.current = null;
+      if (!append) {
+        if (loaderTimerRef.current) {
+          clearTimeout(loaderTimerRef.current);
+          loaderTimerRef.current = null;
+        }
+        setShowSpinner(false);
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
       }
-      setShowSpinner(false);
-      setLoading(false);
     }
   }, [threadId]);
 
   useEffect(() => {
-    loadMessages();
+    loadMessages(0, false);
   }, [loadMessages]);
+
+  useEffect(() => {
+    setPage(0);
+    setHasMore(true);
+  }, [threadId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +186,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+      setTimeout(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }), 150);
     });
     return () => sub.remove();
   }, []);
@@ -110,12 +203,91 @@ export default function ChatScreen() {
         setMessages((prev) => {
           const exists = prev.some((m) => m.id === message.id || m.clientMessageId === message.clientMessageId);
           if (exists) return prev;
-          return [...prev, message];
+          return [message, ...prev];
         });
       });
     });
     return () => unsubscribeChatThread(threadId);
   }, [threadId, currentUserId]);
+
+  const loadOlderMessages = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    loadMessages(page + 1, true);
+  }, [loading, loadingMore, hasMore, loadMessages, page]);
+
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) return;
+    const reelIds = Array.from(
+      new Set(
+        messages
+          .map((m) => extractReelIdFromText(m?.content))
+          .filter(Boolean),
+      ),
+    );
+    reelIds.forEach((reelId) => {
+      if (requestedReelIdsRef.current.has(reelId)) return;
+      requestedReelIdsRef.current.add(reelId);
+      getReelById(reelId, currentUserId)
+        .then((res) => {
+          const reel = res?.data || {};
+          setReelPreviewMap((prev) => ({
+            ...prev,
+            [reelId]: {
+              id: reelId,
+              caption: reel?.caption || '',
+              thumbnailUrl: reel?.thumbnailUrl || '',
+            },
+          }));
+        })
+        .catch(() => {
+          setReelPreviewMap((prev) => ({
+            ...prev,
+            [reelId]: {
+              id: reelId,
+              caption: '',
+              thumbnailUrl: '',
+            },
+          }));
+        });
+    });
+  }, [messages, currentUserId, extractReelIdFromText]);
+
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) return;
+    const postIds = Array.from(
+      new Set(
+        messages
+          .map((m) => extractPostIdFromText(m?.content))
+          .filter(Boolean),
+      ),
+    );
+    postIds.forEach((postId) => {
+      if (requestedPostIdsRef.current.has(postId)) return;
+      requestedPostIdsRef.current.add(postId);
+      getPostById(postId, currentUserId)
+        .then((res) => {
+          const post = res?.data || {};
+          setPostPreviewMap((prev) => ({
+            ...prev,
+            [postId]: {
+              id: postId,
+              contentText: post?.contentText || '',
+              photoUrl: post?.photoUrl || post?.thumbnailUrl || '',
+            },
+          }));
+        })
+        .catch(() => {
+          setPostPreviewMap((prev) => ({
+            ...prev,
+            [postId]: {
+              id: postId,
+              contentText: '',
+              photoUrl: '',
+            },
+          }));
+        });
+    });
+  }, [messages, currentUserId, extractPostIdFromText]);
 
   const send = useCallback(async () => {
     const text = (input || '').trim();
@@ -134,7 +306,7 @@ export default function ChatScreen() {
       createdAt: new Date().toISOString(),
       status: 'sending',
     };
-    setMessages((prev) => [...prev, optimistic]);
+    setMessages((prev) => [optimistic, ...prev]);
     playSendSound();
     try {
       const res = await sendChatMessage(threadId, currentUserId, clientMessageId, text, 'text');
@@ -150,13 +322,118 @@ export default function ChatScreen() {
     }
   }, [input, threadId, currentUserId, sending]);
 
+  const openMessageLink = useCallback(async (url) => {
+    let target = (url || '').trim().replace(/[.,;:!?)\]]+$/, '');
+    if (!target) return;
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = `https://${target}`;
+    }
+
+    const reelMatch = target.match(/\/reel\/([^/?#]+)/i);
+    if (reelMatch?.[1]) {
+      openReelInApp(reelMatch[1]);
+      return;
+    }
+
+    const postMatch =
+      target.match(/\/post\/([^/?#]+)/i) ||
+      target.match(/jainsansaar:\/\/post\/([^/?#]+)/i);
+    if (postMatch?.[1]) {
+      openPostInApp(postMatch[1]);
+      return;
+    }
+
+    try {
+      await Linking.openURL(target);
+    } catch (e) {
+      console.warn('Open URL error', e);
+    }
+  }, [openReelInApp, openPostInApp]);
+
+  const renderMessageContent = useCallback((content, isMe) => {
+    const text = String(content || '');
+    const parts = text.split(URL_REGEX).filter(Boolean);
+
+    return (
+      <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>
+        {parts.map((part, index) => {
+          const isUrl = /^(https?:\/\/|www\.)/i.test(part);
+          if (!isUrl) return part;
+          return (
+            <Text
+              key={`${part}-${index}`}
+              style={[styles.linkText, isMe && styles.linkTextMe]}
+              onPress={() => openMessageLink(part)}
+            >
+              {part}
+            </Text>
+          );
+        })}
+      </Text>
+    );
+  }, [openMessageLink]);
+
   const renderMessage = ({ item }) => {
     const isMe = item.senderId === currentUserId || item.senderUsername === 'You';
     const timeStr = formatDateTimeIST(item.createdAt);
+    const reelId = extractReelIdFromText(item?.content);
+    const postId = extractPostIdFromText(item?.content);
+    const reelPreview = reelId ? reelPreviewMap[reelId] : null;
+    const postPreview = postId ? postPreviewMap[postId] : null;
+    const hasMediaPreview = Boolean(reelId || postId);
     return (
       <View style={[styles.bubbleWrap, isMe ? styles.bubbleWrapRight : styles.bubbleWrapLeft]}>
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-          <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{item.content}</Text>
+          {!hasMediaPreview ? renderMessageContent(item.content, isMe) : null}
+          {reelId ? (
+            <Pressable
+              onPress={() => openReelInApp(reelId)}
+              style={[styles.reelPreviewCard, isMe && styles.reelPreviewCardMe]}
+            >
+              <View style={styles.reelPreviewMediaWrap}>
+                {reelPreview?.thumbnailUrl ? (
+                  <Image source={{ uri: reelPreview.thumbnailUrl }} style={styles.reelPreviewImage} resizeMode="cover" />
+                ) : (
+                  <View style={styles.reelPreviewFallback} />
+                )}
+                <View style={styles.reelPlayOverlay}>
+                  <Play size={18} color="#fff" strokeWidth={2.4} />
+                </View>
+              </View>
+              <View style={styles.reelPreviewTextWrap}>
+                <Text style={[styles.reelPreviewTitle, isMe && styles.reelPreviewTitleMe]}>Reel Preview</Text>
+                <Text
+                  style={[styles.reelPreviewSubtitle, isMe && styles.reelPreviewSubtitleMe]}
+                  numberOfLines={1}
+                >
+                  {reelPreview?.caption?.trim() || 'Tap to open reel'}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
+          {postId && !reelId ? (
+            <Pressable
+              onPress={() => openPostInApp(postId)}
+              style={[styles.reelPreviewCard, isMe && styles.reelPreviewCardMe]}
+            >
+              <View style={styles.reelPreviewMediaWrap}>
+                {postPreview?.photoUrl ? (
+                  <Image source={{ uri: postPreview.photoUrl }} style={styles.reelPreviewImage} resizeMode="cover" />
+                ) : (
+                  <View style={styles.reelPreviewFallback} />
+                )}
+              </View>
+              <View style={styles.reelPreviewTextWrap}>
+                <Text style={[styles.reelPreviewTitle, isMe && styles.reelPreviewTitleMe]}>Post Preview</Text>
+                <Text
+                  style={[styles.reelPreviewSubtitle, isMe && styles.reelPreviewSubtitleMe]}
+                  numberOfLines={2}
+                >
+                  {postPreview?.contentText?.trim() || 'Tap to view post'}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
           {item.status === 'sending' && <Text style={styles.sendingLabel}>Sending...</Text>}
           {item.status === 'failed' && <Text style={styles.failedLabel}>Failed</Text>}
           {timeStr ? <Text style={[styles.timeLabel, isMe && styles.timeLabelMe]}>{timeStr}</Text> : null}
@@ -229,10 +506,19 @@ export default function ChatScreen() {
           <FlatList
             ref={flatListRef}
             data={messages}
+            inverted
             keyExtractor={(item) => String(item.id || item.clientMessageId)}
             renderItem={renderMessage}
             contentContainerStyle={[styles.listContent, { paddingBottom: 80 }]}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onEndReached={loadOlderMessages}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.loaderMoreWrap}>
+                  <ActivityIndicator size="small" color={colors.orange || '#D48A4A'} />
+                </View>
+              ) : null
+            }
             keyboardShouldPersistTaps="handled"
           />
         )}
@@ -329,6 +615,10 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: '#666' },
   listContent: { padding: 12 },
+  loaderMoreWrap: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   bubbleWrap: { marginVertical: 4 },
   bubbleWrapLeft: { alignItems: 'flex-start' },
   bubbleWrapRight: { alignItems: 'flex-end' },
@@ -337,6 +627,71 @@ const styles = StyleSheet.create({
   bubbleThem: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e0e0e0' },
   bubbleText: { fontSize: 16, color: '#000' },
   bubbleTextMe: { fontSize: 16, color: '#fff' },
+  linkText: {
+    color: '#1d4ed8',
+    textDecorationLine: 'underline',
+  },
+  linkTextMe: {
+    color: '#dbeafe',
+  },
+  reelPreviewCard: {
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  reelPreviewCardMe: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  reelPreviewImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#111',
+  },
+  reelPreviewMediaWrap: {
+    position: 'relative',
+  },
+  reelPreviewFallback: {
+    width: '100%',
+    height: 90,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reelPlayOverlay: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '42%',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reelPreviewTextWrap: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  reelPreviewTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 2,
+  },
+  reelPreviewTitleMe: {
+    color: '#fff',
+  },
+  reelPreviewSubtitle: {
+    fontSize: 12,
+    color: '#4b5563',
+  },
+  reelPreviewSubtitleMe: {
+    color: 'rgba(255,255,255,0.85)',
+  },
   sendingLabel: { fontSize: 11, color: 'rgba(0,0,0,0.5)', marginTop: 4 },
   failedLabel: { fontSize: 11, color: '#c00', marginTop: 4 },
   timeLabel: { fontSize: 10, color: 'rgba(0,0,0,0.5)', marginTop: 4 },

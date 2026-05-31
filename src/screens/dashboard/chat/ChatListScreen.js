@@ -72,7 +72,12 @@ export default function ChatListScreen() {
         getChatThreads(currentUserId),
         getFollowing(currentUserId),
       ]);
-      const threadList = Array.isArray(threadsRes?.data) ? threadsRes.data : [];
+      const threadListRaw = Array.isArray(threadsRes?.data) ? threadsRes.data : [];
+      const threadList = threadListRaw.map((t) => ({
+        ...t,
+        unreadCount: Number(t?.unreadCount ?? t?.unreadMessagesCount ?? t?.unread ?? 0),
+        isSeen: t?.isSeen == null ? t?.seen : t?.isSeen,
+      }));
       const followList = Array.isArray(followingRes?.data) ? followingRes.data : [];
       setThreads(threadList);
       setFollowing(followList);
@@ -141,6 +146,22 @@ export default function ChatListScreen() {
 
   const openThread = useCallback(
     (thread) => {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === thread.id
+            ? {
+                ...t,
+                unreadCount: 0,
+                unreadMessagesCount: 0,
+                unread: 0,
+                isSeen: true,
+                seen: true,
+                lastMessageSeen: true,
+                read: true,
+              }
+            : t
+        )
+      );
       const otherId = thread.otherUserId;
       navigation.navigate('ChatScreen', {
         threadId: thread.id,
@@ -188,8 +209,11 @@ export default function ChatListScreen() {
     const mostRecentContent = item.lastMessagePreview || 'No messages yet';
     const hasMessages = mostRecentContent !== 'No messages yet';
     const isFromMe = String(item.lastMessageSenderId) === String(currentUserId);
-    /** Last message is from the other person — they are waiting on your reply. */
-    const needsReply = hasMessages && !isFromMe;
+    const unreadCount = Number(
+      item.unreadCount ?? item.unreadMessagesCount ?? item.unread ?? 0
+    );
+    /** Unseen state comes from per-thread unread count from backend. */
+    const needsReply = hasMessages && !isFromMe && unreadCount > 0;
     const previewText =
       mostRecentContent !== 'No messages yet' && isFromMe
         ? `You: ${mostRecentContent}`
@@ -209,6 +233,7 @@ export default function ChatListScreen() {
             {previewText}
           </Text>
         </View>
+        {needsReply ? <View style={styles.unreadDot} /> : null}
       </TouchableOpacity>
     );
   };
@@ -238,7 +263,7 @@ export default function ChatListScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={['left', 'right']}>
       <View style={styles.searchWrap}>
         <SearchInput
           value={searchQuery}
@@ -316,15 +341,22 @@ const styles = StyleSheet.create({
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#eee' },
   avatarPlaceholder: { backgroundColor: colors.orange || '#D48A4A', justifyContent: 'center', alignItems: 'center' },
   rowText: { marginLeft: 14, flex: 1 },
-  name: { fontSize: 17, fontWeight: '600', color: '#000' },
+  name: { fontSize: 14, fontWeight: '500', color: '#666' },
   nameAwaitingReply: {
     fontWeight: '700',
     color: '#111',
   },
   preview: { fontSize: 14, color: '#666', marginTop: 2 },
   previewAwaitingReply: {
-    color: '#333',
-    fontWeight: '500',
+    color: '#111',
+    fontWeight: '700',
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.orange || '#fd7c20',
+    marginLeft: 10,
   },
   empty: { textAlign: 'center', color: '#666', marginTop: 24, paddingHorizontal: 24 },
 });

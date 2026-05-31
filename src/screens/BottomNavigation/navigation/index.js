@@ -259,7 +259,7 @@ const JeevaniScreenStack = () => {
   return (
     <JeevaniStack.Navigator>
       <JeevaniStack.Screen
-        name="Jivani"
+        name="Jinvani"
         options={{headerTitleAlign: 'center', headerTitleStyle: {fontSize: 18}}}
         component={JevaaniScreen}
       />
@@ -418,7 +418,7 @@ export default function BottomNavigation() {
         component={HomeStackScreens}
         options={({route}) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
-          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'ChatScreen' || routeName === 'PostPreview';
+          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'Chat' || routeName === 'ChatScreen' || routeName === 'PostPreview' || routeName === 'Notifications';
           return {
             tabBarIcon: renderCustomTabIcon(HomeIcon),
             headerShown: false,

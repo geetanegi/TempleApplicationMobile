@@ -12,7 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import PostCard from '../../../components/PostCard';
 import { getPostById, deletePost } from '../../../utils/apicalls/socialHandler';
-import { getProfilePictureUrlByUserId, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
+import {
+  getProfilePictureUrlByUserId,
+  getProfilePictureUpdatedAt,
+  resolveProfilePictureUrl,
+} from '../../../utils/apicalls/profileHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { colors } from '../../../global/theme';
 
@@ -63,7 +67,10 @@ export default function PostPreviewScreen() {
         return;
       }
       const authorId = item.user?.id ?? item.userId;
-      let avatarUrl = getProfilePictureUrlByUserId(authorId) || 'https://i.pravatar.cc/150';
+      const avatarUrl =
+        resolveProfilePictureUrl(item.user?.userProfile ?? item.user?.profileImageUrl) ||
+        getProfilePictureUrlByUserId(authorId) ||
+        null;
       setPost({
         id: String(item.id),
         postId: item.id,
@@ -93,6 +100,50 @@ export default function PostPreviewScreen() {
   useEffect(() => {
     loadPost();
   }, [loadPost]);
+
+  const handleLikeChange = useCallback((postId, newLiked, newCount) => {
+    setPost(prev =>
+      prev && (prev.postId === postId || prev.id === String(postId))
+        ? { ...prev, isLiked: newLiked, likes: newCount }
+        : prev
+    );
+  }, []);
+
+  const handleDeletePost = useCallback(
+    (deletedPostId) => {
+      Alert.alert(
+        'Delete post',
+        'Are you sure you want to delete this post? The photo or video will be removed.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deletePost(deletedPostId, currentUserId);
+                navigation.goBack();
+              } catch (e) {
+                Alert.alert('Error', e?.data?.message || e?.message || 'Failed to delete post');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [currentUserId, navigation]
+  );
+
+  const handleAuthorPress = useCallback(
+    (authorUserId) => navigation.navigate('Profiles', { userId: authorUserId }),
+    [navigation]
+  );
+
+  const appendCacheBust = (url, bust) => {
+    if (!url || !bust || typeof url !== 'string') return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}t=${bust}`;
+  };
 
   if (loading) {
     return (
@@ -131,9 +182,7 @@ export default function PostPreviewScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-   
         <PostCard
-          expandMedia
           postId={post.postId}
           authorUserId={post.authorUserId}
           currentUserId={currentUserId}
@@ -147,38 +196,18 @@ export default function PostPreviewScreen() {
           shares={post.shares}
           avatar={
             post.authorUserId === currentUserId && cacheBuster
-              ? `${post.avatar}${post.avatar.includes('?') ? '&' : '?'}t=${cacheBuster}`
+              ? appendCacheBust(post.avatar, cacheBuster)
               : post.avatar
           }
           contentText={post.contentText}
+          shareUrl={post.postId != null ? `jainsansaar://post/${post.postId}` : undefined}
           initialIsLiked={post.isLiked}
           initialIsShared={post.isShared}
-          onAuthorPress={(authorUserId) =>
-            navigation.navigate('Profiles', { userId: authorUserId })
-          }
-          onDelete={() => {
-            Alert.alert(
-              'Delete post',
-              'Are you sure you want to delete this post? The photo or video will be removed.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await deletePost(post.postId, currentUserId);
-                      navigation.goBack();
-                    } catch (e) {
-                      Alert.alert('Error', e?.data?.message || e?.message || 'Failed to delete post');
-                    }
-                  },
-                },
-              ]
-            );
-          }}
+          onAuthorPress={handleAuthorPress}
+          onLikeChangeWithPostId={handleLikeChange}
+          onDeleteWithPostId={handleDeletePost}
+          instagramStyle
         />
-  
       </ScrollView>
     </SafeAreaView>
   );
@@ -219,14 +248,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 0,
+    paddingTop: 8,
     paddingBottom: 40,
-  },
-  cardWrap: {
-    padding: 16,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 16,
   },
   centered: {
     flex: 1,

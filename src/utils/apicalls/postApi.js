@@ -8,6 +8,24 @@ import {
 export const postAuth = (url, data) => post(url, data, true);
 export const postNoAuth = (url, data) => post(url, data, false);
 
+/** POST with Bearer auth — JSON body sent as-is (for Spring @RequestBody DTOs). Default postAuth wraps payload in { data: ... }. */
+export const postAuthFlat = (url, body) => postFlat(url, body, true);
+
+const postFlat = async (url, body, needToken = true) => {
+  const config = await getApiHeader(needToken);
+  return new Promise((resolve, reject) => {
+    axios
+      .post(url, body, config)
+      .then(res => {
+        handleSuccessResponse(res, resolve, reject);
+      })
+      .catch(err => {
+        console.log('post api flat', url, 'catch', err);
+        handleFailedResponse(err, reject);
+      });
+  });
+};
+
 const post = async (url, data, needToken = true) => {
   const request = {
     data: {data},

@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
 import {
@@ -39,9 +40,13 @@ import {
   commentOnPost,
   replyToComment,
   deleteComment,
+  getFollowing,
+  createOrGetChatThread,
+  sendChatMessage,
 } from '../../utils/apicalls/socialHandler';
 import { resolveProfilePictureUrl, getProfilePictureUrlByUserId } from '../../utils/apicalls/profileHandler';
 import { formatDateTimeIST } from '../../utils/helperfunctions/dateTimeUtils';
+import ShareToChatSheet from '../ShareToChatSheet';
 
 const PostCard = ({
   userName = 'Camila',
@@ -72,9 +77,12 @@ const PostCard = ({
   onDeleteWithPostId, // (postId)
   onImagePressWithPostId, // (postId)
   expandMedia = false, // when true (e.g. PostPreviewScreen), show media much larger
+  instagramStyle = false, // dashboard feed style without card container
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
-  const mediaHeight = expandMedia ? Math.min(Math.round(screenH * 0.6), 520) : 340;
+  const defaultMediaHeight = instagramStyle ? Math.round(screenW * 1.25) : 340;
+  const mediaHeight = expandMedia ? Math.min(Math.round(screenH * 0.6), 520) : defaultMediaHeight;
+  const mediaResizeMode = instagramStyle ? 'cover' : 'contain';
 
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -92,6 +100,11 @@ const PostCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({top: 0, left: 0});
   const [expanded, setExpanded] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(false);
+  const [shareQuery, setShareQuery] = useState('');
+  const [sendingToUserId, setSendingToUserId] = useState(null);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -189,7 +202,6 @@ const PostCard = ({
   const commentCount = typeof comments === 'number'
     ? (commentList.length > 0 ? commentList.length : comments)
     : (commentList?.length ?? (Array.isArray(comments) ? comments.length : 0));
-  const displayShareCount = shareCount;
 
   const lastSyncedPostIdRef = useRef(null);
 
@@ -390,7 +402,7 @@ const PostCard = ({
     return (
       <View style={styles.pill}>
         {icon}
-        <Text style={styles.pillText}>{count}</Text>
+        {count != null ? <Text style={styles.pillText}>{count}</Text> : null}
       </View>
     );
   };
@@ -419,38 +431,105 @@ const PostCard = ({
     });
   };
 
+  const createClientMessageId = () =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+
+  const buildPostShareMessage = useCallback(() => {
+    const caption = (contentText || '').trim();
+    const postDeepLink =
+      postId != null
+        ? `https://jainsansaar.app/post/${postId}`
+        : shareUrl || '';
+    return [caption ? `Check out this post: ${caption}` : 'Check out this post!', postDeepLink]
+      .filter(Boolean)
+      .join('\n');
+  }, [contentText, postId, shareUrl]);
+
+  const markPostShared = useCallback(async () => {
+    if (postId == null || currentUserId == null || isShared) return;
+    try {
+      await sharePost(postId, currentUserId);
+      setIsShared(true);
+      setShareCount(c => c + 1);
+    } catch (e) {
+      console.warn('Share API error:', e);
+    }
+  }, [postId, currentUserId, isShared]);
+
   const handleShare = useCallback(async () => {
-    const url = shareUrl || 'https://example.com';
+    if (!currentUserId || postId == null) return;
+    setShareSheetVisible(true);
+    setShareQuery('');
+    setLoadingFollowing(true);
+    try {
+      const res = await getFollowing(currentUserId);
+      setFollowingUsers(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setFollowingUsers([]);
+    } finally {
+      setLoadingFollowing(false);
+    }
+  }, [currentUserId, postId]);
+
+  const handleSendPostToUser = useCallback(
+    async (user) => {
+      if (!currentUserId || postId == null) return;
+      const otherUserId = user?.id ?? user?.userId;
+      if (!otherUserId) return;
+
+      setSendingToUserId(otherUserId);
+      try {
+        const threadRes = await createOrGetChatThread(currentUserId, otherUserId);
+        const threadId = threadRes?.data?.id;
+        if (!threadId) throw new Error('Chat thread not found');
+        await sendChatMessage(
+          threadId,
+          currentUserId,
+          createClientMessageId(),
+          buildPostShareMessage(),
+          'text',
+        );
+        await markPostShared();
+        setShareSheetVisible(false);
+      } catch (e) {
+        Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed to send post');
+      } finally {
+        setSendingToUserId(null);
+      }
+    },
+    [currentUserId, postId, buildPostShareMessage, markPostShared],
+  );
+
+  const handleMoreOptionsShare = useCallback(async () => {
+    const deepLinkUrl =
+      postId != null ? `https://jainsansaar.app/post/${postId}` : shareUrl || '';
     try {
       await Share.open({
-        title: 'Share',
-        message: contentText || 'Check this out',
-        url,
+        title: 'Share Post',
+        message: buildPostShareMessage(),
+        url: deepLinkUrl || undefined,
       });
-      if (postId != null && currentUserId != null && !isShared) {
-        try {
-          await sharePost(postId, currentUserId);
-          setIsShared(true);
-          setShareCount(c => c + 1);
-        } catch (e) {
-          console.warn('Share API error:', e);
-        }
-      }
+      await markPostShared();
+      setShareSheetVisible(false);
     } catch (err) {
       if (err?.message !== 'User did not share') {
         console.log('Share error:', err);
       }
     }
-  }, [shareUrl, contentText, postId, currentUserId, isShared]);
+  }, [postId, shareUrl, buildPostShareMessage, markPostShared]);
 
   return (
     <>
-      <View style={styles.card}>
+      <View style={[styles.card, instagramStyle && styles.cardInstagram]}>
         {/* Content above actions: light grey */}
-        <View style={styles.cardContentAboveActions}>
+        <View style={[styles.cardContentAboveActions, instagramStyle && styles.cardContentInstagram]}>
         {/* HEADER */}
-        <View style={styles.header}>
-          <View style={styles.userInfo}>
+        <View style={[styles.header, instagramStyle && styles.headerInstagram]}>
+          <View style={[styles.userInfo, instagramStyle && styles.userInfoInstagram]}>
             {(resolveProfilePictureUrl(avatar) || avatar) ? (
               <Image
                 key={resolveProfilePictureUrl(avatar) || avatar}
@@ -458,10 +537,10 @@ const PostCard = ({
                   uri: resolveProfilePictureUrl(avatar) || avatar,
                   ...(authorUserId === currentUserId && { cache: 'reload' }),
                 }}
-                style={styles.avatar}
+                style={[styles.avatar, instagramStyle && styles.avatarInstagram]}
               />
             ) : (
-              <View style={[styles.avatar, styles.avatarIconWrap]}>
+              <View style={[styles.avatar, styles.avatarIconWrap, instagramStyle && styles.avatarInstagram]}>
                 <User size={24} color="#777" strokeWidth={2} />
               </View>
             )}
@@ -471,20 +550,20 @@ const PostCard = ({
                 onPress={() => authorUserId != null && onAuthorPress?.(authorUserId)}
                 style={({pressed}) => ({ opacity: pressed && authorUserId ? 0.7 : 1 })}
               >
-                <Text style={styles.userName} numberOfLines={1}>
+                <Text style={[styles.userName, instagramStyle && styles.userNameInstagram]} numberOfLines={1}>
                   {userName}
                 </Text>
               </Pressable>
               {displayTimeAgo ? (
-                <View style={styles.timeRow}>
+                <View style={[styles.timeRow, instagramStyle && styles.timeRowInstagram]}>
                   <Clock3 size={12} color="#777" style={{marginRight: 4}} />
-                  <Text style={styles.timeText}>{displayTimeAgo}</Text>
+                  <Text style={[styles.timeText, instagramStyle && styles.timeTextInstagram]}>{displayTimeAgo}</Text>
                 </View>
               ) : null}
             </View>
           </View>
 
-          <View style={styles.headerRight}>
+          <View style={[styles.headerRight, instagramStyle && styles.headerRightInstagram]}>
             {/* Follow button */}
             {authorUserId != null && currentUserId != null && authorUserId !== currentUserId && (
               <Pressable onPress={handleFollow} disabled={followLoading}>
@@ -539,7 +618,7 @@ const PostCard = ({
         )}
 
         {/* CAPTION */}
-        {!!contentText && (
+        {!instagramStyle && !!contentText && (
           <Text style={styles.caption}>
             {expanded ? contentText : shortText}
             {contentText.length > 90 && (
@@ -552,7 +631,7 @@ const PostCard = ({
 
         {/* MEDIA: image or video (thumbnail + play overlay; tap plays inline) */}
         {!!videoUrl && (
-          <View style={styles.imageWrap}>
+          <View style={[styles.imageWrap, instagramStyle && styles.imageWrapInstagram]}>
             {videoPlaying ? (
               <View
                 onLayout={onVideoBoxLayout}
@@ -576,7 +655,7 @@ const PostCard = ({
                     },
                   ]}
                   controls
-                  resizeMode="contain"
+                  resizeMode={mediaResizeMode}
                   paused={false}
                   fullscreenAutorotate
                   fullscreenOrientation="all"
@@ -610,7 +689,7 @@ const PostCard = ({
                 <Image
                   source={{ uri: thumbnailUrl || videoUrl }}
                   style={[styles.postImage, { height: mediaHeight }]}
-                  resizeMode="contain"
+                  resizeMode={mediaResizeMode}
                 />
                 <View style={styles.videoPlayOverlay}>
                   <View style={styles.videoPlayCircle}>
@@ -622,7 +701,7 @@ const PostCard = ({
           </View>
         )}
         {!videoUrl && !!image && (
-          <View style={styles.imageWrap}>
+          <View style={[styles.imageWrap, instagramStyle && styles.imageWrapInstagram]}>
             <Pressable
               onPress={() => {
               if (postId != null) {
@@ -631,9 +710,28 @@ const PostCard = ({
             }}
               style={styles.imagePressable}
             >
-              <Image source={{uri: image}} style={[styles.postImage, { height: mediaHeight }]} resizeMode="contain" />
+              <Image
+                source={{uri: image}}
+                style={[
+                  styles.postImage,
+                  { height: mediaHeight },
+                ]}
+                resizeMode={mediaResizeMode}
+              />
             </Pressable>
           </View>
+        )}
+
+        {/* CAPTION (Instagram-style: below media) */}
+        {instagramStyle && !!contentText && (
+          <Text style={styles.caption}>
+            {expanded ? contentText : shortText}
+            {contentText.length > 90 && (
+              <Text style={styles.seeMore} onPress={() => setExpanded(p => !p)}>
+                {expanded ? '  See less' : '... See more'}
+              </Text>
+            )}
+          </Text>
         )}
         </View>
 
@@ -668,7 +766,6 @@ const PostCard = ({
           <View style={styles.actionCol}>
             <Pressable onPress={handleShare}>
               <ActionPill
-                count={formatCount(displayShareCount)}
                 icon={<Send size={20} color={colors.PRIMARY_DARK} />}
               />
             </Pressable>
@@ -685,6 +782,19 @@ const PostCard = ({
         onSendReply={postId != null && currentUserId != null ? handleSubmitReply : undefined}
         onDeleteComment={postId != null && currentUserId != null ? handleDeleteComment : undefined}
         currentUserId={currentUserId}
+      />
+
+      <ShareToChatSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        followingUsers={followingUsers}
+        loadingFollowing={loadingFollowing}
+        shareQuery={shareQuery}
+        onShareQueryChange={setShareQuery}
+        sendingToUserId={sendingToUserId}
+        onSendToUser={handleSendPostToUser}
+        onMoreOptions={handleMoreOptionsShare}
+        title="Share post"
       />
     </>
   );
@@ -715,6 +825,16 @@ const styles = StyleSheet.create({
     // Android
     elevation: 8,
   },
+  cardInstagram: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    marginVertical: 10,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
 
   cardContentAboveActions: {
     backgroundColor: '#f2f2f2',
@@ -726,11 +846,21 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
   },
+  cardContentInstagram: {
+    backgroundColor: 'transparent',
+    marginHorizontal: 0,
+    marginTop: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerInstagram: {
+    minHeight: 44,
   },
 
   userInfo: {
@@ -739,6 +869,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 10,
   },
+  userInfoInstagram: {
+    paddingRight: 6,
+  },
 
   avatar: {
     width: 46,
@@ -746,6 +879,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginRight: 12,
     backgroundColor: '#eee',
+  },
+  avatarInstagram: {
+    width: 36,
+    height: 36,
+    marginRight: 9,
   },
 
   avatarIconWrap: {
@@ -758,23 +896,36 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111',
   },
+  userNameInstagram: {
+    fontSize: 16,
+  },
 
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
   },
+  timeRowInstagram: {
+    marginTop: 3,
+  },
 
   timeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#111',
     fontWeight: '700',
+  },
+  timeTextInstagram: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  headerRightInstagram: {
+    gap: 6,
   },
 
   followBtn: {
@@ -806,6 +957,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginHorizontal: -16,
     overflow: 'hidden',
+  },
+  imageWrapInstagram: {
+    marginHorizontal: -16,
   },
 
   imagePressable: {
@@ -863,23 +1017,25 @@ const styles = StyleSheet.create({
 
   actionsRow: {
     flexDirection: 'row',
-    marginTop: 16,
-    paddingHorizontal: 6,
+    marginTop: 8,
+    paddingHorizontal: 0,
     alignItems: 'center',
   },
 
   actionCol: {
-    marginRight: 12,
+    width: 52,
+    marginRight: 0,
+    alignItems: 'center',
   },
 
   pill: {
     borderRadius: 999,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 2,
   },
 
   pillText: {

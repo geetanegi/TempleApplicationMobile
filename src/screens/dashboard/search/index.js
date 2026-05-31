@@ -18,6 +18,7 @@ import st from '../../../global/styles';
 import { colors, APP_TEXT } from '../../../global/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HeaderDashboard from '../../../components/dashboardHeader';
+import { useNotificationBellCount } from '../../../hooks/useNotificationBellCount';
 import { searchUsers, getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { getPopularTemples, getTrendingTemples } from '../../../utils/apicalls/templeHandler';
 
@@ -47,6 +48,7 @@ const toTempleItem = (t, index) => ({
 
 const SearchScreen = () => {
   const navigation = useNavigation();
+  const { count: notificationBellCount } = useNotificationBellCount();
   const [query, setQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
   const [userResults, setUserResults] = useState([]);
@@ -180,6 +182,7 @@ const SearchScreen = () => {
         leftNav="HomeDrawer"
         rightNav1="Notifications"
         rightNav2="Chat"
+        rightIcon1BadgeCount={notificationBellCount}
       />
 
       <View style={styles.content}>

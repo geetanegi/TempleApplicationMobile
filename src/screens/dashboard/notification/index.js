@@ -75,19 +75,22 @@ function getNotificationSections(list) {
   const recent = [];
   const today = [];
   const last7Days = [];
+  const older = [];
 
   for (const item of list) {
     const raw = item?.createdDate ?? item?.createdAt;
     const d = parseDate(raw);
     const ts = d ? d.getTime() : 0;
-    if (isNaN(ts) || ts < sevenDaysAgo) continue;
+    if (isNaN(ts)) continue;
 
     if (ts >= oneHourAgo) {
       recent.push(item);
     } else if (ts >= startOfTodayMs) {
       today.push(item);
-    } else {
+    } else if (ts >= sevenDaysAgo) {
       last7Days.push(item);
+    } else {
+      older.push(item);
     }
   }
 
@@ -95,6 +98,7 @@ function getNotificationSections(list) {
   if (recent.length > 0) sections.push({ title: 'Recent', data: recent });
   if (today.length > 0) sections.push({ title: 'Today', data: today });
   if (last7Days.length > 0) sections.push({ title: 'Last 7 days', data: last7Days });
+  if (older.length > 0) sections.push({ title: 'Older', data: older });
   return sections;
 }
 

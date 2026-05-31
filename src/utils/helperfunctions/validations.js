@@ -201,54 +201,61 @@ export const ValidatePassword = password => {
 
 
 export const  ValidatefirstName= firstName => {
-  var reg =  /^[A-Za-z]+$/;
-  if (ValueEmpty(firstName)) {
+  // Allow multi-word names with single spaces between words (e.g. "Raj Tomar Singh").
+  // Keeps validation strict: letters only, no digits/special chars.
+  const value = (firstName ?? '').trim().replace(/\s+/g, ' ');
+  const reg = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+  if (ValueEmpty(value)) {
     return 'First Name is required ';
-  } else if (firstName.length > 100) {
+  } else if (value.length > 100) {
     return 'First Name must be less than 100 characters';
-  } else if (!reg.test(firstName)) {
-    return 'First Name must contain only alphabetic characters';
+  } else if (!reg.test(value)) {
+    return 'Name must contain only letters and spaces';
   }
   return 'success';
 };
 
 export const  ValidateLocation= location => {
-  var reg =  /^[A-Za-z]+$/;
- if (location?.length > 250) {
+  const value = (location ?? '').trim().replace(/\s+/g, ' ');
+  const reg = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+ if (value?.length > 250) {
     return 'Location must be less than 250 characters';
-  } else if (!reg.test(location)) {
-    return 'Location must contain only alphabetic characters';
+  } else if (value && !reg.test(value)) {
+    return 'Location must contain only letters and spaces';
   }
   return 'success';
 };
 
 export const  ValidateCity= city => {
-  var reg =  /^[A-Za-z]+$/;
- if (city?.length > 100) {
+  const value = (city ?? '').trim().replace(/\s+/g, ' ');
+  const reg = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+ if (value?.length > 100) {
     return 'City must be less than 100 characters';
-  } else if (!reg.test(city)) {
-    return 'City must contain only alphabetic characters';
+  } else if (value && !reg.test(value)) {
+    return 'City must contain only letters and spaces';
   }
   return 'success';
 };
 export const  ValidateClubs= club => {
-  var reg =  /^[A-Za-z]+$/;
- if (club?.length > 100) {
+  const value = (club ?? '').trim().replace(/\s+/g, ' ');
+  const reg = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+ if (value?.length > 100) {
     return 'Club must be less than 100 characters';
-  } else if (!reg.test(club)) {
-    return 'Club must contain only alphabetic characters';
+  } else if (value && !reg.test(value)) {
+    return 'Club must contain only letters and spaces';
   }
   return 'success';
 };
 
 export const  ValidatelastName= lastName => {
-  var reg =  /^[A-Za-z]+$/;
-  if (ValueEmpty(lastName)) {
+  const value = (lastName ?? '').trim().replace(/\s+/g, ' ');
+  const reg = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+  if (ValueEmpty(value)) {
     return 'Last Name is required ';
-  } else if (lastName.length > 100) {
+  } else if (value.length > 100) {
     return 'Last Name must be less than 100 characters';
-  } else if (!reg.test(lastName)) {
-    return 'Last Name must contain only alphabetic characters';
+  } else if (!reg.test(value)) {
+    return 'Name must contain only letters and spaces';
   }
   return 'success';
 };

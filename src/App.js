@@ -7,6 +7,7 @@ import {PersistGate} from 'redux-persist/integration/react';
 import {persistStore} from 'redux-persist';
 import {store} from './redux/store';
 import ErrorBoundary from './components/ErrorBoundary';
+import PushNotificationBootstrap from './components/PushNotificationBootstrap';
 import {addTrack, setupPlayer} from '../musicPlayerService';
 
 let persistor = persistStore(store);
@@ -34,6 +35,7 @@ const App = () => {
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <ErrorBoundary>
+          <PushNotificationBootstrap />
           <Route />
         </ErrorBoundary>
       </PersistGate>

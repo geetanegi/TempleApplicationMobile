@@ -42,7 +42,7 @@ const HeaderDashboard = ({
   };
 
   return (
-    <View style={[styles.headerContainer, st.pd_H10, st.mt_B10, { paddingTop: Math.max(insets.top, 10) }]}>
+    <View style={[styles.headerContainer, st.pd_H10, st.mt_B10, { paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Left */}
       <View style={styles.leftArea}>
         {LeftIcon ? (
@@ -118,7 +118,7 @@ export default HeaderDashboard;
 const styles = StyleSheet.create({
   headerContainer: {
     width: '100%',
-    height: 70,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',

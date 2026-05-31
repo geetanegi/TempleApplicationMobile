@@ -46,3 +46,13 @@
 # React Native Reanimated
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
+
+# Firebase / FCM / React Native Firebase (release minify)
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+-keep class io.invertase.firebase.** { *; }
+-keep class io.invertase.notifee.** { *; }

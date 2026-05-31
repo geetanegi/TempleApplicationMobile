@@ -19,6 +19,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Menu, Bell, MessageCircle} from 'lucide-react-native';
 import HeaderDashboard from '../../../components/dashboardHeader';
+import { useNotificationBellCount } from '../../../hooks/useNotificationBellCount';
 import {colors} from '../../../global/theme';
 
 const COLORS = {
@@ -163,6 +164,7 @@ const videosData = [
 
 export default function VideosReelsScreen() {
   const nav = useNavigation();
+  const { count: notificationBellCount } = useNotificationBellCount();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -308,6 +310,7 @@ export default function VideosReelsScreen() {
           leftNav="HomeDrawer"
           rightNav1="Notifications"
           rightNav2="Chat"
+          rightIcon1BadgeCount={notificationBellCount}
         />
 
         {/* Category Filters */}

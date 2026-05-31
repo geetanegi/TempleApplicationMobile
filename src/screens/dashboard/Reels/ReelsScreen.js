@@ -12,6 +12,9 @@ import {
   Image,
   Platform,
   Alert,
+  Modal,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Video from 'react-native-video';
@@ -29,6 +32,11 @@ import {
   deleteReel,
 } from '../../../utils/apicalls/reelHandler';
 import {
+  getFollowing,
+  createOrGetChatThread,
+  sendChatMessage,
+} from '../../../utils/apicalls/socialHandler';
+import {
   getProfilePictureUrlByUserId,
   resolveProfilePictureUrl,
 } from '../../../utils/apicalls/profileHandler';
@@ -38,9 +46,9 @@ import {
   prefetchReels,
 } from '../../../utils/reelsPrefetchService';
 
-const { height, width } = Dimensions.get('window');
 const PAGE_SIZE = 5;
 const STATUS_BAR_OFFSET = Platform.OS === 'android' ? 56 : 0;
+const { height, width } = Dimensions.get('window');
 
 const ReelsScreen = () => {
   const navigation = useNavigation();
@@ -48,7 +56,9 @@ const ReelsScreen = () => {
   const isFocused = useIsFocused();
   const initialReelId = route.params?.reelId;
   const topOffset = STATUS_BAR_OFFSET;
-  const videoHeight = height - topOffset;
+  const defaultVideoHeight = height - topOffset;
+  const [listViewportHeight, setListViewportHeight] = useState(defaultVideoHeight);
+  const videoHeight = listViewportHeight || defaultVideoHeight;
   const currentUserId = getUserId();
 
   const [reels, setReels] = useState([]);
@@ -60,11 +70,26 @@ const ReelsScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [commentReel, setCommentReel] = useState(null);
   const [menuReelId, setMenuReelId] = useState(null);
+  const [expandedCaptions, setExpandedCaptions] = useState({});
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [shareTargetReel, setShareTargetReel] = useState(null);
+  const [followingUsers, setFollowingUsers] = useState([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(false);
+  const [shareQuery, setShareQuery] = useState('');
+  const [sendingToUserId, setSendingToUserId] = useState(null);
 
   const flatListRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
   const lastLoadedReelIdRef = useRef(null);
   const loadingMoreRef = useRef(false);
+  const scrollStartIndexRef = useRef(0);
+
+  const createClientMessageId = () =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
 
   // ---- Data fetching (uses new /reels/feed endpoint) ----
 
@@ -219,6 +244,33 @@ const ReelsScreen = () => {
     [videoHeight],
   );
 
+  const handleMomentumScrollBegin = useCallback(() => {
+    scrollStartIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  const handleMomentumScrollEnd = useCallback(
+    (event) => {
+      const offsetY = event?.nativeEvent?.contentOffset?.y ?? 0;
+      const rawIndex = Math.round(offsetY / videoHeight);
+      const startIndex = scrollStartIndexRef.current;
+      const boundedIndex = Math.max(0, Math.min(reels.length - 1, rawIndex));
+      const maxOneStepIndex = Math.max(
+        0,
+        Math.min(reels.length - 1, startIndex + (boundedIndex > startIndex ? 1 : boundedIndex < startIndex ? -1 : 0)),
+      );
+
+      if (maxOneStepIndex !== boundedIndex) {
+        flatListRef.current?.scrollToOffset({
+          offset: maxOneStepIndex * videoHeight,
+          animated: true,
+        });
+      }
+      if (maxOneStepIndex !== activeIndex) {
+        setActiveIndex(maxOneStepIndex);
+      }
+    },
+    [activeIndex, reels.length, videoHeight],
+  );
   // ---- Interactions ----
 
   const handleLike = useCallback(
@@ -276,37 +328,117 @@ const ReelsScreen = () => {
     async (reel) => {
       if (!currentUserId) return;
       const isShared = !!reel.isShared;
-      const newCount = (reel.sharesCount ?? 0) + (isShared ? -1 : 1);
-      setReels((prev) =>
-        prev.map((r) =>
-          r.id === reel.id ? { ...r, isShared: !isShared, sharesCount: newCount } : r,
-        ),
-      );
       try {
         if (isShared) {
           await unshareReel(reel.id, currentUserId);
-        } else {
-          await shareReel(reel.id, currentUserId);
-          await Share.open({
-            message: `Check out this reel! ${reel.caption || ''}`,
-            url: reel.videoUrl,
-            title: 'Share Reel',
-          });
-        }
-      } catch (e) {
-        if (e?.message !== 'User did not share') {
+          const newCount = Math.max(0, (reel.sharesCount ?? 0) - 1);
           setReels((prev) =>
             prev.map((r) =>
-              r.id === reel.id
-                ? { ...r, isShared: reel.isShared, sharesCount: reel.sharesCount }
-                : r,
+              r.id === reel.id ? { ...r, isShared: false, sharesCount: newCount } : r,
             ),
           );
+        } else {
+          setShareTargetReel(reel);
+          setShareSheetVisible(true);
+          setShareQuery('');
+          setLoadingFollowing(true);
+          try {
+            const res = await getFollowing(currentUserId);
+            setFollowingUsers(Array.isArray(res?.data) ? res.data : []);
+          } catch {
+            setFollowingUsers([]);
+          } finally {
+            setLoadingFollowing(false);
+          }
         }
+      } catch (e) {
+        Alert.alert('Error', e?.response?.data?.message || e?.message || 'Share action failed');
       }
     },
     [currentUserId],
   );
+
+  const markReelShared = useCallback(
+    async (reel) => {
+      if (!reel || !currentUserId) return;
+      await shareReel(reel.id, currentUserId);
+      setReels((prev) =>
+        prev.map((r) =>
+          r.id === reel.id
+            ? { ...r, isShared: true, sharesCount: (r.sharesCount ?? 0) + 1 }
+            : r,
+        ),
+      );
+    },
+    [currentUserId],
+  );
+
+  const handleSendToUser = useCallback(
+    async (user) => {
+      if (!shareTargetReel || !currentUserId) return;
+      const otherUserId = user?.id ?? user?.userId;
+      if (!otherUserId) return;
+
+      const caption = (shareTargetReel.caption || '').trim();
+      const reelDeepLink = `https://jainsansaar.app/reel/${shareTargetReel.id}`;
+      const message = [caption ? `Check out this reel: ${caption}` : 'Check out this reel!', reelDeepLink]
+        .filter(Boolean)
+        .join('\n');
+
+      setSendingToUserId(otherUserId);
+      try {
+        const threadRes = await createOrGetChatThread(currentUserId, otherUserId);
+        const threadId = threadRes?.data?.id;
+        if (!threadId) throw new Error('Chat thread not found');
+        await sendChatMessage(threadId, currentUserId, createClientMessageId(), message, 'text');
+        if (!shareTargetReel.isShared) await markReelShared(shareTargetReel);
+        setShareSheetVisible(false);
+        setShareTargetReel(null);
+      } catch (e) {
+        Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed to send reel');
+      } finally {
+        setSendingToUserId(null);
+      }
+    },
+    [currentUserId, shareTargetReel, markReelShared],
+  );
+
+  const handleMoreOptionsShare = useCallback(async () => {
+    if (!shareTargetReel || !currentUserId) return;
+    const caption = (shareTargetReel.caption || '').trim();
+    const reelDeepLink = `https://jainsansaar.app/reel/${shareTargetReel.id}`;
+    const message = [caption ? `Check out this reel: ${caption}` : 'Check out this reel!', reelDeepLink]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await Share.open({
+        message,
+        url: reelDeepLink,
+        title: 'Share Reel',
+      });
+      if (!shareTargetReel.isShared) await markReelShared(shareTargetReel);
+    } catch (e) {
+      if (e?.message !== 'User did not share') {
+        Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed to share');
+      }
+    }
+  }, [shareTargetReel, currentUserId, markReelShared]);
+
+  const filteredFollowing = followingUsers.filter((u) => {
+    const name = `${u?.firstName || ''} ${u?.lastName || ''}`.trim();
+    const username = u?.username || '';
+    const q = shareQuery.trim().toLowerCase();
+    if (!q) return true;
+    return name.toLowerCase().includes(q) || username.toLowerCase().includes(q);
+  });
+
+  const toggleCaptionExpansion = useCallback((reelId) => {
+    setExpandedCaptions((prev) => ({
+      ...prev,
+      [reelId]: !prev[reelId],
+    }));
+  }, []);
 
   // ---- Render ----
 
@@ -317,6 +449,8 @@ const ReelsScreen = () => {
       const avatarUrl =
         getProfilePictureUrlByUserId(item.user?.id) ||
         resolveProfilePictureUrl(item.user?.userProfile);
+
+      const isCaptionExpanded = !!expandedCaptions[item.id];
 
       return (
         <View style={[styles.videoContainer, { height: videoHeight }]} collapsable={false}>
@@ -389,7 +523,6 @@ const ReelsScreen = () => {
             </Pressable>
             <Pressable onPress={() => handleShare(item)} style={styles.actionBtn}>
               <Send size={30} color="#fff" strokeWidth={2} />
-              <Text style={styles.actionCount}>{item.sharesCount ?? 0}</Text>
             </Pressable>
             {currentUserId &&
             String(item.user?.id ?? item.userId ?? '') === String(currentUserId) ? (
@@ -430,9 +563,11 @@ const ReelsScreen = () => {
               @{item.user?.username || 'user'}
             </Text>
             {item.caption ? (
-              <Text style={styles.caption} numberOfLines={2}>
-                {item.caption}
-              </Text>
+              <Pressable onPress={() => toggleCaptionExpansion(item.id)}>
+                <Text style={styles.caption} numberOfLines={isCaptionExpanded ? undefined : 2}>
+                  {item.caption}
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         </View>
@@ -448,6 +583,8 @@ const ReelsScreen = () => {
       handleDeleteReel,
       setCommentReel,
       menuReelId,
+      expandedCaptions,
+      toggleCaptionExpansion,
       videoHeight,
     ],
   );
@@ -488,6 +625,12 @@ const ReelsScreen = () => {
 
         <FlatList
           ref={flatListRef}
+          onLayout={(e) => {
+            const h = Math.round(e?.nativeEvent?.layout?.height || 0);
+            if (h > 0 && h !== listViewportHeight) {
+              setListViewportHeight(h);
+            }
+          }}
           data={reels}
           keyExtractor={keyExtractor}
           renderItem={renderReelItem}
@@ -497,14 +640,17 @@ const ReelsScreen = () => {
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
           pagingEnabled
+          disableIntervalMomentum
           showsVerticalScrollIndicator={false}
           snapToInterval={videoHeight}
           snapToAlignment="start"
-          decelerationRate="fast"
+          decelerationRate="normal"
+          onMomentumScrollBegin={handleMomentumScrollBegin}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           onEndReached={onEndReached}
-          onEndReachedThreshold={1.5}
+          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -542,6 +688,89 @@ const ReelsScreen = () => {
             );
           }}
         />
+
+        <Modal
+          visible={shareSheetVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShareSheetVisible(false)}
+        >
+          <View style={styles.shareModalWrap}>
+            <Pressable style={styles.shareBackdrop} onPress={() => setShareSheetVisible(false)} />
+            <View style={styles.shareSheet}>
+              <View style={styles.shareHandle} />
+              <Text style={styles.shareTitle}>Share</Text>
+              <TextInput
+                value={shareQuery}
+                onChangeText={setShareQuery}
+                placeholder="Search people"
+                placeholderTextColor="#8e8e8e"
+                style={styles.shareSearch}
+              />
+
+              {loadingFollowing ? (
+                <View style={styles.shareLoading}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredFollowing}
+                  keyExtractor={(item, index) => String(item?.id ?? item?.userId ?? index)}
+                  contentContainerStyle={styles.shareListContent}
+                  renderItem={({ item }) => {
+                    const uid = item?.id ?? item?.userId;
+                    const fullName =
+                      `${item?.firstName || ''} ${item?.lastName || ''}`.trim() ||
+                      item?.username ||
+                      'User';
+                    const avatarUrl = uid ? getProfilePictureUrlByUserId(uid) : null;
+                    return (
+                      <View style={styles.shareUserRow}>
+                        <View style={styles.shareUserLeft}>
+                          {avatarUrl ? (
+                            <Image source={{uri: avatarUrl}} style={styles.shareAvatar} />
+                          ) : (
+                            <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
+                              <User size={18} color="#fff" />
+                            </View>
+                          )}
+                          <View>
+                            <Text style={styles.shareName}>{fullName}</Text>
+                            {item?.username ? (
+                              <Text style={styles.shareUsername}>@{item.username}</Text>
+                            ) : null}
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.sendBtn}
+                          disabled={sendingToUserId === uid}
+                          onPress={() => handleSendToUser(item)}
+                        >
+                          {sendingToUserId === uid ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.sendBtnText}>Send</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <Text style={styles.shareEmptyText}>No people found.</Text>
+                  }
+                />
+              )}
+
+              <TouchableOpacity
+                style={styles.moreOptionsBtn}
+                onPress={handleMoreOptionsShare}
+              >
+                <Text style={styles.moreOptionsText}>More options</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
       </View>
     </View>
   );
@@ -661,6 +890,116 @@ const styles = StyleSheet.create({
   },
   tooltipOptionTextDanger: {
     color: '#ff3b30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  shareModalWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  shareBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  shareSheet: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    maxHeight: '78%',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  shareHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: '#555',
+    marginBottom: 10,
+  },
+  shareTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  shareSearch: {
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: '#252525',
+    color: '#fff',
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  shareLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  shareListContent: {
+    paddingBottom: 10,
+  },
+  shareUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  shareUserLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 10,
+  },
+  shareAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#333',
+  },
+  shareAvatarFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  shareUsername: {
+    color: '#b0b0b0',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  sendBtn: {
+    backgroundColor: '#3797EF',
+    borderRadius: 8,
+    minWidth: 68,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  sendBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shareEmptyText: {
+    color: '#b0b0b0',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 18,
+  },
+  moreOptionsBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#1f1f1f',
+    alignItems: 'center',
+  },
+  moreOptionsText: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },

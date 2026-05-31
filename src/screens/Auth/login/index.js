@@ -177,7 +177,8 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
-            inputMinHeight={48}
+            inputMinHeight={44}
+            inputsty={styles.borderedInput}
           />
 
           <View style={styles.gap} />
@@ -193,7 +194,8 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
-            inputMinHeight={48}
+            inputMinHeight={44}
+            inputsty={styles.borderedInput}
           />
 
           {/* Remember me */}
@@ -345,6 +347,18 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 4,
     letterSpacing: 0.4,
+  },
+
+  borderedInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    minHeight: 44,
+    height: 44,
+    marginTop: 0,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
   },
 
   links: {

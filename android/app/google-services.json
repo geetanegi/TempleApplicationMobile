@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "959333413009",
+    "project_id": "temple-app-50bd0",
+    "storage_bucket": "temple-app-50bd0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:959333413009:android:e180dd4bf72634c5910f30",
+        "android_client_info": {
+          "package_name": "com.jainsansaar.jainapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsXNFDse5Qo3M3cG4Qe_F3sZ3yAfWliZM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

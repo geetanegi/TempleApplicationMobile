@@ -37,8 +37,32 @@ const SubCategoryPage = () => {
     );
   }, [searchText]);
 
-  const renderHeader = useCallback(
+  const renderItem = useCallback(
+    ({ item }) => <MusicCard item={item} />,
+    []
+  );
+
+  const ListEmptyComponent = useCallback(
     () => (
+      <View style={styles.emptyWrap}>
+        <Text style={styles.emptyText}>No granths found</Text>
+        <Text style={styles.emptyHint}>Try a different search term</Text>
+      </View>
+    ),
+    []
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back button overlay */}
+      <Pressable
+        style={[styles.backBtn, { top: insets.top + 8 }]}
+        onPress={() => navigation.goBack()}
+        hitSlop={12}
+      >
+        <ChevronLeft size={28} color="#fff" strokeWidth={2.5} />
+      </Pressable>
+
       <View style={styles.headerSection}>
         {/* Hero header with gradient */}
         <View style={styles.heroWrap}>
@@ -66,44 +90,15 @@ const SubCategoryPage = () => {
           />
         </View>
       </View>
-    ),
-    [title, image, searchText]
-  );
-
-  const renderItem = useCallback(
-    ({ item }) => <MusicCard item={item} />,
-    []
-  );
-
-  const ListEmptyComponent = useCallback(
-    () => (
-      <View style={styles.emptyWrap}>
-        <Text style={styles.emptyText}>No granths found</Text>
-        <Text style={styles.emptyHint}>Try a different search term</Text>
-      </View>
-    ),
-    []
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Back button overlay */}
-      <Pressable
-        style={[styles.backBtn, { top: insets.top + 8 }]}
-        onPress={() => navigation.goBack()}
-        hitSlop={12}
-      >
-        <ChevronLeft size={28} color="#fff" strokeWidth={2.5} />
-      </Pressable>
 
       <FlatList
         data={filteredList}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={ListEmptyComponent}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       />
     </SafeAreaView>
   );

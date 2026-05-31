@@ -90,6 +90,8 @@ class Endpoints {
     this.socialBase + `notifications?userId=${userId}&page=${page}&size=${size}`;
   SOCIAL_NOTIFICATIONS_COUNT = (userId) => this.socialBase + `notifications/count?userId=${userId}`;
   SOCIAL_NOTIFICATIONS_SEEN = () => this.socialBase + 'notifications/seen';
+  /** POST body: { userId, token, platform } — register for FCM push (implement on backend) */
+  SOCIAL_FCM_REGISTER = () => this.socialBase + 'notifications/device/fcm';
 
   // Stories
   SOCIAL_STORY_CREATE = this.socialBase + 'story';

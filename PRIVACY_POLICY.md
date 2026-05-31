@@ -62,8 +62,8 @@ We do **not** track your location in the background or without your consent.
 |-----------|---------|
 | **Internet** | Connect to our servers for login, posts, chat, notifications, and content |
 | **Network state** | Check if you are online before making requests |
-| **Camera** | Take photos and videos for posts and profile pictures |
-| **Photos / media (images, video, audio)** | Select photos and videos from your gallery for posts and stories |
+| **Camera** | Take photos for posts and profile pictures |
+| **Photos / media (images, video, audio)** | Select photos from your gallery for posts and stories |
 | **Storage (read/write)** | Save and access media for posts (on older Android versions) |
 | **Location (precise and approximate)** | Find nearby temples and set temple location on the map |
 | **Phone calls** | Let you call temple contact numbers directly from the app |

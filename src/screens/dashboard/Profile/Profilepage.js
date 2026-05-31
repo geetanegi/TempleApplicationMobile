@@ -44,7 +44,6 @@ const COLORS = {
 
 const TABS = [
   { key: 'Photos', icon: 'image', label: 'Photos' },
-  { key: 'Videos', icon: 'video', label: 'Videos' },
   { key: 'Reels', icon: 'film', label: 'Clips' },
 ];
 
@@ -133,6 +132,7 @@ export default function ProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [posts, setPosts] = useState([]);
+  const [postsCount, setPostsCount] = useState(0);
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,28 +172,50 @@ export default function ProfileScreen() {
     if (!userId) return;
     try {
       const res = await getUserPosts(userId, currentUserId);
-      const raw = res?.data ?? [];
-      const list = Array.isArray(raw)
-        ? raw
-            .map(item => ({
-              id: String(item.id),
-              postId: item.id,
-              photoUrl: item.photoUrl,
-              videoUrl: item.videoUrl,
-              thumbnailUrl: item.thumbnailUrl,
-              contentText: item.contentText,
-              createdAt: item.createdAt ?? item.createdDate,
-            }))
-            .sort((a, b) => {
-              const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-              const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-              return tb - ta;
-            })
+      const raw = res?.data ?? res;
+
+      // Support both shapes:
+      // 1) Array of posts
+      // 2) Pageable object: { content: [...], totalElements: number, ... }
+      const items =
+        Array.isArray(raw) ? raw
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.content) ? raw.content
+        : Array.isArray(raw?.data?.content) ? raw.data.content
         : [];
+
+      const totalFromApi =
+        (typeof raw?.totalElements === 'number' ? raw.totalElements : null) ??
+        (typeof raw?.total === 'number' ? raw.total : null) ??
+        (typeof raw?.count === 'number' ? raw.count : null) ??
+        (typeof raw?.data?.totalElements === 'number' ? raw.data.totalElements : null) ??
+        (typeof raw?.data?.total === 'number' ? raw.data.total : null) ??
+        (typeof raw?.data?.count === 'number' ? raw.data.count : null);
+
+      const list = items
+        .map(item => ({
+          id: String(item.id),
+          postId: item.id,
+          photoUrl: item.photoUrl,
+          videoUrl: item.videoUrl,
+          thumbnailUrl: item.thumbnailUrl,
+          contentText: item.contentText,
+          createdAt: item.createdAt ?? item.createdDate,
+        }))
+        .sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        });
+
       setPosts(list);
+      setPostsCount(
+        Number.isFinite(totalFromApi) && totalFromApi != null ? Math.max(0, totalFromApi) : list.length
+      );
     } catch (e) {
       console.warn('User posts load error', e);
       setPosts([]);
+      setPostsCount(0);
     }
   }, [userId, currentUserId]);
 
@@ -289,18 +311,18 @@ export default function ProfileScreen() {
       if (isFollowingUser) {
         await unfollow(currentUserId, userId);
         setIsFollowingUser(false);
-        setFollowersCount((c) => Math.max(0, c - 1));
       } else {
         await follow(currentUserId, userId);
         setIsFollowingUser(true);
-        setFollowersCount((c) => c + 1);
       }
+      // Re-sync counts from server (avoids drift if API returns different count shape or concurrent changes).
+      await loadProfile();
     } catch (e) {
       console.warn('Follow API error:', e);
     } finally {
       setFollowLoading(false);
     }
-  }, [currentUserId, userId, isOwnProfile, isFollowingUser, followLoading]);
+  }, [currentUserId, userId, isOwnProfile, isFollowingUser, followLoading, loadProfile]);
 
   const handleDeleteReel = useCallback(
     async (reel) => {
@@ -422,17 +444,11 @@ export default function ProfileScreen() {
               <User size={36} color={COLORS.sub} strokeWidth={2} />
             </View>
           )}
-          <Text style={styles.name} numberOfLines={1}>
-            {displayName}
-          </Text>
-          <Text style={styles.username} numberOfLines={1}>
-            @{usernameDisplay || 'username'}
-          </Text>
         </View>
         <View style={styles.profileRight}>
           <View style={styles.statBox}>
             <Text style={styles.statValue} numberOfLines={1}>
-              {posts.length}
+              {postsCount}
             </Text>
             <Text style={styles.statLabel} numberOfLines={2}>
               Posts
@@ -463,34 +479,25 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <View style={styles.nameCard}>
+        <Text
+          style={styles.name}
+          numberOfLines={1}
+          ellipsizeMode="clip"
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
+          {displayName}
+        </Text>
+        <Text style={styles.username} numberOfLines={1}>
+          @{usernameDisplay || 'username'}
+        </Text>
+      </View>
+
       <View style={styles.aboutRow}>
         <View style={styles.aboutHeaderRow}>
           <Text style={styles.aboutLabel}>About</Text>
-          {isOwnProfile && profile ? (
-            <Pressable
-              hitSlop={12}
-              onPress={() => {
-                const profilePayload = {
-                  id: profile?.id,
-                  username: profile?.username,
-                  name: displayName,
-                  firstName: profile?.firstName,
-                  lastName: profile?.lastName,
-                  email: profile?.email,
-                  avatar: avatarUrl,
-                  bio: about,
-                  description: profile?.userProfile?.description ?? about,
-                  location: profile?.userProfile?.location,
-                  userProfile: profile?.userProfile,
-                  isTempleMember: profile?.isTempleMember,
-                };
-                navigation.navigate('EditProfileScreen', { profile: profilePayload });
-              }}
-              style={styles.editBtn}
-            >
-              <Feather name="edit-2" size={20} color={COLORS.orange} />
-            </Pressable>
-          ) : !isOwnProfile ? (
+          {!isOwnProfile ? (
             <View style={styles.followMessageRow}>
               <Pressable
                 onPress={handleFollow}
@@ -521,6 +528,42 @@ export default function ProfileScreen() {
           ) : null}
         </View>
         <BioWithLinks text={about} style={styles.bio} />
+        {isOwnProfile && profile ? (
+          <View style={styles.profileActionRow}>
+            <TouchableOpacity
+              style={styles.profileActionBtn}
+              onPress={() => {
+                const profilePayload = {
+                  id: profile?.id,
+                  username: profile?.username,
+                  name: displayName,
+                  firstName: profile?.firstName,
+                  lastName: profile?.lastName,
+                  email: profile?.email,
+                  avatar: avatarUrl,
+                  bio: about,
+                  description: profile?.userProfile?.description ?? about,
+                  location: profile?.userProfile?.location,
+                  userProfile: profile?.userProfile,
+                  isTempleMember: profile?.isTempleMember,
+                };
+                navigation.navigate('EditProfileScreen', { profile: profilePayload });
+              }}
+              activeOpacity={0.85}
+            >
+              <Feather name="edit-2" size={16} color={COLORS.orange} />
+              <Text style={styles.profileActionText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileActionBtn}
+              onPress={() => navigation.navigate('CreateContentChoice')}
+              activeOpacity={0.85}
+            >
+              <Feather name="plus" size={16} color={COLORS.orange} />
+              <Text style={styles.profileActionText}>Add Post</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
 
       {/* Temple section */}
@@ -593,21 +636,7 @@ export default function ProfileScreen() {
         </View>
       )} */}
 
-      {/* Create new post - only for own profile */}
-      {isOwnProfile && (
-        <TouchableOpacity
-          style={styles.createPostRow}
-          onPress={() => navigation.navigate('CreateContentChoice')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.createPostIconWrap}>
-            <Feather name="plus" size={22} color="#fff" />
-          </View>
-          <Text style={styles.createPostText}>Create new post</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Tabs - 2 only: Photos, Videos */}
+      {/* Tabs */}
       <View style={styles.tabRow}>
         {TABS.map(t => {
           const isActive = activeTab === t.key;
@@ -624,9 +653,6 @@ export default function ProfileScreen() {
                   color={isActive ? COLORS.orange : '#5A5A5A'}
                 />
               </View>
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                {t.label ?? t.key}
-              </Text>
               {isActive ? (
                 <View style={styles.tabUnderline} />
               ) : (
@@ -654,7 +680,13 @@ export default function ProfileScreen() {
             params: { reelId },
           });
         }}
-        onPressPost={() => navigation.navigate('PostPreview', { postId: item.postId })}
+        onPressPost={() => {
+          const tabNav = navigation.getParent()?.getParent?.();
+          (tabNav || navigation.getParent() || navigation).navigate('Home', {
+            screen: 'PostPreview',
+            params: { postId: item.postId },
+          });
+        }}
         onDeleteReel={isOwnProfile && activeTab === 'Reels' ? handleDeleteReel : undefined}
       />
     ),
@@ -844,7 +876,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     width: '100%',
     maxWidth: '100%',
   },
@@ -854,8 +886,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexGrow: 0,
     minWidth: 0,
-    maxWidth: '48%',
-    marginRight: 8,
+    maxWidth: '34%',
+    marginRight: 12,
   },
   profileRight: {
     flex: 1,
@@ -864,24 +896,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minWidth: 0,
     gap: 4,
+    marginTop: -6,
   },
   avatar: {
     width: 74,
     height: 74,
     borderRadius: 37,
     backgroundColor: '#eee',
-    marginTop: 12,
+    marginTop: 8,
+  },
+  nameCard: {
+    marginTop: 10,
+    marginHorizontal: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
   },
   avatarIconWrap: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   name: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '500',
     color: COLORS.text,
-    marginTop: 10,
-    marginBottom: 2,
+    marginTop: 0,
+    marginBottom: 4,
     alignSelf: 'stretch',
   },
   statBox: {
@@ -892,7 +933,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '800',
     color: COLORS.text,
     lineHeight: 22,
@@ -932,6 +973,30 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#1B1B1B',
     fontWeight: '500',
+  },
+  profileActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    width: '100%',
+  },
+  profileActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.orange,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+  },
+  profileActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.orange,
   },
   templeSection: {
     marginTop: 14,
@@ -1031,19 +1096,20 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   createPostText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '500',
     color: COLORS.text,
   },
   tabRow: {
     marginTop: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    justifyContent: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 0,
   },
   tabBtn: {
     alignItems: 'center',
-    flex: 1,
+    width: 54,
   },
   tabIconContainer: {
     width: 44,
@@ -1062,7 +1128,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabUnderline: {
-    marginTop: 8,
+    marginTop: 4,
     height: 3,
     width: 44,
     borderRadius: 3,
@@ -1070,7 +1136,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   tabUnderlineOff: {
-    marginTop: 8,
+    marginTop: 4,
     height: 3,
     width: 44,
     borderRadius: 3,
@@ -1078,7 +1144,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   divider: {
-    marginTop: 10,
+    marginTop: 6,
     height: 1,
     backgroundColor: COLORS.line,
   },

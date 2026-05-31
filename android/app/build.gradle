@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -82,8 +83,8 @@ android {
         applicationId "com.jainsansaar.jainapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 9
-        versionName "0.0.1"
+        versionCode 10
+        versionName "0.0.3"
         missingDimensionStrategy 'react-native-camera', 'general'
     }
    splits {
@@ -106,10 +107,13 @@ android {
             if (keystorePropsFile.exists()) {
                 def keystoreProps = new Properties()
                 keystoreProps.load(new FileInputStream(keystorePropsFile))
-                storeFile file(rootProject.projectDir.toString() + "/" + keystoreProps['storeFile'])
-                storePassword keystoreProps['storePassword']
-                keyAlias keystoreProps['keyAlias']
-                keyPassword keystoreProps['keyPassword']
+                def keystoreFile = file(rootProject.projectDir.toString() + "/" + keystoreProps['storeFile'])
+                if (keystoreFile.exists()) {
+                    storeFile keystoreFile
+                    storePassword keystoreProps['storePassword']
+                    keyAlias keystoreProps['keyAlias']
+                    keyPassword keystoreProps['keyPassword']
+                }
             }
         }
     }
@@ -121,7 +125,15 @@ android {
             shrinkResources true
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            signingConfig signingConfigs.release
+            def keystorePropsFile = rootProject.file("keystore.properties")
+            def useReleaseKeystore = false
+            if (keystorePropsFile.exists()) {
+                def keystoreProps = new Properties()
+                keystoreProps.load(new FileInputStream(keystorePropsFile))
+                def keystoreFile = file(rootProject.projectDir.toString() + "/" + keystoreProps['storeFile'])
+                useReleaseKeystore = keystoreFile.exists()
+            }
+            signingConfig useReleaseKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

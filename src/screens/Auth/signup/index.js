@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, APP_TEXT, NAVIGATION, images } from '../../../global/theme';
@@ -24,7 +24,6 @@ import {
   ValidatePassword,
   ValidateUserName,
   ValidatefirstName,
-  ValidatelastName,
   ValidateMail,
   ValidateMobile,
   ValidateCVV,
@@ -40,7 +39,6 @@ import axios from 'axios';
 
 const INITIALINPUT = {
   firstName: '',
-  lastName: '',
   username: '',
   password: '',
   confirmPassword: '',
@@ -74,6 +72,17 @@ const Signup = ({ navigation }) => {
   const [emailStatus, setEmailStatus] = useState(null);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const emailCheckRef = useRef(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const debouncedCheckUsername = useCallback((username) => {
     if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
@@ -135,13 +144,14 @@ const Signup = ({ navigation }) => {
 
   const handleSubmitPress = async () => {
     const url = API.REGISTER_USER;
+    const mobileDigits = (inputs?.mobile || '').replace(/\D/g, '').slice(0, 10);
     const params = {
       dateOfBirth: inputs?.DOB,
       email: inputs?.emailId,
       firstName: inputs?.firstName,
-      lastName: inputs?.lastName,
-      phone: inputs?.mobile,
-      countryCode: inputs?.countryCode,
+      lastName: '',
+      phone: mobileDigits,
+      countryCode: '+91',
       password: inputs?.password,
       username: inputs?.username,
       isTempleMember: isCheckedTemple,
@@ -223,7 +233,6 @@ const Signup = ({ navigation }) => {
     if (isEmpty(inputs.confirmPassword))
       handleError(ValidatePassword(null), 'confirmPassword');
     if (isEmpty(inputs.firstName)) handleError(ValidatefirstName(null), 'firstName');
-    if (isEmpty(inputs.lastName)) handleError(ValidatelastName(null), 'lastName');
     if (isEmpty(inputs.emailId)) handleError(ValidateMail(null), 'emailId');
     if (isEmpty(inputs.mobile)) handleError(ValidateMobile(null), 'mobile');
 
@@ -232,7 +241,6 @@ const Signup = ({ navigation }) => {
       isEmpty(errors.password) &&
       isEmpty(errors.confirmPassword) &&
       isEmpty(errors.firstName) &&
-      isEmpty(errors.lastName) &&
       isEmpty(errors.emailId) &&
       isEmpty(errors.GHIN) &&
       isEmpty(errors.DOB) &&
@@ -290,9 +298,6 @@ const Signup = ({ navigation }) => {
     } else if (input === 'firstName') {
       const valid = ValidatefirstName(text);
       valid === 'success' ? handleError('', 'firstName') : handleError(valid, 'firstName');
-    } else if (input === 'lastName') {
-      const valid = ValidatelastName(text);
-      valid === 'success' ? handleError('', 'lastName') : handleError(valid, 'lastName');
     } else if (input === 'emailId') {
       const valid = ValidateMail(text);
       if (valid === 'success') {
@@ -304,8 +309,11 @@ const Signup = ({ navigation }) => {
         setCheckingEmail(false);
       }
     } else if (input === 'mobile') {
-      const valid = ValidateMobile(text);
+      const mobileText = (text || '').replace(/\D/g, '').slice(0, 10);
+      const valid = ValidateMobile(mobileText);
       valid === 'success' ? handleError('', 'mobile') : handleError(valid, 'mobile');
+      setInputs(prev => ({ ...prev, mobile: mobileText, countryCode: '+91' }));
+      return;
     } else if (input === 'CVV') {
       const valid = ValidateCVV(text);
       valid === 'success' ? handleError('', 'CVV') : handleError(valid, 'CVV');
@@ -363,13 +371,17 @@ const Signup = ({ navigation }) => {
 
       <KeyboardAvoidingView
         style={styles.safe}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
       <ScrollView
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isKeyboardVisible ? styles.scrollContentKeyboardOpen : null,
+        ]}
       >
         <TransparentHeader />
 
@@ -379,33 +391,19 @@ const Signup = ({ navigation }) => {
           <Text style={styles.title}>Create your Account</Text>
 
           <View style={styles.form}>
-            <Text style={styles.fieldLabel}>FIRST NAME</Text>
+            <Text style={styles.fieldLabel}>FULL NAME</Text>
             <AdminInput
-              holderName={APP_TEXT.FIRST_NAME}
+              holderName="Full Name"
               isRequired
               onChangeText={text => handleOnchange(text, 'firstName')}
               error={errors?.firstName}
               value={inputs?.firstName}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
-            />
-            <View style={styles.gap} />
-
-            <Text style={styles.fieldLabel}>LAST NAME</Text>
-            <AdminInput
-              isRequired
-              holderName={APP_TEXT.LAST_NAME}
-              onChangeText={text => handleOnchange(text, 'lastName')}
-              error={errors?.lastName}
-              value={inputs?.lastName}
-              inputBackgroundColor="#FFF"
-              inputTextColor="#000"
-              placeholderColor="#6B7280"
-              inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
             <View style={styles.gap} />
 
@@ -416,11 +414,12 @@ const Signup = ({ navigation }) => {
               onChangeText={text => handleOnchange(text, 'username')}
               error={errors?.username}
               value={inputs?.username}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
             {checkingUsername && (
               <View style={styles.usernameStatusRow}>
@@ -445,11 +444,12 @@ const Signup = ({ navigation }) => {
               error={errors?.password}
               password
               value={inputs?.password}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
             <View style={styles.gap} />
 
@@ -461,14 +461,16 @@ const Signup = ({ navigation }) => {
               error={errors?.confirmPassword}
               password
               value={inputs?.confirmPassword}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
             <View style={styles.gap} />
 
+            <Text style={styles.fieldLabel}>DATE OF BIRTH</Text>
             <MydatePicker
               disabled={disabled}
               handleChange={handlechange}
@@ -476,6 +478,10 @@ const Signup = ({ navigation }) => {
               selectedValue={inputs?.DOB}
               maxDate={maxDate}
               renderType={'Date of Birth'}
+              inputStyle={styles.borderedInput}
+              textStyle={styles.dobText}
+              placeholderTextColor="#6B7280"
+              valueTextColor="#000"
             />
             <View style={styles.gap} />
 
@@ -486,11 +492,12 @@ const Signup = ({ navigation }) => {
               onChangeText={text => handleOnchange(text, 'emailId')}
               error={errors?.emailId}
               value={inputs?.emailId}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
             {checkingEmail && (
               <View style={styles.usernameStatusRow}>
@@ -515,11 +522,13 @@ const Signup = ({ navigation }) => {
               error={errors?.mobile}
               value={inputs?.mobile}
               keyboardType={'numeric'}
+              maxLength={10}
+              inputsty={styles.borderedInput}
               inputBackgroundColor="#FFF"
               inputTextColor="#000"
               placeholderColor="#6B7280"
               inputFontSize={15}
-              inputMinHeight={48}
+              inputMinHeight={44}
             />
 
             {/* <View style={[styles.row, { marginTop: 14 }]}>
@@ -610,17 +619,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
+    backgroundColor: '#F5D19A',
   },
 
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 24,
+  },
+  scrollContentKeyboardOpen: {
+    paddingBottom: 90,
   },
 
   logo: {
     width: 180,
     height: 48,
     alignSelf: 'center',
-    marginVertical: 24,
+    marginTop: -5,
+    marginBottom: 48,
   },
 
   card: {
@@ -630,7 +644,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFF',
     padding: 18,
-    marginTop: 12,
+    marginTop: -11,
   },
 
   title: {
@@ -654,6 +668,20 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 4,
     letterSpacing: 0.4,
+  },
+  borderedInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    minHeight: 44,
+    height: 44,
+    marginTop: 0,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+  },
+  dobText: {
+    fontSize: 15,
   },
 
   row: {

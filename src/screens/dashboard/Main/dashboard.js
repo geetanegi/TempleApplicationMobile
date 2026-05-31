@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Text,
   Animated,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { getAllPosts, getStoriesFeed, getFollowing, deletePost, getNotificationsCount, getUnreadMessageCount } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { connectWebSocket } from '../../../utils/services/websocketService';
+import { NOTIFICATION_BELL_REFRESH } from '../../../utils/push/notificationEvents';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 
 /** Same avatar resolution as FollowListScreen: profile picture by userId, or null for no photo */
@@ -241,11 +243,21 @@ const MainDashboard = () => {
   }, []);
 
   useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(NOTIFICATION_BELL_REFRESH, () => {
+      loadNotificationCount();
+    });
+    return () => sub.remove();
+  }, [loadNotificationCount]);
+
+  useEffect(() => {
     if (!currentUserId) return;
     connectWebSocket(currentUserId, {
       onNotifications: (payload) => {
-        if (payload?.count != null) setNotificationCount(Number(payload.count));
-        else if (payload?.notification) setNotificationCount((c) => c + 1);
+        if (payload?.count != null) {
+          setNotificationCount(Number(payload.count));
+        } else if (payload?.notification) {
+          setNotificationCount((c) => c + 1);
+        }
 
         if (payload?.messageUnreadCount != null) {
           setMessageCount(Number(payload.messageUnreadCount));
@@ -312,11 +324,6 @@ const MainDashboard = () => {
     [navigation]
   );
 
-  const handleImagePress = useCallback(
-    (postId) => navigation.navigate('PostPreview', { postId }),
-    [navigation]
-  );
-
   const appendCacheBust = (url, bust) => {
     if (!url || !bust || typeof url !== 'string') return url;
     const sep = url.includes('?') ? '&' : '?';
@@ -343,19 +350,19 @@ const MainDashboard = () => {
             : item.avatar
         }
         contentText={item.contentText}
+        shareUrl={item.postId != null ? `jainsansaar://post/${item.postId}` : undefined}
         initialIsLiked={item.isLiked}
         initialIsShared={item.isShared}
         onAuthorPress={handleAuthorPress}
-        onImagePressWithPostId={handleImagePress}
         onLikeChangeWithPostId={handleLikeChange}
         onDeleteWithPostId={handleDeletePost}
+        instagramStyle
       />
     ),
     [
       currentUserId,
       avatarCacheBuster,
       handleAuthorPress,
-      handleImagePress,
       handleLikeChange,
       handleDeletePost,
     ]
@@ -554,7 +561,7 @@ const MainDashboard = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       <HeaderDashboard
@@ -587,41 +594,42 @@ const MainDashboard = () => {
         </Animated.View>
       )}
 
-      <View style={styles.content}>
-        <View style={[st.pd_H20, st.mt_B10]}>
-          <SearchInput
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder={APP_TEXT.SEARCH}
-            editable={false}
-            onPress={() => navigation.navigate('SearchScreen')}
+      <FlatList
+        data={filteredPosts}
+        keyExtractor={(item) => item.id}
+        renderItem={renderPostItem}
+        contentContainerStyle={[st.pdB20, { paddingBottom: 90, paddingHorizontal: 0 }]}
+        ListHeaderComponent={
+          <>
+            <View style={[styles.searchRowWrap, st.mt_B5]}>
+              <SearchInput
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder={APP_TEXT.SEARCH}
+                editable={false}
+                onPress={() => navigation.navigate('SearchScreen')}
+              />
+            </View>
+            <View style={[st.pd_H20, st.mt_B5]}>
+              <StoriesRow />
+            </View>
+          </>
+        }
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={6}
+        removeClippedSubviews={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.PRIMARY_BUTTON]}
+            tintColor={colors.PRIMARY_BUTTON}
           />
-        </View>
-        <View style={[st.pd_H20, st.mt_B10]}>
-          <StoriesRow />
-        </View>
-        <FlatList
-          data={filteredPosts}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPostItem}
-          style={styles.postList}
-          contentContainerStyle={[st.pdB20, { paddingBottom: 90, paddingHorizontal: 16 }]}
-          initialNumToRender={6}
-          maxToRenderPerBatch={4}
-          windowSize={6}
-          removeClippedSubviews={true}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.PRIMARY_BUTTON]}
-              tintColor={colors.PRIMARY_BUTTON}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
-      </View>
+        }
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
     </SafeAreaView>
   );
 };
@@ -631,16 +639,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
   },
-  content: {
-    flex: 1,
+  searchRowWrap: {
+    paddingHorizontal: 10,
   },
-  postList: {
-    flex: 1,
-  },
-
   // ✅ Stories row styles
   storiesContainer: {
-    paddingVertical: 14,
+    paddingVertical: 8,
     gap: 12,
   },
   addTileWrap: {

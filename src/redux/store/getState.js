@@ -5,7 +5,15 @@ export const getLocationData = () => store.getState().location.data;
 
 export const getProfileData = () => store.getState().profile?.data;
 
-export const getUserId = () => store.getState().logindata?.data?.userId;
+/** Same id source as PushNotificationBootstrap (login payload: { token, userId } from /api/auth/login). */
+export const getUserId = () => {
+  const d = store.getState().logindata?.data;
+  if (d == null) return undefined;
+  const id = d.userId ?? d.id;
+  if (id == null || id === '') return undefined;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : undefined;
+};
 
 export const convertdateinUTC = () => {
   const utcDate = moment.utc().format(); // Get current date and time in UTC, and format it

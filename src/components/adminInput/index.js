@@ -139,7 +139,7 @@ const style = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 3,
-    top:-5
+    top:-1
     // marginTop:70
   },
   placeholderText: {

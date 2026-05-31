@@ -65,14 +65,10 @@ const PostReelScreen = () => {
     if (Platform.OS === 'android') {
       try {
         if (Platform.Version >= 33) {
-          const results = await PermissionsAndroid.requestMultiple([
+          const result = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-            PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
-          ]);
-          return (
-            results[PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO] ===
-            PermissionsAndroid.RESULTS.GRANTED
           );
+          return result === PermissionsAndroid.RESULTS.GRANTED;
         } else {
           const result = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,

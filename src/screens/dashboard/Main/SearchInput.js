@@ -47,7 +47,7 @@ const SearchInput = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 50,
+    height: 40,
     borderRadius: 30, // ✅ REQUIRED
     borderWidth: 1,
     borderColor: '#1f2937',
@@ -62,6 +62,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     paddingRight: 8,
+    paddingTop: 2,
+    paddingBottom: 0,
   },
   clearBtn: {
     padding: 6,

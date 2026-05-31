@@ -10,15 +10,19 @@
     "start": "react-native start",
     "test": "jest",
     "build:apk": "cd android && ./gradlew assembleRelease",
-    "build:apk:win": "cd android && gradlew.bat assembleRelease"
+    "build:apk:win": "cd android && gradlew.bat assembleRelease",
+    "generate:icons": "python scripts/generate-app-icons.py"
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-camera-roll/camera-roll": "^7.10.2",
     "@react-native-community/datetimepicker": "^8.2.0",
     "@react-native-community/geolocation": "^3.2.1",
     "@react-native-community/netinfo": "^11.3.2",
     "@react-native-community/slider": "^5.0.1",
+    "@react-native-firebase/app": "^20.5.0",
+    "@react-native-firebase/messaging": "^20.5.0",
     "@react-native-picker/picker": "^2.8.0",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/drawer": "^6.7.2",

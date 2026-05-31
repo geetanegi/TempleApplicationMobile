@@ -15,7 +15,11 @@ const MydatePicker = ({
   selectedValue,
   maxDate,
   renderType,
-  placeholder
+  placeholder,
+  inputStyle,
+  textStyle,
+  placeholderTextColor,
+  valueTextColor,
 }) => {
   
   const [open, setOpen] = useState(false);
@@ -45,7 +49,8 @@ const MydatePicker = ({
             style={[
               st.inputsty,
               st.justify_C,
-              st.mt_t10
+              st.mt_t10,
+              inputStyle,
               // disabled && styles.disabled,
             ]}
             onPress={() => setOpen(true)}>
@@ -53,12 +58,13 @@ const MydatePicker = ({
               style={[
                 st.tx14,
                 {
-                  color: disabled
-                    ? colors.white
-                    : selectedValue
-                    ? colors.black
-                    : colors.white,
+                  color: selectedValue
+                    ? (valueTextColor || colors.black)
+                    : disabled
+                    ? (placeholderTextColor || colors.white)
+                    : (placeholderTextColor || colors.white),
                 },
+                textStyle,
               ]}>
               {selectedValue ? displayDate : renderType}
             </Text>

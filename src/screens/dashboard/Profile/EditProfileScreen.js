@@ -61,6 +61,8 @@ const INITIALINPUT = {
   username: '',
 };
 
+const MAX_PROFILE_TEXT_LENGTH = 200;
+
 const EditProfileScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
@@ -163,6 +165,8 @@ const EditProfileScreen = () => {
       const userId = inputs.id;
       await updateProfile(userId, {
         username: inputs.username,
+        firstName: inputs.firstName,
+        lastName: inputs.lastName,
         description: inputs.description,
         location: inputs.location,
         city: inputs.city,
@@ -388,6 +392,16 @@ const EditProfileScreen = () => {
     setInputs(prevState => ({ ...prevState, [input]: text }));
   };
 
+  const handleNameChange = useCallback((text) => {
+    const value = (text || '').slice(0, MAX_PROFILE_TEXT_LENGTH);
+    const trimmedStart = value.replace(/^\s+/, '');
+    setInputs(prev => ({
+      ...prev,
+      firstName: trimmedStart,
+      lastName: '',
+    }));
+  }, []);
+
   const baseAvatarUrl = inputs.id ? getProfilePictureUrlByUserId(inputs.id) : resolveProfilePictureUrl(inputs.imageUrl);
   const cacheBust = profilePicTimestamp ?? focusBuster;
   const avatarUri = newPictureUri
@@ -457,11 +471,13 @@ const EditProfileScreen = () => {
 
         <View style={styles.formCard}>
           <FloatingInput
-            label="Name"
+            label="Full Name"
             labelAbove
             labelIcon={<User size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={[inputs.firstName, inputs.lastName].filter(Boolean).join(' ') || ''}
-            editableField={false}
+            onChangeText={handleNameChange}
+            editableField={true}
+            maxLength={MAX_PROFILE_TEXT_LENGTH}
             placeholderTextColor={colors.DARK_GREY}
           />
 
@@ -470,9 +486,9 @@ const EditProfileScreen = () => {
             labelAbove
             labelIcon={<AtSign size={16} color={THEME.textMuted} strokeWidth={2} />}
             value={inputs.username}
-            onChangeText={t => handleOnchange(t, 'username')}
-            editableField={true}
-            placeholder="Enter username"
+            onChangeText={t => handleOnchange(t.slice(0, MAX_PROFILE_TEXT_LENGTH), 'username')}
+            editableField={false}
+            maxLength={MAX_PROFILE_TEXT_LENGTH}
             placeholderTextColor={colors.DARK_GREY}
             error={errors.username}
           />
@@ -507,7 +523,7 @@ const EditProfileScreen = () => {
           <View style={styles.row}>
             <View style={styles.half}>
               <FloatingInput
-                label="Location"
+                label="Near by Mandir profile"
                 labelAbove
                 labelIcon={<MapPin size={16} color={THEME.textMuted} strokeWidth={2} />}
                 value={inputs.location}

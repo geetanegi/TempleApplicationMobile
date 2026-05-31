@@ -142,9 +142,11 @@ const TestScreen = ({
             editable={editableField}
             blurOnSubmit={!multiline}
             multiline={multiline}
-            selectionColor={'#fff'}
+            // Cursor / selection color
+            selectionColor={props.selectionColor ?? '#000'}
+            cursorColor={props.cursorColor ?? props.selectionColor ?? '#000'}
             value={value}
-            placeholderTextColor={'#fff'}
+            placeholderTextColor={props.placeholderTextColor ?? colors.DARK_GREY}
             {...props}
           />
 

@@ -22,6 +22,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { colors } from '../../../global/theme';
 import SearchInput from '../Main/SearchInput';
 import HeaderDashboard from '../../../components/dashboardHeader';
+import { useNotificationBellCount } from '../../../hooks/useNotificationBellCount';
 import { getTempleList } from '../../../utils/apicalls/templeHandler';
 import { DUMMY_TEMPLES } from './dummyTemples';
 
@@ -40,6 +41,10 @@ const DEFAULT_REGION = {
   latitudeDelta: 8,
   longitudeDelta: 8,
 };
+// Show markers only after zooming in beyond country-level view.
+// India/all-states view is usually much wider than this.
+const MARKER_VISIBLE_MAX_LAT_DELTA = 2.5;
+const MARKER_VISIBLE_MAX_LNG_DELTA = 2.5;
 
 const TempleCard = ({ item, onPress }) => {
   return (
@@ -100,6 +105,7 @@ const toTempleItem = (t, index) => ({
 
 const TempleLocator = () => {
   const navigation = useNavigation();
+  const { count: notificationBellCount } = useNotificationBellCount();
   const route = useRoute();
   const mapRef = useRef(null);
   const focusTemple = route.params?.focusTemple;
@@ -118,6 +124,12 @@ const TempleLocator = () => {
   });
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState(null);
+  const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(
+    initialRegion?.latitudeDelta ?? DEFAULT_REGION.latitudeDelta
+  );
+  const [currentLongitudeDelta, setCurrentLongitudeDelta] = useState(
+    initialRegion?.longitudeDelta ?? DEFAULT_REGION.longitudeDelta
+  );
   /** All temples from API (search includes rows without coordinates). */
   const [allTempleItems, setAllTempleItems] = useState([]);
   const [templesLoading, setTemplesLoading] = useState(true);
@@ -354,6 +366,9 @@ const TempleLocator = () => {
     }
     return [];
   }, [activeTab, templesForMap]);
+  const shouldShowTempleMarkers =
+    currentLatitudeDelta <= MARKER_VISIBLE_MAX_LAT_DELTA &&
+    currentLongitudeDelta <= MARKER_VISIBLE_MAX_LNG_DELTA;
 
   const showSearchResults = searchText.trim().length > 0;
 
@@ -369,6 +384,7 @@ const TempleLocator = () => {
         leftNav="HomeDrawer"
         rightNav1="Notifications"
         rightNav2="Chat"
+        rightIcon1BadgeCount={notificationBellCount}
       />
       <View style={styles.searchWrap}>
         <SearchInput
@@ -442,8 +458,16 @@ const TempleLocator = () => {
             showsMyLocationButton
             loadingEnabled
             followsUserLocation={false}
+            onRegionChangeComplete={(region) => {
+              if (region?.latitudeDelta != null) {
+                setCurrentLatitudeDelta(region.latitudeDelta);
+              }
+              if (region?.longitudeDelta != null) {
+                setCurrentLongitudeDelta(region.longitudeDelta);
+              }
+            }}
           >
-            {mapMarkers.map(place => (
+            {shouldShowTempleMarkers && mapMarkers.map(place => (
               <Marker
                 key={place.id}
                 coordinate={{

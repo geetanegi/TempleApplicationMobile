@@ -52,7 +52,7 @@ export default function CreateContentChoiceScreen() {
             </View>
             <Text style={styles.optionTitle}>Create a Post</Text>
             <Text style={styles.optionSubtext}>
-              Share photos or videos with a caption
+              Share photos with a caption
             </Text>
           </Pressable>
 
