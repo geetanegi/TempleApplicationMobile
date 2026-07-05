@@ -8,8 +8,9 @@
 // export const environment = {
 //   baseUrl: 'http://10.0.2.2:8080/aceCam/',
 // };
+// Same server as JAIN-WEB (src/services/axiosInstance.ts)
 export const environment = {
-  baseUrl: 'http://13.203.150.178:8080/jain-app/api/',
+  baseUrl: 'http://13.203.150.178:8080/jain-app/',
   /** Set after you host legal-hosting/*.html — used for Play Console and optional “open in browser” in the app */
   Privacy_policy: '',
   Terms_of_service: '',
@@ -19,7 +20,7 @@ export const environment = {
     return u.replace(/^http/, 'ws');
   },
   // Use localhost when app runs on same machine (e.g. iOS Simulator / web)
-  // baseUrl: 'http://localhost:8080/',
+  // baseUrl: 'http://localhost:8080/jain-app/',
   // Use 10.0.2.2 when testing on Android Emulator (points to host machine)
-  // baseUrl: 'http://10.0.2.2:8080/api/',
+  // baseUrl: 'http://10.0.2.2:8080/jain-app/',
 };

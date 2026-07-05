@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../../../SpringBoot/jain-app"
+		},
+		{
+			"path": "../../../../../gETA/Temple_web/JAIN-WEB"
 		}
 	],
 	"settings": {}

@@ -2,16 +2,16 @@ import {environment} from '../constant';
 
 class Endpoints {
   baseUrl = environment.baseUrl;
-  LOGIN_AUTH = this.baseUrl + 'auth/login';
-  LOGOUT = this.baseUrl + 'auth/logout';
-  REGISTER_USER = this.baseUrl + 'auth/register';
-  VERIFY_REGISTER_OTP = this.baseUrl + 'auth/verify-register-otp';
-  VERIFY_LOGIN_OTP = this.baseUrl + 'auth/verify-forgot-otp';
-  VERIFY_OTP = this.baseUrl + 'auth/verify-register-otp';
-  RESEND_REGISTER_OTP = this.baseUrl + 'auth/resend-register-otp';
-  FORGET_PASSWORD = this.baseUrl + 'auth/forgot-password';
-  VERIFY_FORGOT_OTP = this.baseUrl + 'auth/verify-forgot-otp';
-  RESET_PASSWORD = this.baseUrl + 'auth/reset-password';
+  LOGIN_AUTH = this.baseUrl + 'api/auth/login';
+  LOGOUT = this.baseUrl + 'api/auth/logout';
+  REGISTER_USER = this.baseUrl + 'api/auth/register';
+  VERIFY_REGISTER_OTP = this.baseUrl + 'api/auth/verify-register-otp';
+  VERIFY_LOGIN_OTP = this.baseUrl + 'api/auth/verify-forgot-otp';
+  VERIFY_OTP = this.baseUrl + 'api/auth/verify-register-otp';
+  RESEND_REGISTER_OTP = this.baseUrl + 'api/auth/resend-register-otp';
+  FORGET_PASSWORD = this.baseUrl + 'api/auth/forgot-password';
+  VERIFY_FORGOT_OTP = this.baseUrl + 'api/auth/verify-forgot-otp';
+  RESET_PASSWORD = this.baseUrl + 'api/auth/reset-password';
   CHECK_USERNAME = (username) =>
     this.baseUrl.replace(/\/api\/?$/, '/') + `user/social/profile/check-username?username=${encodeURIComponent(username)}`;
   CHECK_EMAIL = (email) =>
