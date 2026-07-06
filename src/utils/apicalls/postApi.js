@@ -33,7 +33,7 @@ const post = async (url, data, needToken = true) => {
   console.log('---------request------------', request.data);
   // console.log('post api--', url);
   const config = await getApiHeader(needToken);
-  // console.log('---------url------------',url)
+ //  console.log('---------url------------',url)
   return new Promise((resolve, reject) => {
     axios
       .post(url, request.data, config)

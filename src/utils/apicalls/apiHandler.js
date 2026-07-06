@@ -17,10 +17,18 @@ export const getApiHeader = async needToken => {
 };
 
 export const handleFailedResponse = (err, reject) => {
-  //onsole.log('postApi res.status:catch', err.response?.data?.message);
+  const body = err.response?.data;
+  const description =
+    body?.description ||
+    body?.message ||
+    (typeof body === 'string' ? body : null) ||
+    err.message ||
+    'Something went wrong. Please try again.';
   reject({
     status: err.response?.status,
-    message: err.response?.data?.message,
+    message: description,
+    description,
+    error: body?.error,
   });
 };
 

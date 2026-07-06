@@ -11,6 +11,8 @@
     "test": "jest",
     "build:apk": "cd android && ./gradlew assembleRelease",
     "build:apk:win": "cd android && gradlew.bat assembleRelease",
+    "build:aab": "cd android && ./gradlew bundleRelease",
+    "build:aab:win": "cd android && gradlew.bat bundleRelease",
     "generate:icons": "python scripts/generate-app-icons.py"
   },
   "dependencies": {

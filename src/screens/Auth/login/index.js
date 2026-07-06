@@ -178,7 +178,6 @@ const Login = ({ navigation }) => {
             placeholderColor="#6B7280"
             inputFontSize={15}
             inputMinHeight={48}
-            inputVerticalPadding={10}
             inputsty={styles.borderedInput}
           />
 
@@ -196,7 +195,6 @@ const Login = ({ navigation }) => {
             placeholderColor="#6B7280"
             inputFontSize={15}
             inputMinHeight={48}
-            inputVerticalPadding={10}
             inputsty={styles.borderedInput}
           />
 

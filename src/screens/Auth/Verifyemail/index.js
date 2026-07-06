@@ -58,22 +58,33 @@ const Verifyemail = ({ navigation }) => {
     })
       .then(res => {
         if (!res?.error) {
+          const emailForDisplay =
+            res?.data?.maskedEmail ||
+            res?.data?.email ||
+            loginId;
           navigation.navigate(NAVIGATION.TO_OTP_SCREEN, {
             item: {
-              username: inputs.username.trim(),
-              emailId: (res?.data && res.data.email) ? res.data.email : inputs.username.trim(),
-              message: res?.description,
+              username: loginId,
+              emailId: emailForDisplay,
+              message: res?.description || res?.data?.message,
             },
           });
         } else {
           setTitle('Oops!');
-          setSubtitle(res?.description || 'User not found. Please check and try again.');
+          setSubtitle(
+            res?.description ||
+              'Could not send OTP. Please check your email/username and try again.',
+          );
           setPopupMessageVisibility(true);
         }
       })
       .catch(err => {
         setTitle('Error');
-        setSubtitle(err?.message || 'Something went wrong. Please try again.');
+        setSubtitle(
+          err?.description ||
+            err?.message ||
+            'Something went wrong. Please try again.',
+        );
         setPopupMessageVisibility(true);
       })
       .finally(() => setIsLoading(false));
@@ -96,7 +107,7 @@ const Verifyemail = ({ navigation }) => {
         <View style={styles.card}>
           <Text style={styles.title}>Forgot Password</Text>
           <Text style={styles.subtitle}>
-            Enter your email or username and we’ll send you an OTP to reset your password.
+            Enter your email, username, or phone number (with country code, e.g. +91xxxxxxxxxx) and we’ll send you an OTP to reset your password.
           </Text>
 
           <Text style={styles.fieldLabel}>EMAIL OR USERNAME</Text>

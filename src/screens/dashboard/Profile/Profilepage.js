@@ -165,7 +165,6 @@ export default function ProfileScreen() {
   const paramUserId = route.params?.userId;
   const userId = paramUserId != null ? paramUserId : currentUserId;
   const isOwnProfile = currentUserId != null && String(userId) === String(currentUserId);
-  const fromFollowList = route.params?.fromFollowList === true;
 
   const [profile, setProfile] = useState(null);
   const [followersCount, setFollowersCount] = useState(0);
@@ -765,10 +764,59 @@ export default function ProfileScreen() {
     [activeTab, onPressGridItem, isOwnProfile, handleDeleteReel],
   );
 
+  const renderProfileHeader = () => {
+    if (isOwnProfile) {
+      return (
+        <View
+          style={[
+            styles.fixedHeaderRowCompact,
+            { paddingTop: 8 + (insets.top || 0) },
+          ]}
+        >
+          <Pressable
+            hitSlop={12}
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+            style={styles.backBtn}
+          >
+            <Menu size={24} color={COLORS.text} strokeWidth={2.5} />
+          </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            Profile
+          </Text>
+          <View style={styles.backBtn} />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.fixedHeaderRowCompact}>
+        <Pressable
+          hitSlop={12}
+          onPress={() => safeGoBack(navigation)}
+          style={styles.backBtn}
+        >
+          <ChevronLeft size={24} color={COLORS.text} strokeWidth={2.5} />
+        </Pressable>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Profile
+        </Text>
+        <View style={styles.backBtn} />
+      </View>
+    );
+  };
+
   if (loading && !profile) {
     return (
-      <View style={[st.flex, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.orange} />
+      <View style={[st.flex, { backgroundColor: COLORS.bg }]}>
+        <SafeAreaView
+          style={styles.container}
+          edges={isOwnProfile ? [] : ['top']}
+        >
+          {renderProfileHeader()}
+          <View style={[st.flex, styles.centered]}>
+            <ActivityIndicator size="large" color={COLORS.orange} />
+          </View>
+        </SafeAreaView>
       </View>
     );
   }
@@ -777,47 +825,9 @@ export default function ProfileScreen() {
     <View style={[st.flex, { backgroundColor: COLORS.bg }]}>
       <SafeAreaView
         style={styles.container}
-        edges={isOwnProfile ? [] : ['bottom']}
+        edges={isOwnProfile ? [] : ['top']}
       >
-        {isOwnProfile ? (
-          <View
-            style={[
-              styles.fixedHeaderRowCompact,
-              { paddingTop: 8 + (insets.top || 0) },
-            ]}
-          >
-            <Pressable
-              hitSlop={12}
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              style={styles.backBtn}
-            >
-              <Menu size={24} color={COLORS.text} strokeWidth={2.5} />
-            </Pressable>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              Profile
-            </Text>
-            <View style={styles.backBtn} />
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.fixedHeaderRowCompact,
-              !fromFollowList && { paddingTop: 8 + (insets.top || 0) },
-            ]}
-          >
-            <Pressable
-              hitSlop={12}
-              onPress={() => safeGoBack(navigation)}
-              style={styles.backBtn}
-            >
-              <ChevronLeft size={24} color={COLORS.text} strokeWidth={2.5} />
-            </Pressable>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              Profile
-            </Text>
-            <View style={styles.backBtn} />
-          </View>
-        )}
+        {renderProfileHeader()}
         <FlatList
           data={filteredByTab}
           key={activeTab}
