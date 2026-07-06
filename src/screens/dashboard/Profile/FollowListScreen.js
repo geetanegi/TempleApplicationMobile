@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 import { getFollowers, getFollowing } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { openUserProfile, safeGoBack } from '../../../utils/navigation/openUserProfile';
 import st from '../../../global/styles';
 
 const COLORS = {
@@ -95,7 +96,7 @@ export default function FollowListScreen() {
   const renderItem = ({ item }) => (
     <Pressable
       style={styles.row}
-      onPress={() => navigation.navigate('Profiles', { userId: item.userId, fromFollowList: true })}
+      onPress={() => openUserProfile(navigation, item.userId, { fromFollowList: true })}
       android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
     >
       <Image
@@ -131,7 +132,7 @@ export default function FollowListScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => navigation.goBack()}
+            onPress={() => safeGoBack(navigation)}
             style={styles.backBtn}
             hitSlop={12}
           >

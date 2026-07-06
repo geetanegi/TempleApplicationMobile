@@ -15,6 +15,7 @@ import { colors } from '../../../global/theme';
 import { getUserId } from '../../../redux/store/getState';
 import { getNotifications, markNotificationsSeen } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 
 function capitalizeName(str) {
   if (!str || typeof str !== 'string') return str;
@@ -175,7 +176,7 @@ const NotificationScreen = () => {
       switch (type) {
         case TYPE_FOLLOW:
           if (actorUserId) {
-            navigation.navigate('Profiles', { userId: actorUserId });
+            openUserProfile(navigation, actorUserId);
           }
           break;
         case TYPE_MESSAGE:

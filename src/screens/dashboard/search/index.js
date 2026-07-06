@@ -21,6 +21,7 @@ import HeaderDashboard from '../../../components/dashboardHeader';
 import { useNotificationBellCount } from '../../../hooks/useNotificationBellCount';
 import { searchUsers, getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { getPopularTemples, getTrendingTemples } from '../../../utils/apicalls/templeHandler';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 
 const RECENT_SEARCHES_KEY = '@search_recent';
 
@@ -234,7 +235,7 @@ const SearchScreen = () => {
                         style={styles.userRow}
                         onPress={() => {
                           addRecentSearch(query.trim());
-                          navigation.navigate('Profiles', { userId: user.id });
+                          openUserProfile(navigation, user.id);
                         }}
                       >
                         {avatarUrl(user) ? (

@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useState, useCallback} from 'react';
+import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,11 @@ import {
 import { resolveProfilePictureUrl, getProfilePictureUrlByUserId } from '../../utils/apicalls/profileHandler';
 import { formatDateTimeIST } from '../../utils/helperfunctions/dateTimeUtils';
 import ShareToChatSheet from '../ShareToChatSheet';
+import {
+  getCachedImageSize,
+  getClampedFeedMediaHeight,
+  prefetchImageSize,
+} from '../../utils/imageAspectRatio';
 
 const PostCard = ({
   userName = 'Camila',
@@ -80,9 +85,42 @@ const PostCard = ({
   instagramStyle = false, // dashboard feed style without card container
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
-  const defaultMediaHeight = instagramStyle ? Math.round(screenW * 1.25) : 340;
-  const mediaHeight = expandMedia ? Math.min(Math.round(screenH * 0.6), 520) : defaultMediaHeight;
-  const mediaResizeMode = instagramStyle ? 'cover' : 'contain';
+  const mediaUri = videoUrl ? (thumbnailUrl || videoUrl) : image;
+  const cachedMediaSize = mediaUri ? getCachedImageSize(mediaUri) : null;
+  const [mediaSize, setMediaSize] = useState(cachedMediaSize);
+
+  useEffect(() => {
+    if (!instagramStyle || !mediaUri) {
+      setMediaSize(null);
+      return;
+    }
+    const cached = getCachedImageSize(mediaUri);
+    if (cached) {
+      setMediaSize(cached);
+      return;
+    }
+    let cancelled = false;
+    prefetchImageSize(mediaUri).then((size) => {
+      if (!cancelled && size) setMediaSize(size);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [instagramStyle, mediaUri]);
+
+  const mediaHeight = useMemo(() => {
+    if (expandMedia) return Math.min(Math.round(screenH * 0.6), 520);
+    if (instagramStyle) {
+      if (mediaSize?.width && mediaSize?.height) {
+        return getClampedFeedMediaHeight(screenW, mediaSize.width, mediaSize.height);
+      }
+      return Math.round(screenW);
+    }
+    return 340;
+  }, [expandMedia, instagramStyle, mediaSize, screenH, screenW]);
+
+  const mediaResizeMode =
+    instagramStyle && mediaSize?.width && mediaSize?.height ? 'cover' : 'contain';
 
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -687,9 +725,11 @@ const PostCard = ({
               }}
               >
                 <Image
+                  key={postId != null ? `thumb-${postId}` : `thumb-${thumbnailUrl || videoUrl}`}
                   source={{ uri: thumbnailUrl || videoUrl }}
                   style={[styles.postImage, { height: mediaHeight }]}
                   resizeMode={mediaResizeMode}
+                  fadeDuration={0}
                 />
                 <View style={styles.videoPlayOverlay}>
                   <View style={styles.videoPlayCircle}>
@@ -711,12 +751,14 @@ const PostCard = ({
               style={styles.imagePressable}
             >
               <Image
+                key={postId != null ? `img-${postId}` : `img-${image}`}
                 source={{uri: image}}
                 style={[
                   styles.postImage,
                   { height: mediaHeight },
                 ]}
                 resizeMode={mediaResizeMode}
+                fadeDuration={0}
               />
             </Pressable>
           </View>
@@ -960,6 +1002,7 @@ const styles = StyleSheet.create({
   },
   imageWrapInstagram: {
     marginHorizontal: -16,
+    overflow: 'hidden',
   },
 
   imagePressable: {

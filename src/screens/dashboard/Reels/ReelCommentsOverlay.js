@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { getUserId } from '../../../redux/store/getState';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 import {
   getReelComments,
   commentOnReel,
@@ -304,7 +305,7 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded, o
 
   const openProfile = (userId) => {
     if (userId == null) return;
-    navigation.navigate('Profiles', { userId });
+    openUserProfile(navigation, userId);
   };
 
   const handleDeletePress = useCallback(
@@ -351,7 +352,12 @@ const ReelCommentsOverlay = ({ visible, onClose, reelId, reel, onCommentAdded, o
         </Pressable>
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
-            <Pressable onPress={() => openProfile(uid)} disabled={uid == null} hitSlop={4}>
+            <Pressable
+              style={styles.namePress}
+              onPress={() => openProfile(uid)}
+              disabled={uid == null}
+              hitSlop={4}
+            >
               <Text style={styles.nameText}>{userDisplay}</Text>
             </Pressable>
             {canDelete && (
@@ -523,6 +529,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
     paddingVertical: 14,
   },
@@ -531,24 +538,34 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 999,
     backgroundColor: '#DDD',
+    marginTop: 2,
   },
   textBlock: {
     flex: 1,
     paddingRight: 10,
+    minWidth: 0,
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  namePress: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   deleteIconWrap: {
     marginLeft: 'auto',
     padding: 6,
+    flexShrink: 0,
   },
   nameText: {
     fontSize: 15,
     fontWeight: '800',
     color: '#111',
+    flexShrink: 1,
+    lineHeight: 20,
   },
   bodyText: {
     fontSize: 14,

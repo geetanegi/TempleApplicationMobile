@@ -97,7 +97,11 @@ const ProfileTabStack = () => (
       options={{ headerShown: false }}
       component={FollowListScreen}
     />
-    <HomeStack.Screen name="Profiles" component={ProfileScreen} />
+    <HomeStack.Screen
+      name="Profiles"
+      options={{ headerShown: false }}
+      component={ProfileScreen}
+    />
     <HomeStack.Screen
       name="EditProfileScreen"
       options={{headerShown: true, title: 'Edit Profile'}}
@@ -118,6 +122,11 @@ const ProfileTabStack = () => (
         ),
       })}
       component={LocateTempleScreen}
+    />
+    <HomeStack.Screen
+      name="PostPreview"
+      options={{ headerShown: false }}
+      component={PostPreviewScreen}
     />
   </HomeStack.Navigator>
 );
@@ -204,12 +213,7 @@ const HomeStackScreens = () => (
     />
     <HomeStack.Screen
       name="FollowList"
-      options={({ route }) => ({
-        headerShown: true,
-        title: route.params?.listType === 'following' ? 'Following' : 'Followers',
-        headerTitleAlign: 'center',
-        headerTitleStyle: { fontSize: 18, fontWeight: '700' },
-      })}
+      options={{ headerShown: false }}
       component={FollowListScreen}
     />
     <HomeStack.Screen
@@ -318,20 +322,18 @@ const renderTabImage =
 const renderCustomTabIcon = (IconComponent) => ({focused}) => {
   if (focused) {
     return (
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: colors.orange,
-        }}>
-        <IconComponent size={20} color="#fff" />
+      <View style={styles.tabIconWrap}>
+        <View style={styles.tabIconActive}>
+          <IconComponent size={20} color="#fff" />
+        </View>
       </View>
     );
   }
-  return <IconComponent size={22} color="#B5B5B5" />;
+  return (
+    <View style={styles.tabIconWrap}>
+      <IconComponent size={22} color="#B5B5B5" />
+    </View>
+  );
 };
 
 
@@ -346,6 +348,8 @@ const FLOATING_TAB_BAR_STYLE = {
   backgroundColor: '#fff',
   borderRadius: 15,
   height: 64,
+  paddingTop: 0,
+  paddingBottom: 0,
   shadowColor: '#000',
   shadowOpacity: 0.06,
   shadowOffset: {width: 0, height: 5},
@@ -411,6 +415,18 @@ export default function BottomNavigation() {
         headerShown: true,
         tabBarActiveTintColor: colors.orange,
         tabBarStyle: FLOATING_TAB_BAR_STYLE,
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingTop: 0,
+          paddingBottom: 0,
+          marginTop: 0,
+          marginBottom: 0,
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
+          marginBottom: 0,
+        },
         tabBarHideOnKeyboard: true,
       }}>
       <Tab.Screen
@@ -418,7 +434,7 @@ export default function BottomNavigation() {
         component={HomeStackScreens}
         options={({route}) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'MainDashboard';
-          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'Chat' || routeName === 'ChatScreen' || routeName === 'PostPreview' || routeName === 'Notifications';
+          const hideBar = routeName === 'YouTubePlayer' || routeName === 'StoryUploadScreen' || routeName === 'StoryViewScreen' || routeName === 'EditProfileScreen' || routeName === 'CreatePost' || routeName === 'Chat' || routeName === 'ChatScreen' || routeName === 'PostPreview' || routeName === 'Notifications' || routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'SearchScreen';
           return {
             tabBarIcon: renderCustomTabIcon(HomeIcon),
             headerShown: false,
@@ -500,7 +516,7 @@ export default function BottomNavigation() {
         component={ProfileTabStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
-          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'LocateTempleScreen' || routeName === 'CreateContentChoice' || routeName === 'EditProfileScreen';
+          const hideBar = routeName === 'FollowList' || routeName === 'Profiles' || routeName === 'PostPreview' || routeName === 'LocateTempleScreen' || routeName === 'CreateContentChoice' || routeName === 'EditProfileScreen';
           const isFollowList = routeName === 'FollowList';
           return {
             headerShown: false,
@@ -522,6 +538,19 @@ export default function BottomNavigation() {
 // Styles
 // --------------------------------
 const styles = StyleSheet.create({
+  tabIconWrap: {
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabIconActive: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.orange,
+  },
   locateTempleBar: {
     position: 'absolute',
     bottom: 88,

@@ -21,6 +21,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 
 const {height: SCREEN_H} = Dimensions.get('window');
 
@@ -346,7 +347,7 @@ const CommentScreen = ({
       setVisible(false);
     }
     requestAnimationFrame(() => {
-      navigation.navigate('Profiles', {userId: uid});
+      openUserProfile(navigation, uid);
     });
   };
 
@@ -404,16 +405,18 @@ const CommentScreen = ({
 
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
-            <Pressable
-              onPress={() => canOpenProfile && openCommenterProfile(item)}
-              disabled={!canOpenProfile}
-              hitSlop={4}
-            >
-              <Text style={styles.nameText}>{userDisplay}</Text>
-            </Pressable>
-            {!!(item?.commentedAt) && (
-              <Text style={styles.timeText}>  •  {formatRelativeTime(item.commentedAt)}</Text>
-            )}
+            <View style={styles.nameTimeWrap}>
+              <Pressable
+                onPress={() => canOpenProfile && openCommenterProfile(item)}
+                disabled={!canOpenProfile}
+                hitSlop={4}
+              >
+                <Text style={styles.nameText}>{userDisplay}</Text>
+              </Pressable>
+              {!!(item?.commentedAt) && (
+                <Text style={styles.timeText}>  •  {formatRelativeTime(item.commentedAt)}</Text>
+              )}
+            </View>
             {canDelete && (
               <Pressable
                 hitSlop={10}
@@ -455,7 +458,7 @@ const CommentScreen = ({
         <View style={styles.inputWrap}>
           {replyingTo != null && (
             <View style={styles.replyingToRow}>
-              <Text style={styles.replyingToText} numberOfLines={1}>
+              <Text style={styles.replyingToText}>
                 Replying to @{replyingTo.user}
               </Text>
               <Pressable hitSlop={8} onPress={cancelReply}>
@@ -614,6 +617,7 @@ const styles = StyleSheet.create({
 
   row: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
     paddingVertical: 14,
   },
@@ -626,28 +630,42 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 999,
     backgroundColor: '#DDD',
+    marginTop: 2,
   },
 
   textBlock: {
     flex: 1,
     paddingRight: 10,
+    minWidth: 0,
   },
 
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
+  },
+
+  nameTimeWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    minWidth: 0,
+    marginRight: 8,
   },
 
   deleteIconWrap: {
     marginLeft: 'auto',
     padding: 6,
+    flexShrink: 0,
   },
 
   nameText: {
     fontSize: 15,
     fontWeight: '800',
     color: '#111',
+    flexShrink: 1,
+    lineHeight: 20,
   },
 
   timeText: {
@@ -714,6 +732,9 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     fontWeight: '600',
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    lineHeight: 16,
   },
   cancelReplyText: {
     fontSize: 12,

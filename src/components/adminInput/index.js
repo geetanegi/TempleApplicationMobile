@@ -22,6 +22,8 @@ const AdminInput = ({
   placeholderColor,
   inputFontSize,
   inputMinHeight,
+  inputVerticalPadding,
+  hidePlaceholder = false,
   ...props
 }) => {
 //  alert(props.value)
@@ -57,9 +59,13 @@ const AdminInput = ({
             inputsty,
             {paddingLeft: iconName ? 80 : 8},
             inputMinHeight != null ? { minHeight: inputMinHeight, height: inputMinHeight } : null,
+            inputVerticalPadding ? { paddingTop: inputVerticalPadding, paddingBottom: 2 } : null,
           ]}>
-         {((!isFocused && value?.trim() === '') || value == undefined )&& (
-          <View style={style.placeholderContainer}>
+         {!hidePlaceholder && ((!isFocused && value?.trim() === '') || value == undefined) && (
+          <View style={[
+            style.placeholderContainer,
+            inputVerticalPadding ? { top: inputVerticalPadding } : null,
+          ]}>
             <Text style={[style.placeholderText, placeholderColor ? { color: placeholderColor } : null, inputFontSize ? { fontSize: inputFontSize } : null]}>{holderName}</Text>
             {isRequired &&(
             <Text style={[style.asterisk, inputFontSize ? { fontSize: inputFontSize } : null]}>*</Text>
@@ -77,7 +83,12 @@ const AdminInput = ({
           }}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={hidePassword}
-          style={[style.inputtxt, inputTextColor ? { color: inputTextColor } : null, inputFontSize ? { fontSize: inputFontSize } : null]}
+          style={[
+            style.inputtxt,
+            inputTextColor ? { color: inputTextColor } : null,
+            inputFontSize ? { fontSize: inputFontSize } : null,
+            inputVerticalPadding ? { paddingTop: 3 } : null,
+          ]}
           {...props}
           placeholderTextColor={placeholderColor ?? 'white'}
           

@@ -51,8 +51,10 @@ const Verifyemail = ({ navigation }) => {
     }
 
     setIsLoading(true);
+    const loginId = inputs.username.trim();
     postNoAuth(API.FORGET_PASSWORD, {
-      username: inputs.username.trim(),
+      username: loginId,
+      email: loginId,
     })
       .then(res => {
         if (!res?.error) {
@@ -100,15 +102,21 @@ const Verifyemail = ({ navigation }) => {
           <Text style={styles.fieldLabel}>EMAIL OR USERNAME</Text>
           <AdminInput
             holderName="Email or Username"
+            hidePlaceholder
             isRequired
             value={inputs.username}
             error={errors.username}
             onChangeText={t => handleChange(t, 'username')}
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="username"
             inputBackgroundColor="#FFF"
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
             inputMinHeight={48}
+            inputVerticalPadding={10}
+            inputsty={styles.borderedInput}
           />
 
           <ApplicationButton
@@ -223,6 +231,18 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 4,
     letterSpacing: 0.4,
+  },
+
+  borderedInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    minHeight: 48,
+    height: 48,
+    marginTop: 0,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    backgroundColor: '#FFF',
   },
 
   sendButton: {

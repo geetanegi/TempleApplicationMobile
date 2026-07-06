@@ -5,18 +5,17 @@ import {
   StyleSheet,
   Image,
   Pressable,
-  Dimensions,
   FlatList,
   Alert,
   LayoutAnimation,
   UIManager,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import VideoPlayer from 'react-native-video-player';
+import Video from 'react-native-video';
 import { Trash2, X } from 'lucide-react-native';
-import { colors } from '../../../global/theme';
 import { addStoryView, deleteStory } from '../../../utils/apicalls/socialHandler';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 
@@ -25,8 +24,7 @@ function getAvatarUriForUserId(userId) {
   const url = getProfilePictureUrlByUserId(userId);
   const resolved = resolveProfilePictureUrl(url || '');
   if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
-    const sep = resolved.includes('?') ? '&' : '?';
-    return `${resolved}${sep}t=${Date.now()}`;
+    return resolved;
   }
   return null;
 }
@@ -35,11 +33,9 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SEGMENT_HEIGHT = 2;
 const SEGMENT_GAP = 3;
 
-/** Build group boundaries: [0, 2, 5] means group 0 has indices 0-1, group 1 has 2-4. Groups are by same user. */
 function buildGroupBoundaries(stories) {
   if (!stories?.length) return [0];
   const boundaries = [0];
@@ -53,10 +49,54 @@ function buildGroupBoundaries(stories) {
   return boundaries;
 }
 
+const StoryMediaClip = React.memo(({ story, isActive, width, height, onVideoEnd }) => {
+  const [videoReady, setVideoReady] = useState(false);
+  const isVideo = (story.mediaType || '').toUpperCase() === 'VIDEO';
+  const mediaStyle = [styles.mediaFill, { width, height }];
+
+  useEffect(() => {
+    setVideoReady(false);
+  }, [story.id, story.mediaUrl]);
+
+  if (isVideo) {
+    return (
+      <View style={[styles.mediaClip, { width, height }]} collapsable={false}>
+        {!videoReady ? (
+          <View style={[mediaStyle, styles.mediaPlaceholder]} />
+        ) : null}
+        <Video
+          source={{ uri: story.mediaUrl }}
+          style={[mediaStyle, { opacity: videoReady ? 1 : 0 }]}
+          resizeMode="contain"
+          repeat={false}
+          paused={!isActive}
+          controls={false}
+          onReadyForDisplay={() => setVideoReady(true)}
+          onLoad={() => setVideoReady(true)}
+          onEnd={onVideoEnd}
+          onError={onVideoEnd}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.mediaClip, { width, height }]} collapsable={false}>
+      <Image
+        source={{ uri: story.mediaUrl }}
+        style={mediaStyle}
+        resizeMode="contain"
+        fadeDuration={0}
+      />
+    </View>
+  );
+});
+
 const StoryViewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const listRef = useRef(null);
   const { stories: initialStories = [], initialIndex = 0, currentUserId } = route.params ?? {};
 
@@ -83,6 +123,7 @@ const StoryViewScreen = () => {
 
   const story = stories[index];
   const isOwnStory = story?.user?.id === currentUserId;
+  const avatarUri = story?.user ? getAvatarUriForUserId(story.user.id ?? story.userId) : null;
 
   const recordView = useCallback(async (storyId) => {
     if (!storyId || !currentUserId || recordingView) return;
@@ -158,41 +199,27 @@ const StoryViewScreen = () => {
   }, [story, isOwnStory, currentUserId, stories, index, navigation]);
 
   const onMomentumScrollEnd = useCallback((e) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const i = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
     setIndex(Math.min(i, stories.length - 1));
-  }, [stories.length]);
+  }, [stories.length, screenWidth]);
 
   const getItemLayout = useCallback((_, i) => ({
-    length: SCREEN_WIDTH,
-    offset: SCREEN_WIDTH * i,
+    length: screenWidth,
+    offset: screenWidth * i,
     index: i,
-  }), []);
+  }), [screenWidth]);
 
-  const renderStoryItem = useCallback(({ item: s, index: i }) => {
-    const isVideo = (s.mediaType || '').toUpperCase() === 'VIDEO';
-    const isActive = i === index;
-    if (isVideo) {
-      return (
-        <View style={styles.storyPage}>
-          <VideoPlayer
-            source={{ uri: s.mediaUrl }}
-            style={styles.media}
-            resizeMode="contain"
-            autoplay={isActive}
-            showDuration
-            controlsTimeout={3000}
-            onEnd={goNext}
-            onError={() => goNext()}
-          />
-        </View>
-      );
-    }
-    return (
-      <View style={styles.storyPage}>
-        <Image source={{ uri: s.mediaUrl }} style={styles.media} resizeMode="contain" />
-      </View>
-    );
-  }, [index, goNext]);
+  const renderStoryItem = useCallback(({ item: s, index: i }) => (
+    <View style={[styles.storyPage, { width: screenWidth, height: screenHeight }]}>
+      <StoryMediaClip
+        story={s}
+        isActive={i === index}
+        width={screenWidth}
+        height={screenHeight}
+        onVideoEnd={goNext}
+      />
+    </View>
+  ), [index, goNext, screenWidth, screenHeight]);
 
   if (!stories.length) {
     return (
@@ -209,8 +236,9 @@ const StoryViewScreen = () => {
     <View style={styles.screen}>
       <FlatList
         ref={listRef}
+        style={styles.list}
         data={stories}
-        keyExtractor={(item, index) => String(item?.id ?? `story-${index}`)}
+        keyExtractor={(item, itemIndex) => String(item?.id ?? `story-${itemIndex}`)}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -219,6 +247,7 @@ const StoryViewScreen = () => {
         initialScrollIndex={Math.min(initialIndex, stories.length - 1)}
         renderItem={renderStoryItem}
         decelerationRate="fast"
+        removeClippedSubviews={false}
         onScrollToIndexFailed={(info) => {
           setTimeout(() => {
             listRef.current?.scrollToIndex({ index: info.index, animated: false });
@@ -226,7 +255,6 @@ const StoryViewScreen = () => {
         }}
       />
 
-      {/* Top: thin progress segments – only for current user's stories */}
       <View style={[styles.segmentBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.segmentRow}>
           {Array.from({ length: currentGroupSize }).map((_, i) => (
@@ -243,15 +271,11 @@ const StoryViewScreen = () => {
 
       {story?.user && (
         <View style={[styles.userHeaderOverlay, { top: insets.top + 8 + SEGMENT_HEIGHT + 6 }]}>
-          {getAvatarUriForUserId(story.user.id ?? story.userId) ? (
+          {avatarUri ? (
             <Image
-              key={getAvatarUriForUserId(story.user.id ?? story.userId)}
-              source={{
-                uri: getAvatarUriForUserId(story.user.id ?? story.userId),
-                cache: 'reload',
-                headers: { 'Cache-Control': 'no-cache' },
-              }}
+              source={{ uri: avatarUri }}
               style={styles.userHeaderAvatar}
+              fadeDuration={0}
             />
           ) : (
             <View style={[styles.userHeaderAvatar, { backgroundColor: '#555', justifyContent: 'center', alignItems: 'center' }]}>
@@ -260,7 +284,7 @@ const StoryViewScreen = () => {
               </Text>
             </View>
           )}
-          <Text style={styles.userHeaderName} numberOfLines={1}>
+          <Text style={styles.userHeaderName}>
             {story.user.name || story.user.username || 'Unknown'}
           </Text>
         </View>
@@ -269,7 +293,6 @@ const StoryViewScreen = () => {
       <Pressable style={styles.leftTouch} onPress={goPrev} />
       <Pressable style={styles.rightTouch} onPress={goNext} />
 
-      {/* Top bar: user header on left (avatar+name in overlay above); close + delete on right */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 + SEGMENT_HEIGHT + 6 }]}>
         <View style={styles.topBarSpacer} />
         <Pressable style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -284,7 +307,6 @@ const StoryViewScreen = () => {
         </View>
       </View>
 
-      {/* Bottom: view count */}
       {story && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
           <Text style={styles.viewCount}>
@@ -303,6 +325,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  list: {
+    flex: 1,
+  },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -316,7 +341,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: SCREEN_WIDTH * 0.35,
+    width: '35%',
     zIndex: 5,
   },
   rightTouch: {
@@ -324,16 +349,24 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: SCREEN_WIDTH * 0.35,
+    width: '35%',
     zIndex: 5,
   },
   storyPage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
-  media: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+  mediaClip: {
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  mediaFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  mediaPlaceholder: {
+    backgroundColor: '#000',
   },
   segmentBar: {
     position: 'absolute',
@@ -364,7 +397,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 80,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     zIndex: 9,
   },
   userHeaderAvatar: {
@@ -372,6 +405,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.3)',
+    marginTop: 2,
+    overflow: 'hidden',
   },
   userHeaderName: {
     color: '#fff',
@@ -379,6 +414,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 10,
     flex: 1,
+    flexShrink: 1,
+    lineHeight: 18,
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,

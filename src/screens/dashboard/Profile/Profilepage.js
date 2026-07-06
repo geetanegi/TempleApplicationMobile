@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -24,7 +25,30 @@ import { getUserId } from '../../../redux/store/getState';
 import { getProfileWithCounts, getProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 import { getUserPosts, follow, unfollow, isFollowing, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
 import { getUserReels, deleteReel } from '../../../utils/apicalls/reelHandler';
+import { safeGoBack, openPostPreview } from '../../../utils/navigation/openUserProfile';
+import { prefetchImageSizes } from '../../../utils/imageAspectRatio';
 import st from '../../../global/styles';
+
+function postsListUnchanged(prev, next) {
+  if (prev.length !== next.length) return false;
+  return prev.every((p, i) => {
+    const n = next[i];
+    return (
+      p.id === n.id &&
+      p.photoUrl === n.photoUrl &&
+      p.videoUrl === n.videoUrl &&
+      p.thumbnailUrl === n.thumbnailUrl
+    );
+  });
+}
+
+function reelsListUnchanged(prev, next) {
+  if (prev.length !== next.length) return false;
+  return prev.every((r, i) => {
+    const n = next[i];
+    return r.id === n.id && r.videoUrl === n.videoUrl && r.thumbnailUrl === n.thumbnailUrl;
+  });
+}
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING_H = 16;
@@ -47,7 +71,7 @@ const TABS = [
   { key: 'Reels', icon: 'film', label: 'Clips' },
 ];
 
-const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPressPost, onDeleteReel }) => {
+const ProfileGridCard = React.memo(({ item, index, activeTab, onPressItem, onDeleteReel }) => {
   const isReel = activeTab === 'Reels';
   const mediaUri = isReel || item.videoUrl
     ? (item.thumbnailUrl || item.videoUrl || item.photoUrl)
@@ -57,7 +81,7 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPre
   return (
     <Pressable
       style={[styles.card, !isEndOfRow && styles.cardMarginRight]}
-      onPress={() => (isReel ? onPressReel() : onPressPost())}
+      onPress={() => onPressItem(item)}
       onLongPress={
         isReel && onDeleteReel
           ? () => onDeleteReel(item)
@@ -65,9 +89,16 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPre
       }
     >
       {mediaUri ? (
-        <Image source={source} style={styles.cardImg} resizeMode="cover" />
+        <View style={styles.cardMediaClip} collapsable={false}>
+          <Image
+            source={source}
+            style={styles.cardImg}
+            resizeMode="cover"
+            fadeDuration={0}
+          />
+        </View>
       ) : (
-        <View style={[styles.cardImg, styles.cardPlaceholder]}>
+        <View style={[styles.cardMediaClip, styles.cardPlaceholder]}>
           <Text style={styles.placeholderText} numberOfLines={2}>
             {item.contentText || item.caption || 'Post'}
           </Text>
@@ -80,7 +111,15 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressReel, onPre
       ) : null}
     </Pressable>
   );
-});
+}, (prev, next) =>
+  prev.item.id === next.item.id &&
+  prev.index === next.index &&
+  prev.activeTab === next.activeTab &&
+  prev.onPressItem === next.onPressItem &&
+  prev.onDeleteReel === next.onDeleteReel &&
+  (prev.item.thumbnailUrl || prev.item.photoUrl || prev.item.videoUrl) ===
+    (next.item.thumbnailUrl || next.item.photoUrl || next.item.videoUrl)
+);
 
 /** URL regex - matches http(s) and www. URLs */
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
@@ -142,7 +181,8 @@ export default function ProfileScreen() {
   const [messageLoading, setMessageLoading] = useState(false);
   const isFollowingFetched = useRef(false);
   const lastFetchedAt = useRef(0);
-  const FOCUS_REFRESH_THROTTLE_MS = 20000; // Only refetch on focus if 20+ sec since last fetch
+  const initialLoadDone = useRef(false);
+  const prevUserIdRef = useRef(userId);
 
   React.useEffect(() => {
     const tab = route.params?.activeTab;
@@ -208,10 +248,11 @@ export default function ProfileScreen() {
           return tb - ta;
         });
 
-      setPosts(list);
+      setPosts((prev) => (postsListUnchanged(prev, list) ? prev : list));
       setPostsCount(
         Number.isFinite(totalFromApi) && totalFromApi != null ? Math.max(0, totalFromApi) : list.length
       );
+      prefetchImageSizes(list.map((p) => p.thumbnailUrl || p.photoUrl).filter(Boolean));
     } catch (e) {
       console.warn('User posts load error', e);
       setPosts([]);
@@ -240,7 +281,8 @@ export default function ProfileScreen() {
               return tb - ta;
             })
         : [];
-      setReels(list);
+      setReels((prev) => (reelsListUnchanged(prev, list) ? prev : list));
+      prefetchImageSizes(list.map((r) => r.thumbnailUrl).filter(Boolean));
     } catch (e) {
       console.warn('User reels load error', e);
       setReels([]);
@@ -255,23 +297,32 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [loadProfile, loadPosts, loadReels]);
 
-  const initialLoadDone = useRef(false);
-
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
-      const isInitialLoad = !initialLoadDone.current;
+      const userIdChanged = prevUserIdRef.current != null && String(prevUserIdRef.current) !== String(userId);
+      prevUserIdRef.current = userId;
 
-      const shouldRefresh =
-        isInitialLoad ||
-        (Date.now() - lastFetchedAt.current) > FOCUS_REFRESH_THROTTLE_MS;
+      if (userIdChanged) {
+        initialLoadDone.current = false;
+        isFollowingFetched.current = false;
+        setProfile(null);
+        setPosts([]);
+        setReels([]);
+        setFollowersCount(0);
+        setFollowingCount(0);
+        setIsFollowingUser(false);
+      }
+
+      const isInitialLoad = !initialLoadDone.current;
+      const shouldRefresh = isInitialLoad || userIdChanged;
 
       if (shouldRefresh) {
         lastFetchedAt.current = Date.now();
-        if (isInitialLoad) setLoading(true);
+        if (isInitialLoad || userIdChanged) setLoading(true);
         Promise.all([loadProfile(), loadPosts(), loadReels()]).finally(() => {
           initialLoadDone.current = true;
-          if (isInitialLoad) setLoading(false);
+          if (isInitialLoad || userIdChanged) setLoading(false);
         });
       }
     }, [userId, loadProfile, loadPosts, loadReels]),
@@ -391,7 +442,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (userId && isOwnProfile) {
-        getProfilePictureUpdatedAt(userId).then(ts => setProfilePicTimestamp(ts));
+        getProfilePictureUpdatedAt(userId).then((ts) => {
+          setProfilePicTimestamp((prev) => (prev === ts ? prev : ts));
+        });
       }
       return () => {};
     }, [userId, isOwnProfile]),
@@ -425,19 +478,16 @@ export default function ProfileScreen() {
     return posts.filter(p => p.photoUrl); // Photos
   }, [posts, reels, activeTab]);
 
-  const renderHeader = () => (
+  const listHeader = useMemo(() => (
     <View style={[styles.headerWrap, !isOwnProfile && styles.headerWrapCompact]}>
       {/* Profile: left = avatar, name, username; right = post count, follower, following */}
       <View style={styles.profileSection}>
         <View style={styles.profileLeft}>
           {avatarUrl ? (
             <Image
-              key={avatarUrl}
-              source={{
-                uri: avatarUrl,
-                ...(isOwnProfile && { cache: 'reload' }),
-              }}
+              source={{ uri: avatarUrl }}
               style={styles.avatar}
+              fadeDuration={0}
             />
           ) : (
             <View style={[styles.avatar, styles.avatarIconWrap]}>
@@ -456,7 +506,7 @@ export default function ProfileScreen() {
           </View>
           <Pressable
             style={styles.statBox}
-            onPress={() => navigation.navigate('FollowList', { userId, listType: 'followers' })}
+            onPress={() => navigation.push('FollowList', { userId, listType: 'followers' })}
           >
             <Text style={styles.statValue} numberOfLines={1}>
               {followersCount}
@@ -467,7 +517,7 @@ export default function ProfileScreen() {
           </Pressable>
           <Pressable
             style={styles.statBox}
-            onPress={() => navigation.navigate('FollowList', { userId, listType: 'following' })}
+            onPress={() => navigation.push('FollowList', { userId, listType: 'following' })}
           >
             <Text style={styles.statValue} numberOfLines={1}>
               {followingCount}
@@ -664,33 +714,55 @@ export default function ProfileScreen() {
       </View>
       <View style={styles.divider} />
     </View>
+  ), [
+    isOwnProfile,
+    avatarUrl,
+    postsCount,
+    followersCount,
+    followingCount,
+    userId,
+    displayName,
+    usernameDisplay,
+    about,
+    profile,
+    followLoading,
+    isFollowingUser,
+    messageLoading,
+    activeTab,
+    handleFollow,
+    handleMessage,
+    navigation,
+  ]);
+
+  const onPressGridItem = useCallback(
+    (item) => {
+      if (activeTab === 'Reels') {
+        const reelId = item.reelId ?? item.id;
+        const tabNav = navigation.getParent()?.getParent?.();
+        (tabNav || navigation).navigate('Video', {
+          screen: 'ReelsFeed',
+          params: { reelId },
+        });
+        return;
+      }
+      openPostPreview(navigation, item.postId ?? item.id);
+    },
+    [activeTab, navigation],
   );
 
   const renderItem = useCallback(
     ({ item, index }) => (
-      <ProfileGridCard
-        item={item}
-        index={index}
-        activeTab={activeTab}
-        onPressReel={() => {
-          const reelId = item.reelId ?? item.id;
-          const tabNav = navigation.getParent()?.getParent?.();
-          (tabNav || navigation).navigate('Video', {
-            screen: 'ReelsFeed',
-            params: { reelId },
-          });
-        }}
-        onPressPost={() => {
-          const tabNav = navigation.getParent()?.getParent?.();
-          (tabNav || navigation.getParent() || navigation).navigate('Home', {
-            screen: 'PostPreview',
-            params: { postId: item.postId },
-          });
-        }}
-        onDeleteReel={isOwnProfile && activeTab === 'Reels' ? handleDeleteReel : undefined}
-      />
+      <View style={styles.gridCell}>
+        <ProfileGridCard
+          item={item}
+          index={index}
+          activeTab={activeTab}
+          onPressItem={onPressGridItem}
+          onDeleteReel={isOwnProfile && activeTab === 'Reels' ? handleDeleteReel : undefined}
+        />
+      </View>
     ),
-    [activeTab, navigation, isOwnProfile, handleDeleteReel],
+    [activeTab, onPressGridItem, isOwnProfile, handleDeleteReel],
   );
 
   if (loading && !profile) {
@@ -735,7 +807,7 @@ export default function ProfileScreen() {
           >
             <Pressable
               hitSlop={12}
-              onPress={() => navigation.goBack()}
+              onPress={() => safeGoBack(navigation)}
               style={styles.backBtn}
             >
               <ChevronLeft size={24} color={COLORS.text} strokeWidth={2.5} />
@@ -753,7 +825,7 @@ export default function ProfileScreen() {
           numColumns={NUM_COLS}
           columnWrapperStyle={styles.columnWrap}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={listHeader}
           ListEmptyComponent={
             <View style={styles.emptyTabWrap}>
               <Text style={styles.emptyTabText}>
@@ -774,7 +846,7 @@ export default function ProfileScreen() {
           initialNumToRender={12}
           maxToRenderPerBatch={9}
           windowSize={5}
-          removeClippedSubviews={true}
+          removeClippedSubviews={Platform.OS === 'ios'}
         />
       </SafeAreaView>
     </View>
@@ -901,9 +973,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 74,
     height: 74,
+    maxWidth: 74,
+    maxHeight: 74,
     borderRadius: 37,
     backgroundColor: '#eee',
     marginTop: 8,
+    overflow: 'hidden',
   },
   nameCard: {
     marginTop: 10,
@@ -1152,10 +1227,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'nowrap',
     marginBottom: CARD_GAP,
+    width: '100%',
+  },
+  gridCell: {
+    width: CARD_W,
+    maxWidth: CARD_W,
+    height: CARD_H,
+    maxHeight: CARD_H,
   },
   card: {
     width: CARD_W,
     height: CARD_H,
+    maxWidth: CARD_W,
+    maxHeight: CARD_H,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#F2F2F2',
@@ -1163,10 +1247,20 @@ const styles = StyleSheet.create({
   cardMarginRight: {
     marginRight: CARD_GAP,
   },
+  cardMediaClip: {
+    width: CARD_W,
+    height: CARD_H,
+    maxWidth: CARD_W,
+    maxHeight: CARD_H,
+    overflow: 'hidden',
+    backgroundColor: '#F2F2F2',
+  },
   cardImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: CARD_W,
+    height: CARD_H,
   },
   cardPlaceholder: {
     justifyContent: 'center',

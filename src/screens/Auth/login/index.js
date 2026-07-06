@@ -177,7 +177,8 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
-            inputMinHeight={44}
+            inputMinHeight={48}
+            inputVerticalPadding={10}
             inputsty={styles.borderedInput}
           />
 
@@ -194,7 +195,8 @@ const Login = ({ navigation }) => {
             inputTextColor="#000"
             placeholderColor="#6B7280"
             inputFontSize={15}
-            inputMinHeight={44}
+            inputMinHeight={48}
+            inputVerticalPadding={10}
             inputsty={styles.borderedInput}
           />
 
@@ -353,11 +355,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 12,
-    minHeight: 44,
-    height: 44,
+    minHeight: 48,
+    height: 48,
     marginTop: 0,
     paddingHorizontal: 12,
-    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#FFF',
   },
 

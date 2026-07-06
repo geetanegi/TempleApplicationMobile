@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { getUserId } from '../../../redux/store/getState';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 import {
   getReelComments,
   commentOnReel,
@@ -120,7 +121,7 @@ const ReelCommentsScreen = () => {
 
   const openProfile = (userId) => {
     if (userId == null) return;
-    navigation.navigate('Profiles', { userId });
+    openUserProfile(navigation, userId);
   };
 
   const handleDeletePress = useCallback(
@@ -184,7 +185,7 @@ const ReelCommentsScreen = () => {
               disabled={uid == null}
               hitSlop={4}
             >
-              <Text style={styles.commentUser} numberOfLines={1}>
+              <Text style={styles.commentUser}>
                 {item.user?.name || item.user?.username || 'User'}
               </Text>
             </Pressable>
@@ -298,8 +299,8 @@ const styles = StyleSheet.create({
   list: { padding: 16, paddingBottom: 80 },
   empty: { paddingVertical: 40, alignItems: 'center' },
   emptyText: { fontSize: 15, color: '#888' },
-  commentRow: { flexDirection: 'row', marginBottom: 16 },
-  avatarWrap: { marginRight: 12 },
+  commentRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
+  avatarWrap: { marginRight: 12, marginTop: 2 },
   avatarImage: {
     width: 36,
     height: 36,
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   commentBody: { flex: 1 },
   commentTitleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 2,
   },
   commentUserPress: {
@@ -326,9 +327,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginRight: 8,
   },
-  commentUser: { fontSize: 14, fontWeight: '700', color: '#000' },
+  commentUser: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
+    flexShrink: 1,
+    lineHeight: 18,
+  },
   deleteIconWrap: {
     padding: 4,
+    flexShrink: 0,
   },
   commentText: { fontSize: 14, color: '#333', lineHeight: 20 },
   inputRow: {

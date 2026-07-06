@@ -11,6 +11,7 @@ import {
   Text,
   Animated,
   DeviceEventEmitter,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -23,6 +24,8 @@ import SearchInput from './SearchInput';
 import LinearGradient from 'react-native-linear-gradient';
 import { getAllPosts, getStoriesFeed, getFollowing, deletePost, getNotificationsCount, getUnreadMessageCount } from '../../../utils/apicalls/socialHandler';
 import { getUserId } from '../../../redux/store/getState';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
+import { prefetchImageSizes } from '../../../utils/imageAspectRatio';
 import { connectWebSocket } from '../../../utils/services/websocketService';
 import { NOTIFICATION_BELL_REFRESH } from '../../../utils/push/notificationEvents';
 import { getProfilePictureUrlByUserId, resolveProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
@@ -132,6 +135,10 @@ const MainDashboard = () => {
         isLiked: !!item.isLiked,
         isShared: !!item.isShared,
       }));
+
+      prefetchImageSizes(
+        formatted.map((p) => p.thumbnailUrl || p.image).filter(Boolean),
+      );
 
       setPosts(prev => {
         if (prev.length !== formatted.length) return formatted;
@@ -320,7 +327,7 @@ const MainDashboard = () => {
   );
 
   const handleAuthorPress = useCallback(
-    (userId) => navigation.navigate('Profiles', { userId }),
+    (userId) => openUserProfile(navigation, userId),
     [navigation]
   );
 
@@ -501,7 +508,7 @@ const MainDashboard = () => {
                 currentUserId,
               });
             } else {
-              navigation.navigate('Profiles', { userId: item.userId });
+              openUserProfile(navigation, item.userId);
             }
           };
 
@@ -618,7 +625,7 @@ const MainDashboard = () => {
         initialNumToRender={6}
         maxToRenderPerBatch={4}
         windowSize={6}
-        removeClippedSubviews={true}
+        removeClippedSubviews={Platform.OS === 'ios'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

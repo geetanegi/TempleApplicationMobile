@@ -19,6 +19,7 @@ import {
 } from '../../../utils/apicalls/profileHandler';
 import { getUserId } from '../../../redux/store/getState';
 import { colors } from '../../../global/theme';
+import { openUserProfile, safeGoBack } from '../../../utils/navigation/openUserProfile';
 
 const COLORS = {
   text: '#1B1B1B',
@@ -135,7 +136,7 @@ export default function PostPreviewScreen() {
   );
 
   const handleAuthorPress = useCallback(
-    (authorUserId) => navigation.navigate('Profiles', { userId: authorUserId }),
+    (authorUserId) => openUserProfile(navigation, authorUserId),
     [navigation]
   );
 
@@ -158,7 +159,7 @@ export default function PostPreviewScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error || 'Post not found'}</Text>
-        <Pressable style={styles.backBtnFull} onPress={() => navigation.goBack()}>
+        <Pressable style={styles.backBtnFull} onPress={() => safeGoBack(navigation)}>
           <Text style={styles.backBtnText}>Go back</Text>
         </Pressable>
       </View>
@@ -168,7 +169,7 @@ export default function PostPreviewScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={styles.headerBack}>
+        <Pressable hitSlop={12} onPress={() => safeGoBack(navigation)} style={styles.headerBack}>
           <Text style={styles.backArrow}>{'\u2190'}</Text>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>

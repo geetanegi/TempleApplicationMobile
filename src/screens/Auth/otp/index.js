@@ -139,8 +139,10 @@ export default function Otp({navigation, route}) {
         });
     } else {
       const url = API.FORGET_PASSWORD;
+      const loginId = route?.params?.item?.username || emailId;
       const params = {
-        username: route?.params?.item?.username || emailId,
+        username: loginId,
+        email: loginId,
       };
       setIsLoading(true);
       postNoAuth(url, params)
@@ -219,10 +221,12 @@ export default function Otp({navigation, route}) {
           setIsLoading(false);
         });
     } else {
+      const loginId = route?.params?.item?.username || emailId;
       const url = API.VERIFY_FORGOT_OTP;
       const params = {
         otp: value,
-        username: route?.params?.item?.username,
+        username: loginId,
+        email: loginId,
       };
 
       postNoAuth(url, params)

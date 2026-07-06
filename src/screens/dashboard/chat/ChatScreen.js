@@ -23,6 +23,7 @@ import { getChatMessages, sendChatMessage, markChatThreadRead, getPostById } fro
 import { getReelById } from '../../../utils/apicalls/reelHandler';
 import { connectWebSocket, subscribeChatThread, unsubscribeChatThread } from '../../../utils/services/websocketService';
 import { preloadChatSounds, playSendSound, playReceiveSound } from '../../../utils/chatSounds';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 import { formatDateTimeIST } from '../../../utils/helperfunctions/dateTimeUtils';
 import { colors } from '../../../global/theme';
 
@@ -462,7 +463,7 @@ export default function ChatScreen() {
         </Pressable>
         <Pressable
           style={styles.headerProfile}
-          onPress={() => otherUserId && navigation.navigate('Profiles', { userId: otherUserId })}
+          onPress={() => otherUserId && openUserProfile(navigation, otherUserId)}
         >
           {(() => {
             const url = otherUserId ? getProfilePictureUrlByUserId(otherUserId) : null;
@@ -484,7 +485,7 @@ export default function ChatScreen() {
         </Pressable>
         <Pressable
           style={styles.headerNameWrap}
-          onPress={() => otherUserId && navigation.navigate('Profiles', { userId: otherUserId })}
+          onPress={() => otherUserId && openUserProfile(navigation, otherUserId)}
         >
           <Text style={styles.headerName} numberOfLines={1}>
             {otherName || otherUsername || 'Chat'}

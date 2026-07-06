@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   FlatList,
   Pressable,
   ActivityIndicator,
@@ -15,8 +14,11 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { openUserProfile } from '../../../utils/navigation/openUserProfile';
 import Video from 'react-native-video';
 import { Plus, Heart, MessageCircle, Send, User, X, MoreVertical, Trash2 } from 'lucide-react-native';
 import ReelCommentsOverlay from './ReelCommentsOverlay';
@@ -48,17 +50,68 @@ import {
 
 const PAGE_SIZE = 5;
 const STATUS_BAR_OFFSET = Platform.OS === 'android' ? 56 : 0;
-const { height, width } = Dimensions.get('window');
+
+const ReelMediaClip = React.memo(({
+  item,
+  isActive,
+  isNearby,
+  isFocused,
+  width,
+  height,
+}) => {
+  const [videoReady, setVideoReady] = useState(false);
+  const showPlayer = isFocused && isNearby;
+
+  useEffect(() => {
+    setVideoReady(false);
+  }, [item.id, item.videoUrl]);
+
+  const mediaStyle = [styles.videoFill, { width, height }];
+  const showThumbnail = Boolean(item.thumbnailUrl) && (!showPlayer || !videoReady);
+
+  return (
+    <View style={[styles.videoClip, { width, height }]} collapsable={false}>
+      {showThumbnail ? (
+        <Image
+          source={{ uri: item.thumbnailUrl }}
+          style={mediaStyle}
+          resizeMode="contain"
+          fadeDuration={0}
+        />
+      ) : null}
+      {showPlayer ? (
+        <Video
+          source={{ uri: item.videoUrl }}
+          style={[mediaStyle, { opacity: videoReady ? 1 : 0 }]}
+          resizeMode="contain"
+          repeat
+          paused={!isActive}
+          controls={false}
+          onReadyForDisplay={() => setVideoReady(true)}
+          onLoad={() => setVideoReady(true)}
+          bufferConfig={{
+            minBufferMs: 10000,
+            maxBufferMs: 30000,
+            bufferForPlaybackMs: 500,
+            bufferForPlaybackAfterRebufferMs: 1500,
+          }}
+        />
+      ) : !item.thumbnailUrl ? (
+        <View style={[mediaStyle, styles.videoPlaceholder]} />
+      ) : null}
+    </View>
+  );
+});
 
 const ReelsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const isFocused = useIsFocused();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const initialReelId = route.params?.reelId;
-  const topOffset = STATUS_BAR_OFFSET;
-  const defaultVideoHeight = height - topOffset;
-  const [listViewportHeight, setListViewportHeight] = useState(defaultVideoHeight);
-  const videoHeight = listViewportHeight || defaultVideoHeight;
+  const topOffset = Platform.OS === 'android' ? Math.max(STATUS_BAR_OFFSET, insets.top) : insets.top;
+  const reelItemHeight = Math.round(windowHeight - topOffset);
   const currentUserId = getUserId();
 
   const [reels, setReels] = useState([]);
@@ -198,7 +251,7 @@ const ReelsScreen = () => {
     if (index < 0) return;
     const timer = setTimeout(() => {
       flatListRef.current?.scrollToOffset({
-        offset: index * videoHeight,
+        offset: index * reelItemHeight,
         animated: false,
       });
       setActiveIndex(index);
@@ -206,7 +259,7 @@ const ReelsScreen = () => {
       lastLoadedReelIdRef.current = null;
     }, 200);
     return () => clearTimeout(timer);
-  }, [initialReelId, reels, navigation, videoHeight]);
+  }, [initialReelId, reels, navigation, reelItemHeight]);
 
   // ---- Prefetch next batch when user is nearing the end ----
 
@@ -237,11 +290,11 @@ const ReelsScreen = () => {
 
   const getItemLayout = useCallback(
     (_, index) => ({
-      length: videoHeight,
-      offset: videoHeight * index,
+      length: reelItemHeight,
+      offset: reelItemHeight * index,
       index,
     }),
-    [videoHeight],
+    [reelItemHeight],
   );
 
   const handleMomentumScrollBegin = useCallback(() => {
@@ -251,7 +304,7 @@ const ReelsScreen = () => {
   const handleMomentumScrollEnd = useCallback(
     (event) => {
       const offsetY = event?.nativeEvent?.contentOffset?.y ?? 0;
-      const rawIndex = Math.round(offsetY / videoHeight);
+      const rawIndex = Math.round(offsetY / reelItemHeight);
       const startIndex = scrollStartIndexRef.current;
       const boundedIndex = Math.max(0, Math.min(reels.length - 1, rawIndex));
       const maxOneStepIndex = Math.max(
@@ -261,7 +314,7 @@ const ReelsScreen = () => {
 
       if (maxOneStepIndex !== boundedIndex) {
         flatListRef.current?.scrollToOffset({
-          offset: maxOneStepIndex * videoHeight,
+          offset: maxOneStepIndex * reelItemHeight,
           animated: true,
         });
       }
@@ -269,7 +322,7 @@ const ReelsScreen = () => {
         setActiveIndex(maxOneStepIndex);
       }
     },
-    [activeIndex, reels.length, videoHeight],
+    [activeIndex, reels.length, reelItemHeight],
   );
   // ---- Interactions ----
 
@@ -453,46 +506,23 @@ const ReelsScreen = () => {
       const isCaptionExpanded = !!expandedCaptions[item.id];
 
       return (
-        <View style={[styles.videoContainer, { height: videoHeight }]} collapsable={false}>
-          {isFocused && isNearby ? (
-            <Video
-              source={{ uri: item.videoUrl }}
-              poster={item.thumbnailUrl || undefined}
-              posterResizeMode="cover"
-              style={styles.video}
-              resizeMode="cover"
-              repeat
-              paused={!isActive}
-              controls={false}
-              controlsStyles={{
-                hideSeekBar: true,
-                hideDuration: true,
-                hidePosition: true,
-                hidePlayPause: true,
-                hideForward: true,
-                hideRewind: true,
-                hideNext: true,
-                hidePrevious: true,
-                hideFullscreen: true,
-                hideSettingButton: true,
-              }}
-              bufferConfig={{
-                minBufferMs: 10000,
-                maxBufferMs: 30000,
-                bufferForPlaybackMs: 500,
-                bufferForPlaybackAfterRebufferMs: 1500,
-              }}
-            />
-          ) : item.thumbnailUrl ? (
-            <Image source={{ uri: item.thumbnailUrl }} style={styles.video} resizeMode="cover" />
-          ) : (
-            <View style={[styles.video, styles.videoPlaceholder]} />
-          )}
+        <View
+          style={[styles.videoContainer, { height: reelItemHeight, width: windowWidth }]}
+          collapsable={false}
+        >
+          <ReelMediaClip
+            item={item}
+            isActive={isActive}
+            isNearby={isNearby}
+            isFocused={isFocused}
+            width={windowWidth}
+            height={reelItemHeight}
+          />
 
           {/* Right side action buttons */}
           <View style={styles.actionsColumn}>
             <Pressable
-              onPress={() => navigation.navigate('Profiles', { userId: item.user?.id })}
+              onPress={() => openUserProfile(navigation, item.user?.id)}
               style={styles.avatarBtn}
             >
               <View style={styles.avatar}>
@@ -557,7 +587,7 @@ const ReelsScreen = () => {
           {/* Caption & user */}
           <View style={styles.captionOverlay}>
             <Text
-              onPress={() => navigation.navigate('Profiles', { userId: item.user?.id })}
+              onPress={() => openUserProfile(navigation, item.user?.id)}
               style={styles.username}
             >
               @{item.user?.username || 'user'}
@@ -585,7 +615,8 @@ const ReelsScreen = () => {
       menuReelId,
       expandedCaptions,
       toggleCaptionExpansion,
-      videoHeight,
+      reelItemHeight,
+      windowWidth,
     ],
   );
 
@@ -625,12 +656,7 @@ const ReelsScreen = () => {
 
         <FlatList
           ref={flatListRef}
-          onLayout={(e) => {
-            const h = Math.round(e?.nativeEvent?.layout?.height || 0);
-            if (h > 0 && h !== listViewportHeight) {
-              setListViewportHeight(h);
-            }
-          }}
+          style={styles.list}
           data={reels}
           keyExtractor={keyExtractor}
           renderItem={renderReelItem}
@@ -638,11 +664,11 @@ const ReelsScreen = () => {
           initialNumToRender={2}
           maxToRenderPerBatch={3}
           windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
+          removeClippedSubviews={false}
           pagingEnabled
           disableIntervalMomentum
           showsVerticalScrollIndicator={false}
-          snapToInterval={videoHeight}
+          snapToInterval={reelItemHeight}
           snapToAlignment="start"
           decelerationRate="normal"
           onMomentumScrollBegin={handleMomentumScrollBegin}
@@ -780,6 +806,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   topSpacer: { width: '100%', backgroundColor: 'transparent' },
   contentWrap: { flex: 1 },
+  list: { flex: 1 },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -810,13 +837,18 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   videoContainer: {
-    height,
-    width,
+    backgroundColor: '#000',
+    overflow: 'hidden',
+    alignSelf: 'center',
+  },
+  videoClip: {
+    overflow: 'hidden',
     backgroundColor: '#000',
   },
-  video: {
-    width: '100%',
-    height: '100%',
+  videoFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   videoPlaceholder: {
     backgroundColor: '#000',
