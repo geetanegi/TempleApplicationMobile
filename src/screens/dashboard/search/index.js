@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Search, X, TrendingUp, MapPin, Flame, Menu, Bell, MessageCircle, History } from 'lucide-react-native';
+import { Search, X, TrendingUp, MapPin, Flame, Bell, MessageCircle, History } from 'lucide-react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import st from '../../../global/styles';
 import { colors, APP_TEXT } from '../../../global/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,9 +22,14 @@ import HeaderDashboard from '../../../components/dashboardHeader';
 import { useNotificationBellCount } from '../../../hooks/useNotificationBellCount';
 import { searchUsers, getProfilePictureUrlByUserId, resolveProfilePictureUrl } from '../../../utils/apicalls/profileHandler';
 import { getPopularTemples, getTrendingTemples } from '../../../utils/apicalls/templeHandler';
-import { openUserProfile } from '../../../utils/navigation/openUserProfile';
+import { openUserProfile, safeGoBack } from '../../../utils/navigation/openUserProfile';
 
 const RECENT_SEARCHES_KEY = '@search_recent';
+
+/** Same back glyph as `components/back` (used across Auth / stack headers). */
+const BackLeftIcon = ({ color }) => (
+  <Icon name="chevron-left" size={25} color={color} />
+);
 
 const CATEGORIES = [
   { id: 'recent', label: 'Recent', Icon: History },
@@ -177,10 +183,10 @@ const SearchScreen = () => {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <HeaderDashboard
         title="JainSansaar"
-        LeftIcon={Menu}
+        LeftIcon={BackLeftIcon}
         RightIcon1={Bell}
         RightIcon2={MessageCircle}
-        leftNav="HomeDrawer"
+        onLeftPress={() => safeGoBack(navigation)}
         rightNav1="Notifications"
         rightNav2="Chat"
         rightIcon1BadgeCount={notificationBellCount}

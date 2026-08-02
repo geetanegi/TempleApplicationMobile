@@ -1,11 +1,11 @@
 buildscript {
     ext {
         buildToolsVersion = "34.0.0"           // Latest build tools for Android 14
-        minSdkVersion = 23                     // Set the minimum SDK version
+        minSdkVersion = 24                     // React Native 0.77 requires at least 24
         compileSdkVersion = 35                 // Compile with Android 15 (API level 35)
         targetSdkVersion = 35                  // Target Android 15 (required by Google Play)
-        ndkVersion = "26.1.10909125"           // Update the NDK version if necessary
-        kotlinVersion = "1.9.22"               // Latest Kotlin version
+        ndkVersion = "27.1.12297006"           // Matches react-native 0.77.3's own pin (node_modules/react-native/gradle/libs.versions.toml)
+        kotlinVersion = "2.0.21"               // Match React Native 0.77
         googlePlayServicesAuthVersion = "17.0.0" // Google Play Services Auth version
     }
 
@@ -16,7 +16,7 @@ buildscript {
 
     dependencies {
         // Android Gradle Plugin for API 34 (Android 14)
-        classpath 'com.android.tools.build:gradle:8.1.1'
+        classpath 'com.android.tools.build:gradle:8.7.2'
 
         // React Native Gradle plugin
         classpath "com.facebook.react:react-native-gradle-plugin"
@@ -43,6 +43,55 @@ allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
+    }
+}
+
+/**
+ * Move CMake/ninja native build output off the deep node_modules path on Windows.
+ * See the `nativeBuildStagingDir` note in gradle.properties: without this, `bundleRelease`
+ * fails with `ninja: error: mkdir(...): No such file or directory` because the generated
+ * object directory exceeds Windows' 260-character MAX_PATH.
+ */
+def relocateNativeBuildDir = { Project proj ->
+    if (!rootProject.hasProperty("nativeBuildStagingDir")) return
+    if (!System.getProperty("os.name").toLowerCase().contains("windows")) return
+
+    def cmake = proj.extensions.findByName("android")?.externalNativeBuild?.cmake
+    if (cmake?.path == null) return
+
+    cmake.buildStagingDirectory = new File("${rootProject.property("nativeBuildStagingDir")}/${proj.name}")
+}
+
+/**
+ * Android 15+ devices can use 16 KB memory pages, and Play Console rejects/warns about
+ * shared libraries whose ELF LOAD segments are only 4 KB aligned ("Your app could crash on
+ * 16 KB devices"). NDK r26 emitted 4 KB by default; r27 adds ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES,
+ * which appends -Wl,-z,max-page-size=16384. Third-party native modules (reanimated, screens,
+ * vision-camera) do not set it themselves, so push it into every CMake subproject here.
+ * Prebuilt .so files that arrive inside AARs are unaffected by this and must be checked
+ * separately - see scripts/check-16kb-alignment.py.
+ */
+def enableFlexiblePageSizes = { Project proj ->
+    def androidExt = proj.extensions.findByName("android")
+    if (androidExt?.externalNativeBuild?.cmake?.path == null) return
+
+    def args = androidExt.defaultConfig.externalNativeBuild.cmake.arguments
+    if (!args.any { it.startsWith("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES") }) {
+        args.add("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+    }
+}
+
+subprojects { proj ->
+    def configureNative = {
+        relocateNativeBuildDir(proj)
+        enableFlexiblePageSizes(proj)
+    }
+    // Some subprojects (autolinked plugin builds) are already evaluated by the time this runs,
+    // and afterEvaluate throws on those - configure them directly instead.
+    if (proj.state.executed) {
+        configureNative()
+    } else {
+        proj.afterEvaluate { configureNative() }
     }
 }
 

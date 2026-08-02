@@ -31,8 +31,13 @@ export const getProfilePictureUpdatedAt = async (userId) => {
   }
 };
 
-/** Server base URL (no /api) for proxy endpoints like profile picture */
-const serverBase = () => (environment.baseUrl || '').replace(/\/api\/?$/, '');
+/**
+ * Server base URL (no /api, no trailing slash) for proxy endpoints like profile picture.
+ * The trailing slash must be stripped: baseUrl ends with '/' (e.g. '.../jain-app/') and the
+ * proxy paths start with '/', so joining them raw yields '/jain-app//user/...' which Tomcat
+ * rejects with 403 - that is why avatars never rendered.
+ */
+const serverBase = () => (environment.baseUrl || '').replace(/\/api\/?$/, '').replace(/\/+$/, '');
 
 /**
  * Full URL for profile picture. Handles both proxy path (/user/social/profile/ID/picture) and legacy full URLs.
@@ -49,7 +54,7 @@ export const resolveProfilePictureUrl = (url) => {
   if (!str || typeof str !== 'string') return null;
   if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('file://')) return str;
   const base = serverBase();
-  return base ? `${base}${str.startsWith('/') ? str : '/' + str}` : str;
+  return base ? `${base}/${str.replace(/^\/+/, '')}` : str;
 };
 
 /** Profile picture URL by user id (proxy path). Use when API does not return imageUrl (e.g. post/comment user). */
@@ -181,14 +186,16 @@ function normalizeProfilePictureUri(uri) {
  * Update profile picture (social backend). Uses fetch instead of axios - React Native
  * fetch handles FormData correctly and sets Content-Type with boundary.
  */
-export const updateProfilePicture = async (userId, fileUri) => {
+export const updateProfilePicture = async (userId, fileUri, options = {}) => {
   const normalizedUri = normalizeProfilePictureUri(fileUri);
+  const mime = options.mime || 'image/jpeg';
+  const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
   const formData = new FormData();
   formData.append('userId', String(userId));
   formData.append('file', {
     uri: normalizedUri,
-    type: 'image/jpeg',
-    name: 'profile.jpg',
+    type: mime,
+    name: `profile.${ext}`,
   });
 
   const token = await retrieveData();

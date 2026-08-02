@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../../../../../gETA/Temple_web/JAIN-WEB"
+		},
+		{
+			"path": "../../../website"
 		}
 	],
 	"settings": {}

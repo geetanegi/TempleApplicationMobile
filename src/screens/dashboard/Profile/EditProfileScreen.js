@@ -73,6 +73,7 @@ const EditProfileScreen = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [newPictureUri, setNewPictureUri] = useState(null);
+  const [newPictureMime, setNewPictureMime] = useState('image/jpeg');
   const [profilePicTimestamp, setProfilePicTimestamp] = useState(null);
   const [focusBuster, setFocusBuster] = useState(0);
   const [usernameStatus, setUsernameStatus] = useState(null);
@@ -163,6 +164,13 @@ const EditProfileScreen = () => {
     setIsLoading(true);
     try {
       const userId = inputs.id;
+      // Upload photo first so a failed image update does not show a false "success"
+      if (newPictureUri) {
+        await updateProfilePicture(userId, newPictureUri, { mime: newPictureMime });
+        const ts = Date.now();
+        setProfilePicTimestamp(ts);
+        // Keep local preview until leave so the UI never flashes the stale network image.
+      }
       await updateProfile(userId, {
         username: inputs.username,
         firstName: inputs.firstName,
@@ -171,12 +179,12 @@ const EditProfileScreen = () => {
         location: inputs.location,
         city: inputs.city,
       });
-      if (newPictureUri) {
-        await updateProfilePicture(userId, newPictureUri);
-        setNewPictureUri(null);
-      }
       Toast.show('Profile updated.');
-      navigation.navigate('ProfileMain', { refreshProfile: true });
+      navigation.navigate({
+        name: 'ProfileMain',
+        params: { refreshProfile: true },
+        merge: true,
+      });
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Update failed';
       Toast.show(msg);
@@ -192,10 +200,19 @@ const EditProfileScreen = () => {
       cropping: true,
       cropperCircleOverlay: true,
       mediaType: 'photo',
+      compressImageQuality: 0.85,
     })
       .then(asset => {
-        const uri = asset.path || asset.sourceURL;
-        if (uri) setNewPictureUri(uri);
+        let uri = asset?.path || asset?.sourceURL;
+        if (!uri) {
+          Toast.show('Could not read selected photo.');
+          return;
+        }
+        if (!uri.startsWith('file://') && !uri.startsWith('content://') && uri.startsWith('/')) {
+          uri = 'file://' + uri;
+        }
+        setNewPictureUri(uri);
+        setNewPictureMime(asset?.mime || 'image/jpeg');
       })
       .catch(e => {
         if (e?.code !== 'E_PICKER_CANCELLED') Toast.show('Could not open photo.');
@@ -403,7 +420,7 @@ const EditProfileScreen = () => {
   }, []);
 
   const baseAvatarUrl = inputs.id ? getProfilePictureUrlByUserId(inputs.id) : resolveProfilePictureUrl(inputs.imageUrl);
-  const cacheBust = profilePicTimestamp ?? focusBuster;
+  const cacheBust = profilePicTimestamp != null ? `${profilePicTimestamp}-${focusBuster}` : focusBuster;
   const avatarUri = newPictureUri
     ? newPictureUri
     : baseAvatarUrl

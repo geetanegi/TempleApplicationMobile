@@ -112,15 +112,16 @@ const PostCard = ({
     if (expandMedia) return Math.min(Math.round(screenH * 0.6), 520);
     if (instagramStyle) {
       if (mediaSize?.width && mediaSize?.height) {
-        return getClampedFeedMediaHeight(screenW, mediaSize.width, mediaSize.height);
+        return getClampedFeedMediaHeight(screenW, mediaSize.width, mediaSize.height, screenH);
       }
       return Math.round(screenW);
     }
     return 340;
   }, [expandMedia, instagramStyle, mediaSize, screenH, screenW]);
 
-  const mediaResizeMode =
-    instagramStyle && mediaSize?.width && mediaSize?.height ? 'cover' : 'contain';
+  // Always "contain": the box is already sized to the image's own aspect ratio, so this is a
+  // no-op for normal photos and only letterboxes the extremes. "cover" would crop them instead.
+  const mediaResizeMode = 'contain';
 
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(initialIsLiked);

@@ -33,6 +33,12 @@
 -dontwarn org.apache.fontbox.**
 -dontwarn org.apache.xmpbox.**
 
+# react-native-pdf -> io.legere.pdfiumandroid was compiled against a newer kotlin-stdlib that
+# has this coroutines-internal spilling helper; the version resolved here does not ship it.
+# It is only referenced by compiler-generated code that never runs, so R8 can ignore it.
+# (Matches app/build/outputs/mapping/release/missing_rules.txt.)
+-dontwarn kotlin.coroutines.jvm.internal.SpillingKt
+
 # Keep native methods
 -keepclasseswithmembernames class * {
     native <methods>;
@@ -56,3 +62,9 @@
 -dontwarn com.google.android.gms.**
 -keep class io.invertase.firebase.** { *; }
 -keep class io.invertase.notifee.** { *; }
+
+# Play Install Referrer: Firebase Analytics looks this up reflectively
+# (InstallReferrerClient.newBuilder(Context)) to attribute installs. Obfuscating it does not
+# crash - the lookup is caught - but it silently logs
+# `java.lang.NoSuchMethodException: k3.a.newBuilder` and install attribution stops working.
+-keep class com.android.installreferrer.api.** { *; }

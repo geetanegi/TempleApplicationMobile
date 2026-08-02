@@ -38,7 +38,7 @@ const post = async (url, data, needToken = true) => {
     axios
       .post(url, request.data, config)
       .then(res => {
-        //  console.log('post api', url, 'then-----------------', res.data)
+          console.log('post api', url, 'then-----------------', JSON.stringify(res.data))
         handleSuccessResponse(res, resolve, reject);
       })
       .catch(err => {

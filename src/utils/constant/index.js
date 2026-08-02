@@ -10,8 +10,8 @@
 // };
 // Same server as JAIN-WEB (src/services/axiosInstance.ts)
 export const environment = {
-  // baseUrl: 'http://10.0.2.2:8080/',
-  baseUrl: '127.0.0.1:8080/',
+   baseUrl: 'http://13.203.150.178:8080/jain-app/',
+ // baseUrl: '127.0.0.1:8080/',
   /** Set after you host legal-hosting/*.html — used for Play Console and optional “open in browser” in the app */
   Privacy_policy: '',
   Terms_of_service: '',

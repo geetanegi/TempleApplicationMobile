@@ -22,7 +22,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { getUserId } from '../../../redux/store/getState';
-import { getProfileWithCounts, getProfilePictureUrl, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
+import { getProfileWithCounts, getProfilePictureUrl, getProfilePictureUrlByUserId, getProfilePictureUpdatedAt } from '../../../utils/apicalls/profileHandler';
 import { getUserPosts, follow, unfollow, isFollowing, createOrGetChatThread } from '../../../utils/apicalls/socialHandler';
 import { getUserReels, deleteReel } from '../../../utils/apicalls/reelHandler';
 import { safeGoBack, openPostPreview } from '../../../utils/navigation/openUserProfile';
@@ -291,10 +291,16 @@ export default function ProfileScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     lastFetchedAt.current = Date.now();
-    await Promise.all([loadProfile(), loadPosts(), loadReels()]);
+    const [, , , ts] = await Promise.all([
+      loadProfile(),
+      loadPosts(),
+      loadReels(),
+      userId ? getProfilePictureUpdatedAt(userId) : Promise.resolve(null),
+    ]);
+    if (ts != null) setProfilePicTimestamp(ts);
     setAvatarCacheBuster((b) => b + 1);
     setRefreshing(false);
-  }, [loadProfile, loadPosts, loadReels]);
+  }, [loadProfile, loadPosts, loadReels, userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -331,7 +337,13 @@ export default function ProfileScreen() {
     if (route.params?.refreshProfile !== true || !userId) return;
     navigation.setParams?.({ refreshProfile: undefined });
     lastFetchedAt.current = Date.now();
-    Promise.all([loadProfile(), loadPosts(), loadReels()]).then(() => {
+    Promise.all([
+      loadProfile(),
+      loadPosts(),
+      loadReels(),
+      getProfilePictureUpdatedAt(userId),
+    ]).then(([, , , ts]) => {
+      if (ts != null) setProfilePicTimestamp(ts);
       setAvatarCacheBuster((b) => b + 1);
     });
   }, [route.params?.refreshProfile, userId, loadProfile, loadPosts, loadReels, navigation]);
@@ -450,12 +462,25 @@ export default function ProfileScreen() {
   );
 
   const avatarUrl = useMemo(() => {
-    const url = getProfilePictureUrl(profile);
+    // Prefer stable proxy URL by user id (avoids stale S3 keys / missing DTO imageUrl).
+    const fromProfile = getProfilePictureUrl(profile);
+    const hasPicture = Boolean(
+      fromProfile ||
+        profile?.userProfile?.imageUrl ||
+        profile?.avatar ||
+        profilePicTimestamp,
+    );
+    const url = hasPicture
+      ? getProfilePictureUrlByUserId(userId) || fromProfile
+      : fromProfile;
     if (!url) return null;
     const sep = url.includes('?') ? '&' : '?';
-    const bust = profilePicTimestamp ?? avatarCacheBuster;
-    return bust ? `${url}${sep}t=${bust}` : url;
-  }, [profile, avatarCacheBuster, profilePicTimestamp]);
+    // Combine both so refreshProfile buster is never ignored when a timestamp already exists.
+    // Never fall back to Date.now(): that changed the URL on every recompute, so the image cache
+    // never hit and the avatar re-downloaded each time (grey circle on a real device).
+    const bust = `${profilePicTimestamp || 0}-${avatarCacheBuster || 0}`;
+    return `${url}${sep}t=${bust}`;
+  }, [profile, avatarCacheBuster, profilePicTimestamp, userId]);
 
   // Description: from user_profile.description (DB), then location, address. Backend: UserProfileDTO.description
   const about = useMemo(() => {
@@ -484,7 +509,12 @@ export default function ProfileScreen() {
         <View style={styles.profileLeft}>
           {avatarUrl ? (
             <Image
-              source={{ uri: avatarUrl }}
+              key={avatarUrl}
+              source={{
+                uri: avatarUrl,
+                cache: 'reload',
+                headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+              }}
               style={styles.avatar}
               fadeDuration={0}
             />

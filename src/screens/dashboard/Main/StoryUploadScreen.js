@@ -16,7 +16,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RNCamera } from 'react-native-camera';
+import { Camera as VisionCamera, useCameraDevice } from 'react-native-vision-camera';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import {
@@ -108,6 +108,8 @@ const StoryUploadScreen = () => {
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  const device = useCameraDevice(facing);
+
   useEffect(() => {
     (async () => {
       const cam = await requestCameraPermission();
@@ -170,10 +172,12 @@ const StoryUploadScreen = () => {
     if (!cameraRef.current || capturing) return;
     setCapturing(true);
     try {
-      const options = { quality: 0.9, base64: false };
-      const data = await cameraRef.current.takePictureAsync(options);
-      if (data?.uri) {
-        setPreviewUri(data.uri);
+      const photo = await cameraRef.current.takePhoto({
+        flash: flashOn ? 'on' : 'off',
+      });
+      // VisionCamera returns a bare filesystem path, not a URI.
+      if (photo?.path) {
+        setPreviewUri(`file://${photo.path}`);
         setMode('preview');
         setCaptionText('');
       }
@@ -183,7 +187,7 @@ const StoryUploadScreen = () => {
     } finally {
       setCapturing(false);
     }
-  }, [capturing]);
+  }, [capturing, flashOn]);
 
   const onSelectPhoto = useCallback((uri) => {
     setPreviewUri(uri);
@@ -321,13 +325,17 @@ const StoryUploadScreen = () => {
   // Camera mode
   return (
     <View style={styles.screen}>
-      <RNCamera
-        ref={cameraRef}
-        style={StyleSheet.absoluteFillObject}
-        type={facing === 'back' ? RNCamera.Constants.Type.back : RNCamera.Constants.Type.front}
-        flashMode={flashOn ? RNCamera.Constants.FlashMode.on : RNCamera.Constants.FlashMode.off}
-        captureAudio={false}
-      />
+      {device && (
+        <VisionCamera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFillObject}
+          device={device}
+          // Release the camera while the gallery sheet covers the preview.
+          isActive={mode === 'camera' && !galleryModalVisible}
+          photo={true}
+          audio={false}
+        />
+      )}
 
       {/* Back button */}
       <Pressable

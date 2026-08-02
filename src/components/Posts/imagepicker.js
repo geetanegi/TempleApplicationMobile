@@ -16,6 +16,7 @@ import {
   Modal,
   Keyboard,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useHeaderHeight} from '@react-navigation/elements';
@@ -24,12 +25,16 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import {Camera, Pencil} from 'lucide-react-native';
 import {getUserId} from '../../redux/store/getState';
 import {createPost} from '../../utils/apicalls/socialHandler';
+import {prefetchImageSize} from '../../utils/imageAspectRatio';
 
 // Gallery item: string (legacy 'camera') or { uri, type: 'photo' }
 const InstaGallery = () => {
   const navigation = useNavigation();
   const headerHeight = useHeaderHeight();
+  const {height: screenH} = useWindowDimensions();
   const previewScrollRef = useRef(null);
+  // Aspect ratio (w/h) of the picked photo, so the preview shows it whole instead of square-cropped.
+  const [previewAspect, setPreviewAspect] = useState(null);
   const [photos, setPhotos] = useState(['camera']);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [caption, setCaption] = useState('');
@@ -43,6 +48,22 @@ const InstaGallery = () => {
       previewScrollRef.current?.scrollToEnd({ animated: true });
     }, 80);
   }, []);
+
+  useEffect(() => {
+    if (!selectedPhoto) {
+      setPreviewAspect(null);
+      return;
+    }
+    let cancelled = false;
+    prefetchImageSize(selectedPhoto).then(size => {
+      if (!cancelled && size?.width && size?.height) {
+        setPreviewAspect(size.width / size.height);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPhoto]);
 
   useEffect(() => {
     if (!selectedPhoto) {
@@ -250,8 +271,16 @@ const InstaGallery = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.photoPreviewBox}>
-              <View style={styles.previewFrame}>
-                <Image source={{uri: selectedPhoto}} style={styles.previewImage} resizeMode="cover" />
+              <View
+                style={[
+                  styles.previewFrame,
+                  {
+                    aspectRatio: previewAspect || 1,
+                    maxHeight: Math.round(screenH * 0.6),
+                  },
+                ]}
+              >
+                <Image source={{uri: selectedPhoto}} style={styles.previewImage} resizeMode="contain" />
               </View>
               <Text style={styles.mediaLabel}>Photo</Text>
               <TouchableOpacity
@@ -409,7 +438,7 @@ const styles = StyleSheet.create({
   },
   previewFrame: {
     width: '100%',
-    aspectRatio: 1,
+    // aspectRatio is set inline from the picked photo so nothing is cropped.
     borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#f2f2f2',

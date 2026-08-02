@@ -49,7 +49,7 @@ const HeaderDashboard = ({
           <IconButton
             onPress={onLeftPress ? onLeftPress : () => handleNav(leftNav)}
           >
-            <LeftIcon size={22} color={colors.DARK_BLACK} fill={colors.DARK_BLACK} />
+            <LeftIcon size={22} color={colors.DARK_BLACK} strokeWidth={2.5} />
           </IconButton>
         ) : (
           <View style={{ width: 44 }} />

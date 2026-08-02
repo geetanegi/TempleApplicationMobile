@@ -110,7 +110,11 @@ const MainDashboard = () => {
     }, [currentUserId]),
   );
 
-  const avatarCacheBuster = profilePicTimestamp || Date.now();
+  // 0 = no cache-bust. Falling back to Date.now() minted a new avatar URL on every render, so
+  // the image cache never hit and the avatar re-downloaded constantly (grey circle on a real
+  // device). We only need to bust when the picture actually changed, which is what the stored
+  // profilePicUpdatedAt timestamp tells us.
+  const avatarCacheBuster = profilePicTimestamp || 0;
 
   const loadPosts = useCallback(async () => {
     try {

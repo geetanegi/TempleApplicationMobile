@@ -1,4 +1,15 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+
+// React Native 0.75+ autolinking. This replaces the old
+// `native_modules.gradle` + `applyNativeModulesSettingsGradle(settings)` pair.
+// The plugin redirects the CLI config output straight to a file rather than a
+// pipe, which avoids the Windows 64KB pipe-buffer deadlock the old path hits on
+// projects with a large number of native modules.
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+    ex.autolinkLibrariesFromCommand()
+}
+
 rootProject.name = 'jainApp'
-apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')

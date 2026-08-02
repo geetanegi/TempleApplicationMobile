@@ -50,12 +50,20 @@ react {
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
+
+    // RN 0.75+ autolinking. Replaces the old
+    // `applyNativeModulesAppBuildGradle(project)` call that used to sit at the
+    // bottom of this file.
+    autolinkLibrariesWithApp()
 }
 def enableSeparateBuildPerCPUArchitecture = false
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Run R8/ProGuard on release builds to minify and obfuscate the Java bytecode, and strip
+ * unused resources. Play Console recommends this; the mapping file it produces is bundled
+ * into the AAB automatically (BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map)
+ * so Play can deobfuscate crash stack traces. Keep rules live in app/proguard-rules.pro.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -83,7 +91,7 @@ android {
         applicationId "com.jainsansaar.jainapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12
+        versionCode 16
         versionName "0.0.1"
         missingDimensionStrategy 'react-native-camera', 'general'
     }
@@ -122,9 +130,11 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            shrinkResources true
-            minifyEnabled true
+            minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            // Play Console: ship native symbols so NDK/Hermes crashes are symbolicated.
+            ndk { debugSymbolLevel "SYMBOL_TABLE" }
             def keystorePropsFile = rootProject.file("keystore.properties")
             def useReleaseKeystore = false
             if (keystorePropsFile.exists()) {
@@ -149,5 +159,4 @@ dependencies {
     }
 }
 
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
