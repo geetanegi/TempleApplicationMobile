@@ -383,7 +383,9 @@ const Signup = ({ navigation }) => {
           isKeyboardVisible ? styles.scrollContentKeyboardOpen : null,
         ]}
       >
-        <TransparentHeader />
+        <TransparentHeader
+          onBackPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
+        />
 
         <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
 

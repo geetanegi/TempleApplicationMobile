@@ -64,8 +64,6 @@ const Login = ({navigation}) => {
   const [subtitle, setSubtitle] = useState('');
   const [popupMessageVisibility, setPopupMessageVisibility] = useState(false);
   const [warning, setWarning] = useState(false);
-  const isConnected = useNetworkStatus();
-  const feedbackUrl = environment.feedbackUrl;
   const beneficiaryRegistration = environment.BeneficiaryRegistration;
 
   const dispatch = useDispatch();
@@ -98,7 +96,6 @@ const Login = ({navigation}) => {
   };
 
   const feedbackformRedirect = () => {
-    // Linking.openURL(feedbackUrl);
     navigation.navigate(NAVIGATION.TO_FORGET_PASSWORD);
   };
 
@@ -171,7 +168,6 @@ const Login = ({navigation}) => {
     postNoAuth(url, params)
       .then(result => {
         if (!result?.error) {
-          // console.log('----------------------------result-----------------',result)
           setIsLoading(false);
           storeTokenData(result?.data?.token);
           dispatch(setLogindata(result?.data));
@@ -188,7 +184,6 @@ const Login = ({navigation}) => {
         }
       })
       .catch(err => {
-        //console.log('LOGIN_AUTH catch', err);
         setIsLoading(false);
         if (err?.status === 303) {
           setTitle('Warning!');
@@ -201,7 +196,6 @@ const Login = ({navigation}) => {
         setPopupMessageVisibility(true);
       })
       .finally(() => {
-        //console.log('LOGIN_AUTH finally');
         setIsLoading(false);
       });
   };
@@ -219,14 +213,6 @@ const Login = ({navigation}) => {
 
   useEffect(() => {
     const checkRememberMe = async () => {
-      //   const savedEmail = await AsyncStorage.getItem('username');
-      //  const savedPassword = await AsyncStorage.getItem('password');
-      //  console.log('------savedEmail------',savedEmail)
-      //  console.log('------savedPassword------',savedPassword)
-      // if (savedEmail && savedPassword) {
-      //   setInputs(prevState => ({...prevState, username: savedEmail}));
-      //   setInputs(prevState => ({...prevState, password: savedPassword}));
-      // }
     };
     checkRememberMe();
   }, []);
@@ -236,7 +222,6 @@ const Login = ({navigation}) => {
   };
 
   return (
-    <ImageBackground style={{flex: 1}} source={images.loginBG}>
       <ScrollView keyboardShouldPersistTaps={'handled'}>
         <TransparentHeader />
         <View style={[st.card, st.mt_t200, styles.container]}>
@@ -260,36 +245,22 @@ const Login = ({navigation}) => {
               onChangeText={text => {
                 handleOnchange(text, 'username');
               }}
-              //   onFocus={() => handleError(null, 'username')}
               error={errors?.username}
               value={inputs?.username}
               iconName={''}
               label={''}
             />
-
-            {/* <FloatingInput
-              label={'FULL NAME'}
-              onChangeText={text => handleOnchange(text, 'name')}
-              onFocus={() => handleError(null, 'name')}
-              error={errors?.name}
-              value={inputs.name}
-              // iconName={images.user}
-              inputsty={st.inputsty}
-              placeholderTextColor={'#fff'}
-            /> */}
             <View style={st.mt_t20}>
               <AdminInput
                 isRequired
                 holderName={APP_TEXT.LOGIN_PASSWORD}
                 onChangeText={text => handleOnchange(text, 'password')}
-                //  onFocus={() => handleError(null, 'password')}
                 error={errors?.password}
                 password
                 label={''}
                 value={inputs?.password}
               />
             </View>
-
             <View>
               <Pressable
                 onPress={() => {
@@ -307,17 +278,14 @@ const Login = ({navigation}) => {
                   </Text>
                 </View>
               </Pressable>
-
               <ApplicationButton
                 label={APP_TEXT.LOGIN_LOGIN}
                 backgroundColor={colors.PRIMARY_BUTTON}
                 onButtonPress={() => {
-                  // dispatch(setLogin(true));
                   validation();
                 }}
               />
             </View>
-
             <View
               style={{
                 flex: 1,
@@ -354,10 +322,9 @@ const Login = ({navigation}) => {
             </View>
           </View>
         </View>
+        {isLoading && <Loader />}
+        {show_alert_msg()}
       </ScrollView>
-      {isLoading && <Loader />}
-      {show_alert_msg()}
-    </ImageBackground>
   );
 };
 

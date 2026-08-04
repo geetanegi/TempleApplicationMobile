@@ -22,7 +22,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useHeaderHeight} from '@react-navigation/elements';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import ImageCropPicker from 'react-native-image-crop-picker';
-import {Camera, Pencil} from 'lucide-react-native';
+import {Camera, Pencil, Images} from 'lucide-react-native';
 import {getUserId} from '../../redux/store/getState';
 import {createPost} from '../../utils/apicalls/socialHandler';
 import {prefetchImageSize} from '../../utils/imageAspectRatio';
@@ -120,6 +120,11 @@ const InstaGallery = () => {
 
   const cropOptions = {
     freeStyleCropEnabled: true,
+    cropperToolbarTitle: 'Edit Photo',
+    cropperToolbarColor: '#424242',
+    cropperToolbarWidgetColor: '#FFFFFF',
+    cropperStatusBarLight: false,
+    cropperNavigationBarLight: false,
     ...imagePickQuality,
   };
 
@@ -136,6 +141,25 @@ const InstaGallery = () => {
       setSelectedPhoto(path);
     } catch (err) {
       console.log('Camera error:', err);
+    }
+  };
+
+  // 🖼️ Open full system gallery (all albums / folders), not just recent CameraRoll items
+  const openGallery = async () => {
+    try {
+      const result = await ImageCropPicker.openPicker({
+        cropping: false,
+        mediaType: 'photo',
+        ...imagePickQuality,
+      });
+      const path = result?.path || result?.sourceURL || '';
+      if (path) {
+        setSelectedPhoto(path);
+      }
+    } catch (err) {
+      if (err?.message !== 'User cancelled' && err?.code !== 'E_PICKER_CANCELLED') {
+        console.log('Gallery error:', err);
+      }
     }
   };
 
@@ -187,10 +211,10 @@ const InstaGallery = () => {
     }
   };
 
-  // 🖼️ Fetch photos from device gallery
+  // 🖼️ Fetch recent photos from device (quick grid); full gallery via openGallery
   const fetchPhotos = async () => {
     try {
-      const items = ['camera'];
+      const items = ['camera', 'gallery'];
       const seen = new Set();
 
       const addFromEdges = edges => {
@@ -212,6 +236,7 @@ const InstaGallery = () => {
       setPhotos(items);
     } catch (error) {
       console.log('Error loading photos:', error);
+      setPhotos(['camera', 'gallery']);
     } finally {
       setLoading(false);
     }
@@ -340,17 +365,38 @@ const InstaGallery = () => {
   // 🧱 Gallery Grid
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Recents</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>Photos</Text>
+        <TouchableOpacity onPress={openGallery} hitSlop={8}>
+          <Text style={styles.browseLink}>Browse gallery</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={photos}
-        keyExtractor={(item, index) => (item === 'camera' ? 'camera' : (item.uri || '') + index)}
+        keyExtractor={(item, index) =>
+          item === 'camera'
+            ? 'camera'
+            : item === 'gallery'
+              ? 'gallery'
+              : (item.uri || '') + index
+        }
         numColumns={3}
         renderItem={({item}) => {
           if (item === 'camera') {
             return (
               <TouchableOpacity onPress={openCamera} style={styles.cameraBox}>
-                <Camera size={38} color="grey" />
+                <Camera size={32} color="grey" />
+                <Text style={styles.tileLabel}>Camera</Text>
+              </TouchableOpacity>
+            );
+          }
+
+          if (item === 'gallery') {
+            return (
+              <TouchableOpacity onPress={openGallery} style={styles.cameraBox}>
+                <Images size={32} color="grey" />
+                <Text style={styles.tileLabel}>Gallery</Text>
               </TouchableOpacity>
             );
           }
@@ -384,8 +430,19 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 10,
     marginLeft: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingRight: 12,
+  },
+  browseLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#D48A4A',
   },
   flatlistContent: {
     paddingHorizontal: 8,
@@ -400,6 +457,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fafafa',
+    gap: 6,
+  },
+  tileLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
   },
   imageContainer: {
     width: '32%',

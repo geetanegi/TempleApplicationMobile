@@ -188,7 +188,9 @@ const ChangePassword = ({navigation, route}) => {
         end={{ x: 0.5, y: 1 }}
       />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
-        <TransparentHeader />
+        <TransparentHeader
+          onBackPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
+        />
         <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
 
         <View style={styles.card}>

@@ -100,7 +100,9 @@ const Verifyemail = ({ navigation }) => {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <TransparentHeader />
+        <TransparentHeader
+          onBackPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
+        />
 
         <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
 

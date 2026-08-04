@@ -63,8 +63,6 @@ const images = {
   // cource screen Icon
 
 
-  loginBG: require('../../images/bg5.png'),
-
   menu: require('../../images/menu.png'),
   logo: require('../../assets/images/logo.png'),
 

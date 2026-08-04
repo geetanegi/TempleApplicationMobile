@@ -95,6 +95,8 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressItem, onDel
             style={styles.cardImg}
             resizeMode="cover"
             fadeDuration={0}
+            // Realme/ColorOS: downsample decode so intrinsic px cannot blow layout
+            {...(Platform.OS === 'android' ? { resizeMethod: 'resize' } : null)}
           />
         </View>
       ) : (
@@ -105,7 +107,7 @@ const ProfileGridCard = React.memo(({ item, index, activeTab, onPressItem, onDel
         </View>
       )}
       {(item.videoUrl || isReel) ? (
-        <View style={styles.playOverlay}>
+        <View style={styles.playOverlay} pointerEvents="none">
           <Ionicons name="play" size={20} color="#fff" />
         </View>
       ) : null}
@@ -1277,9 +1279,8 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_W,
-    height: CARD_H,
+    aspectRatio: 1,
     maxWidth: CARD_W,
-    maxHeight: CARD_H,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#F2F2F2',
@@ -1288,19 +1289,14 @@ const styles = StyleSheet.create({
     marginRight: CARD_GAP,
   },
   cardMediaClip: {
-    width: CARD_W,
-    height: CARD_H,
-    maxWidth: CARD_W,
-    maxHeight: CARD_H,
+    ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
     backgroundColor: '#F2F2F2',
   },
   cardImg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: CARD_W,
-    height: CARD_H,
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   cardPlaceholder: {
     justifyContent: 'center',

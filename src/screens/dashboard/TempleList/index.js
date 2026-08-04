@@ -32,7 +32,7 @@ const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING_H * 2;
 const RIGHT_BUTTON_WIDTH = CARD_WIDTH * 0.1;
 
 const TAB_OPTIONS = [
-  { key: 'mandir', label: 'Mandir' },
+  { key: 'mandir', label: 'Nearby Temples' },
 ];
 
 const DEFAULT_REGION = {
@@ -41,10 +41,36 @@ const DEFAULT_REGION = {
   latitudeDelta: 8,
   longitudeDelta: 8,
 };
+/** Default map / nearby filter: temples within this radius of the user. */
+const NEARBY_RADIUS_KM = 20;
+// ~1° latitude ≈ 111.32 km. Span = diameter so edges are ~NEARBY_RADIUS_KM from center.
+const NEARBY_LAT_DELTA = (NEARBY_RADIUS_KM * 2) / 111.32;
 // Show markers only after zooming in beyond country-level view.
 // India/all-states view is usually much wider than this.
 const MARKER_VISIBLE_MAX_LAT_DELTA = 2.5;
 const MARKER_VISIBLE_MAX_LNG_DELTA = 2.5;
+
+const regionDeltasForNearby = (latitude) => {
+  const cosLat = Math.cos((latitude * Math.PI) / 180);
+  const longitudeDelta =
+    Math.abs(cosLat) < 0.01 ? NEARBY_LAT_DELTA : NEARBY_LAT_DELTA / cosLat;
+  return {
+    latitudeDelta: NEARBY_LAT_DELTA,
+    longitudeDelta,
+  };
+};
+
+/** Haversine distance in km between two lat/lng points. */
+const distanceKm = (lat1, lon1, lat2, lon2) => {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 const TempleCard = ({ item, onPress }) => {
   return (
@@ -124,6 +150,7 @@ const TempleLocator = () => {
   });
   const [locationLoading, setLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState(null);
+  const [userCoords, setUserCoords] = useState(null);
   const [currentLatitudeDelta, setCurrentLatitudeDelta] = useState(
     initialRegion?.latitudeDelta ?? DEFAULT_REGION.latitudeDelta
   );
@@ -181,13 +208,16 @@ const TempleLocator = () => {
         position => {
           lastGeolocationErrorCodeRef.current = null;
           const { latitude, longitude } = position.coords;
+          const deltas = regionDeltasForNearby(latitude);
           const userRegion = {
             latitude,
             longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
+            ...deltas,
           };
+          setUserCoords({ latitude, longitude });
           setInitialRegion(userRegion);
+          setCurrentLatitudeDelta(deltas.latitudeDelta);
+          setCurrentLongitudeDelta(deltas.longitudeDelta);
           setLocationLoading(false);
           if (mapRef.current) {
             mapRef.current.animateToRegion(userRegion, 500);
@@ -358,14 +388,28 @@ const TempleLocator = () => {
   }, [searchText, searchDataset]);
 
   const mapMarkers = useMemo(() => {
+    let list = templesForMap;
     if (activeTab === 'mandir') {
-      return templesForMap.filter(t => t.type === 'mandir' || !t.type);
+      list = templesForMap.filter(t => t.type === 'mandir' || !t.type);
+    } else if (activeTab === 'dharmshala') {
+      list = templesForMap.filter(t => t.type === 'dharmshala');
+    } else {
+      list = [];
     }
-    if (activeTab === 'dharmshala') {
-      return templesForMap.filter(t => t.type === 'dharmshala');
+    // By default only show temples within NEARBY_RADIUS_KM of the user.
+    if (userCoords && list.length > 0) {
+      list = list.filter(
+        t =>
+          distanceKm(
+            userCoords.latitude,
+            userCoords.longitude,
+            t.latitude,
+            t.longitude,
+          ) <= NEARBY_RADIUS_KM,
+      );
     }
-    return [];
-  }, [activeTab, templesForMap]);
+    return list;
+  }, [activeTab, templesForMap, userCoords]);
   const shouldShowTempleMarkers =
     currentLatitudeDelta <= MARKER_VISIBLE_MAX_LAT_DELTA &&
     currentLongitudeDelta <= MARKER_VISIBLE_MAX_LNG_DELTA;

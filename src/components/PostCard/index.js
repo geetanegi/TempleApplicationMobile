@@ -85,14 +85,28 @@ const PostCard = ({
   instagramStyle = false, // dashboard feed style without card container
 }) => {
   const {width: screenW, height: screenH} = useWindowDimensions();
+  // Lock window metrics on first paint so Realme/OPPO nav-bar flicker cannot
+  // keep recalculating a taller mediaHeight and grow the post.
+  const stableWindowRef = useRef({ w: screenW, h: screenH });
+  if (stableWindowRef.current.w < 1 && screenW > 0) {
+    stableWindowRef.current = { w: screenW, h: screenH };
+  }
+  const layoutW = stableWindowRef.current.w || screenW;
+  const layoutH = stableWindowRef.current.h || screenH;
+
   const mediaUri = videoUrl ? (thumbnailUrl || videoUrl) : image;
   const cachedMediaSize = mediaUri ? getCachedImageSize(mediaUri) : null;
   const [mediaSize, setMediaSize] = useState(cachedMediaSize);
+  const lockedHeightRef = useRef({ uri: null, height: null });
 
   useEffect(() => {
     if (!instagramStyle || !mediaUri) {
       setMediaSize(null);
+      lockedHeightRef.current = { uri: null, height: null };
       return;
+    }
+    if (lockedHeightRef.current.uri !== mediaUri) {
+      lockedHeightRef.current = { uri: mediaUri, height: null };
     }
     const cached = getCachedImageSize(mediaUri);
     if (cached) {
@@ -109,19 +123,37 @@ const PostCard = ({
   }, [instagramStyle, mediaUri]);
 
   const mediaHeight = useMemo(() => {
-    if (expandMedia) return Math.min(Math.round(screenH * 0.6), 520);
+    if (expandMedia) return Math.min(Math.round(layoutH * 0.6), 520);
     if (instagramStyle) {
-      if (mediaSize?.width && mediaSize?.height) {
-        return getClampedFeedMediaHeight(screenW, mediaSize.width, mediaSize.height, screenH);
+      // Once sized for this URI, keep it — prevents progressive growth glitches.
+      if (
+        lockedHeightRef.current.uri === mediaUri &&
+        lockedHeightRef.current.height != null
+      ) {
+        return lockedHeightRef.current.height;
       }
-      return Math.round(screenW);
+      let h;
+      if (mediaSize?.width && mediaSize?.height) {
+        h = getClampedFeedMediaHeight(
+          layoutW,
+          mediaSize.width,
+          mediaSize.height,
+          layoutH,
+        );
+      } else {
+        h = Math.round(layoutW / (4 / 5));
+      }
+      if (mediaUri && mediaSize?.width && mediaSize?.height) {
+        lockedHeightRef.current = { uri: mediaUri, height: h };
+      }
+      return h;
     }
     return 340;
-  }, [expandMedia, instagramStyle, mediaSize, screenH, screenW]);
+  }, [expandMedia, instagramStyle, mediaSize, mediaUri, layoutH, layoutW]);
 
-  // Always "contain": the box is already sized to the image's own aspect ratio, so this is a
-  // no-op for normal photos and only letterboxes the extremes. "cover" would crop them instead.
-  const mediaResizeMode = 'contain';
+  // "cover" fills the clamped box (Instagram-like). Clip container stops Realme
+  // from letting Image expand past the fixed height.
+  const mediaResizeMode = 'cover';
 
   const [visible, setVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -199,7 +231,7 @@ const PostCard = ({
   }, [videoPlaying, clearFullscreenPortraitTimer]);
 
   const onVideoFullscreenWillPresent = useCallback(() => {
-    const w = lastVideoBoxLayoutRef.current.w || screenW;
+    const w = lastVideoBoxLayoutRef.current.w || layoutW;
     frozenMetricsRef.current = { w, h: mediaHeight };
     inNativeFullscreenRef.current = true;
     clearFullscreenPortraitTimer();
@@ -207,7 +239,7 @@ const PostCard = ({
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       Orientation.unlockAllOrientations();
     }
-  }, [clearFullscreenPortraitTimer, mediaHeight, screenW]);
+  }, [clearFullscreenPortraitTimer, mediaHeight, layoutW]);
 
   const onVideoFullscreenDidPresent = useCallback(() => {
     inNativeFullscreenRef.current = true;
@@ -670,7 +702,14 @@ const PostCard = ({
 
         {/* MEDIA: image or video (thumbnail + play overlay; tap plays inline) */}
         {!!videoUrl && (
-          <View style={[styles.imageWrap, instagramStyle && styles.imageWrapInstagram]}>
+          <View
+            style={[
+              styles.imageWrap,
+              instagramStyle && styles.imageWrapInstagram,
+              { height: mediaHeight },
+            ]}
+            collapsable={false}
+          >
             {videoPlaying ? (
               <View
                 onLayout={onVideoBoxLayout}
@@ -684,15 +723,11 @@ const PostCard = ({
                       }
                     : { width: '100%', height: mediaHeight },
                 ]}
+                collapsable={false}
               >
                 <Video
                   source={{ uri: String(videoUrl || '') }}
-                  style={[
-                    styles.postImage,
-                    {
-                      height: freezeVideoLayout ? frozenMetricsRef.current.h : mediaHeight,
-                    },
-                  ]}
+                  style={styles.mediaFill}
                   controls
                   resizeMode={mediaResizeMode}
                   paused={false}
@@ -716,7 +751,7 @@ const PostCard = ({
               </View>
             ) : (
               <Pressable
-                style={[styles.videoThumbWrap, { height: mediaHeight }]}
+                style={styles.mediaClip}
                 onPress={() => {
                 if (postId != null && (onImagePressWithPostId || onImagePress)) {
                   onImagePressWithPostId?.(postId) ?? onImagePress?.();
@@ -728,7 +763,7 @@ const PostCard = ({
                 <Image
                   key={postId != null ? `thumb-${postId}` : `thumb-${thumbnailUrl || videoUrl}`}
                   source={{ uri: thumbnailUrl || videoUrl }}
-                  style={[styles.postImage, { height: mediaHeight }]}
+                  style={styles.mediaFill}
                   resizeMode={mediaResizeMode}
                   fadeDuration={0}
                 />
@@ -742,22 +777,26 @@ const PostCard = ({
           </View>
         )}
         {!videoUrl && !!image && (
-          <View style={[styles.imageWrap, instagramStyle && styles.imageWrapInstagram]}>
+          <View
+            style={[
+              styles.imageWrap,
+              instagramStyle && styles.imageWrapInstagram,
+              { height: mediaHeight },
+            ]}
+            collapsable={false}
+          >
             <Pressable
               onPress={() => {
               if (postId != null) {
                 onImagePressWithPostId?.(postId) ?? onImagePress?.();
               }
             }}
-              style={styles.imagePressable}
+              style={styles.mediaClip}
             >
               <Image
                 key={postId != null ? `img-${postId}` : `img-${image}`}
                 source={{uri: image}}
-                style={[
-                  styles.postImage,
-                  { height: mediaHeight },
-                ]}
+                style={styles.mediaFill}
                 resizeMode={mediaResizeMode}
                 fadeDuration={0}
               />
@@ -1000,10 +1039,23 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginHorizontal: -16,
     overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
   },
   imageWrapInstagram: {
     marginHorizontal: -16,
     overflow: 'hidden',
+  },
+
+  /** Fixed clip box — Image fills absolutely so OEMs cannot expand layout. */
+  mediaClip: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  mediaFill: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1a1a1a',
   },
 
   imagePressable: {
@@ -1040,6 +1092,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: 340,
+    overflow: 'hidden',
   },
   videoCloseOverlay: {
     position: 'absolute',

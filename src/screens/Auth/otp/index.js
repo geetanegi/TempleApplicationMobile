@@ -16,6 +16,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import LinearGradient from 'react-native-linear-gradient';
 import {colors, images, APP_TEXT, NAVIGATION} from '../../../global/theme';
 import ApplicationButton from '../../../components/ApplicationButton';
+import TransparentHeader from '../../../components/TransparentHeader';
 
 import {
   CodeField,
@@ -306,6 +307,9 @@ export default function Otp({navigation, route}) {
         end={{ x: 0.5, y: 1 }}
       />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+        <TransparentHeader
+          onBackPress={() => navigation.navigate(NAVIGATION.TO_LOGIN)}
+        />
         <View style={styles.headerWrap}>
           <Image source={images.jainSansaarLogo} style={styles.logo} resizeMode="contain" />
           {route?.params?.item?.username !== undefined && (
@@ -405,7 +409,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 120 },
   headerWrap: {
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 8,
     marginBottom: 16,
   },
   logo: {

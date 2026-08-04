@@ -5,15 +5,17 @@ import {
   Text,
   ImageBackground,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
-  Platform,
+  Pressable,
+  StatusBar,
 } from 'react-native';
-import st from '../../../global/styles';
-
-const {width, height} = Dimensions.get('window');
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import {ChevronLeft} from 'lucide-react-native';
 
 const AartiScreen = () => {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
   const content = `
 वृषभ अजित सम्भव अभिनंदन सुमति पद्म सुपार्श्व जिनराय,
 
@@ -30,23 +32,41 @@ const AartiScreen = () => {
 `;
 
   return (
-    <View style={st.flex}>
-      <ImageBackground
-        source={require('../../../images/pdfimg.png')}
-        style={styles.bg}
-        resizeMode="stretch"
-      >
-        <SafeAreaView style={styles.safe}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.title}>JainSansaar</Text>
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5E6C8" />
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View
+          style={[
+            styles.frame,
+            {
+              paddingTop: 16,
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
+            },
+          ]}>
+          <ImageBackground
+            source={require('../../../images/pdfimg.png')}
+            style={styles.bg}
+            resizeMode="stretch">
+            <Pressable
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Go back">
+              <ChevronLeft size={28} color="#fff" strokeWidth={2.5} />
+            </Pressable>
 
-            <Text style={styles.text}>{content.trim()}</Text>
-          </ScrollView>
-        </SafeAreaView>
-      </ImageBackground>
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}>
+              <Text style={styles.title}>JainSansaar</Text>
+              <Text style={styles.text}>{content.trim()}</Text>
+            </ScrollView>
+          </ImageBackground>
+        </View>
+      </SafeAreaView>
     </View>
   );
 };
@@ -54,23 +74,47 @@ const AartiScreen = () => {
 export default AartiScreen;
 
 const styles = StyleSheet.create({
-  bg: {
-
-    padding:90,
-    height,
+  root: {
+    flex: 1,
+    backgroundColor: '#F5E6C8',
   },
   safe: {
     flex: 1,
-    paddingBottom: 24,
+  },
+  frame: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  bg: {
+    flex: 1,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  backBtn: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D48A4A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    elevation: 8,
+  },
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 18 : 10,
+    flexGrow: 1,
+    paddingTop: 72,
+    paddingBottom: 28,
     paddingHorizontal: 26,
-    paddingBottom: 40,
   },
   title: {
     textAlign: 'center',
-    fontSize: 26,
+    fontSize: 17,
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 18,
@@ -81,6 +125,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     color: '#1b1b1b',
-    paddingBottom: 40,
   },
 });

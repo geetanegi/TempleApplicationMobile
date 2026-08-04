@@ -85,6 +85,7 @@ const FOCUS_REFRESH_THROTTLE_MS = 20000;
 const MainDashboard = () => {
   const navigation = useNavigation();
   const [posts, setPosts] = useState([]);
+  const [postsLoaded, setPostsLoaded] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [storyFeed, setStoryFeed] = useState([]);
@@ -162,6 +163,7 @@ const MainDashboard = () => {
     } catch (err) {
       console.error('Error fetching posts:', err);
     } finally {
+      setPostsLoaded(true);
       setRefreshing(false);
     }
   }, [currentUserId]);
@@ -609,7 +611,11 @@ const MainDashboard = () => {
         data={filteredPosts}
         keyExtractor={(item) => item.id}
         renderItem={renderPostItem}
-        contentContainerStyle={[st.pdB20, { paddingBottom: 90, paddingHorizontal: 0 }]}
+        contentContainerStyle={[
+          st.pdB20,
+          { paddingBottom: 90, paddingHorizontal: 0 },
+          filteredPosts.length === 0 && styles.listGrow,
+        ]}
         ListHeaderComponent={
           <>
             <View style={[styles.searchRowWrap, st.mt_B5]}>
@@ -625,6 +631,27 @@ const MainDashboard = () => {
               <StoriesRow />
             </View>
           </>
+        }
+        ListEmptyComponent={
+          postsLoaded ? (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyTitle}>Oops!</Text>
+              <Text style={styles.emptyText}>
+                {searchText.trim()
+                  ? 'No posts match your search.'
+                  : 'No posts yet.\nBe the first to post!'}
+              </Text>
+              {!searchText.trim() ? (
+                <Pressable
+                  style={styles.emptyCta}
+                  onPress={() => navigation.navigate('CreatePost')}
+                >
+                  <Plus size={18} color="#fff" />
+                  <Text style={styles.emptyCtaText}>Create a post</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null
         }
         initialNumToRender={6}
         maxToRenderPerBatch={4}
@@ -652,6 +679,43 @@ const styles = StyleSheet.create({
   },
   searchRowWrap: {
     paddingHorizontal: 10,
+  },
+  listGrow: {
+    flexGrow: 1,
+  },
+  emptyWrap: {
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.PRIMARY_DARK,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emptyCta: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.orange || '#fd7c20',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   // ✅ Stories row styles
   storiesContainer: {
