@@ -16,16 +16,31 @@ export const getApiHeader = async needToken => {
   return config;
 };
 
+const sanitizeErrorMessage = (raw, status) => {
+  if (raw == null) return null;
+  const text = typeof raw === 'string' ? raw : raw?.description || raw?.message || null;
+  if (!text || typeof text !== 'string') return null;
+  // Tomcat / proxy HTML error pages should not be shown in the app UI
+  if (/<html[\s>]/i.test(text) || /HTTP Status\s+\d+/i.test(text)) {
+    if (status === 404) {
+      return 'Server is temporarily unavailable. Please try again in a few minutes.';
+    }
+    return 'Something went wrong on the server. Please try again.';
+  }
+  return text.trim();
+};
+
 export const handleFailedResponse = (err, reject) => {
+  const status = err.response?.status;
   const body = err.response?.data;
   const description =
-    body?.description ||
-    body?.message ||
-    (typeof body === 'string' ? body : null) ||
+    sanitizeErrorMessage(body, status) ||
+    sanitizeErrorMessage(body?.description, status) ||
+    sanitizeErrorMessage(body?.message, status) ||
     err.message ||
     'Something went wrong. Please try again.';
   reject({
-    status: err.response?.status,
+    status,
     message: description,
     description,
     error: body?.error,

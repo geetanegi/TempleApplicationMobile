@@ -102,8 +102,9 @@ const Signup = ({ navigation }) => {
           setUsernameStatus({ available: true, message: 'Username is available' });
           handleError('', 'username');
         } else {
+          // Show only in availability status row (avoid duplicate under the input)
           setUsernameStatus({ available: false, message: data.message || 'Username is already taken' });
-          handleError(data.message || 'Username is already taken', 'username');
+          handleError('', 'username');
         }
       } catch {
         setUsernameStatus(null);
@@ -131,8 +132,9 @@ const Signup = ({ navigation }) => {
           setEmailStatus({ available: true, message: 'Email is available' });
           handleError('', 'emailId');
         } else {
+          // Show only in availability status row (avoid duplicate under the input)
           setEmailStatus({ available: false, message: data.message || 'This email is already registered' });
-          handleError(data.message || 'This email is already registered', 'emailId');
+          handleError('', 'emailId');
         }
       } catch {
         setEmailStatus(null);
@@ -165,6 +167,13 @@ const Signup = ({ navigation }) => {
           const data = {
             emailId: inputs?.emailId,
             token: result?.data?.token,
+            message:
+              result?.description ||
+              result?.data?.message ||
+              'OTP sent successfully.',
+            smsSent: result?.data?.smsSent,
+            emailSent: result?.data?.emailSent,
+            maskedMobile: result?.data?.maskedMobile,
           };
           navigation.navigate(NAVIGATION.TO_OTP_SCREEN, { item: data });
         } else {

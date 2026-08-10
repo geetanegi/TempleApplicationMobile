@@ -10,6 +10,7 @@ class Endpoints {
   VERIFY_OTP = this.baseUrl + 'api/auth/verify-register-otp';
   RESEND_REGISTER_OTP = this.baseUrl + 'api/auth/resend-register-otp';
   FORGET_PASSWORD = this.baseUrl + 'api/auth/forgot-password';
+  RESEND_FORGOT_OTP = this.baseUrl + 'api/auth/resend-forgot-otp';
   VERIFY_FORGOT_OTP = this.baseUrl + 'api/auth/verify-forgot-otp';
   RESET_PASSWORD = this.baseUrl + 'api/auth/reset-password';
   CHECK_USERNAME = (username) =>

@@ -49,6 +49,7 @@ function maskEmail(email) {
 export default function Otp({navigation, route}) {
   let emailId = route?.params?.item?.emailId;
   const maskedEmail = maskEmail(emailId);
+  const maskedMobile = route?.params?.item?.maskedMobile;
   let message = route?.params?.item?.message;
   let token = route?.params?.item?.token;
   const [timeLeft, setTimeLeft] = useState(60);
@@ -139,7 +140,7 @@ export default function Otp({navigation, route}) {
           setIsLoading(false);
         });
     } else {
-      const url = API.FORGET_PASSWORD;
+      const url = API.RESEND_FORGOT_OTP || API.FORGET_PASSWORD;
       const loginId = route?.params?.item?.username || emailId;
       const params = {
         username: loginId,
@@ -321,7 +322,9 @@ export default function Otp({navigation, route}) {
           <View style={styles.emailTxtView}>
             <Text style={styles.accountCreate}>
               {APP_TEXT.OTP_SENT_TO}
-              <Text style={styles.emailHighlight}>{maskedEmail || emailId || ''}</Text>
+              <Text style={styles.emailHighlight}>
+                {[maskedEmail || emailId, maskedMobile].filter(Boolean).join(' & ') || ''}
+              </Text>
             </Text>
           </View>
 
