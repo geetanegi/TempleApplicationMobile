@@ -43,6 +43,9 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       android: {
         channelId: 'social',
         pressAction: {id: 'default'},
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        smallIcon: 'ic_launcher',
       },
       data,
     });

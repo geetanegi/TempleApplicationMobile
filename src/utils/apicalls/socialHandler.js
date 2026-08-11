@@ -328,8 +328,8 @@ export const markNotificationsSeen = async (notificationIds) => {
 };
 
 /**
- * Register FCM token with social API. Body is flat JSON: { userId, token, platform } (must match user_master.id).
- * On success the server stores/updates `user_fcm_token` for that user.
+ * Register FCM token with social API.
+ * Uses query params + empty JSON body — remote host returns 403 when JSON body contains fields.
  */
 export const registerFcmDeviceToken = async (userId, token) => {
   const uid = Number(userId);
@@ -339,12 +339,24 @@ export const registerFcmDeviceToken = async (userId, token) => {
     }
     return null;
   }
-  try {
-    const res = await postAuthFlat(API.SOCIAL_FCM_REGISTER(), {
+  const tryRegister = async (url) => {
+    const fullUrl = urlWithParams(url, {
       userId: uid,
       token,
       platform: Platform.OS,
     });
+    return postAuthFlat(fullUrl, {});
+  };
+  try {
+    let res;
+    try {
+      res = await tryRegister(API.SOCIAL_FCM_REGISTER());
+    } catch (firstErr) {
+      if (__DEV__) {
+        console.warn('[FCM] push-register failed, trying legacy path', firstErr?.status, firstErr?.message);
+      }
+      res = await tryRegister(API.SOCIAL_FCM_REGISTER_LEGACY());
+    }
     if (__DEV__) {
       console.log(
         '[FCM] backend registered token for userId=',
@@ -357,6 +369,23 @@ export const registerFcmDeviceToken = async (userId, token) => {
   } catch (e) {
     if (__DEV__) {
       console.warn('[FCM] backend register failed userId=', uid, 'status=', e?.status, e?.message);
+    }
+    return null;
+  }
+};
+
+/** Remove this device's FCM token from the backend (call on logout). */
+export const unregisterFcmDeviceToken = async (token) => {
+  if (!token) return null;
+  try {
+    try {
+      return await deleteAuthWithParams(API.SOCIAL_FCM_UNREGISTER(), { token });
+    } catch (_) {
+      return await deleteAuthWithParams(API.SOCIAL_FCM_REGISTER_LEGACY(), { token });
+    }
+  } catch (e) {
+    if (__DEV__) {
+      console.warn('[FCM] backend unregister failed', e?.message);
     }
     return null;
   }

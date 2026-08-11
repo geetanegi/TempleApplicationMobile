@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { User } from 'lucide-react-native';
 import { colors } from '../../../global/theme';
 import { getUserId } from '../../../redux/store/getState';
 import { getNotifications, markNotificationsSeen } from '../../../utils/apicalls/socialHandler';
@@ -27,13 +28,13 @@ function capitalizeName(str) {
 }
 
 function getAvatarUri(actorUserId) {
-  if (!actorUserId) return 'https://i.pravatar.cc/150?img=3';
+  if (!actorUserId) return null;
   const url = getProfilePictureUrlByUserId(actorUserId);
   const resolved = resolveProfilePictureUrl(url || '');
   if (resolved && (resolved.startsWith('http://') || resolved.startsWith('https://'))) {
     return resolved;
   }
-  return 'https://i.pravatar.cc/150?img=3';
+  return null;
 }
 
 const TYPE_FOLLOW = 'FOLLOW';
@@ -126,13 +127,29 @@ const NotificationItem = ({ item, image, message, actorName, notificationType, c
   const name = capitalizeName(rawName);
   const hasNamePrefix = rawName.length > 0 && message && (message.startsWith(rawName) || message.toLowerCase().startsWith(rawName.toLowerCase()));
   const restOfMessage = hasNamePrefix ? message.slice(rawName.length).trimStart() : null;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = !!image && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [image]);
 
   return (
     <Pressable
       style={[styles.notificationItem, !isRead && styles.notificationItemUnread]}
       onPress={() => onPress(item, type)}
     >
-      <Image source={{ uri: image }} style={styles.avatar} />
+      {showImage ? (
+        <Image
+          source={{ uri: image }}
+          style={styles.avatar}
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <View style={[styles.avatar, styles.avatarIconWrap]}>
+          <User size={26} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+        </View>
+      )}
       <View style={styles.notificationContent}>
         <View style={styles.notificationTextRow}>
           <Text style={styles.notificationText} numberOfLines={3}>
@@ -361,6 +378,12 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     marginRight: 12,
+  },
+  avatarIconWrap: {
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   notificationContent: { flex: 1 },
   notificationTextRow: {

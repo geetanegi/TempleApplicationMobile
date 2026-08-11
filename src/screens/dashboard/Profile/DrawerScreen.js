@@ -15,6 +15,7 @@ import PopUpMessage from '../../../components/popup';
 import {clearLogin} from '../../../redux/reducers/Login';
 import {cleanLogindata} from '../../../redux/reducers/Logindata';
 import {useDispatch} from 'react-redux';
+import {clearPushOnLogout} from '../../../utils/push/pushNotificationService';
 
 const DrawerScreen = ({navigation}) => {
   const [title, setTitle] = useState();
@@ -30,6 +31,9 @@ const DrawerScreen = ({navigation}) => {
 
   const performLogout = async () => {
     navigation.closeDrawer();
+    try {
+      await clearPushOnLogout();
+    } catch (_) {}
     await AsyncStorage.removeItem('token');
     dispatch(cleanLogindata());
     dispatch(clearLogin());

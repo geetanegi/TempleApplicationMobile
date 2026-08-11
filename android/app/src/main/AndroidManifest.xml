@@ -33,6 +33,12 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDK6UoNV-QPxx0KJHH1NvwREj8n2tKdmZU"/>
 
+        <!-- FCM: use same channel as Notifee / backend AndroidConfig (background system tray) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="social"
+            tools:replace="android:value" />
+
         <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
@@ -48,12 +54,6 @@
                 <action android:name="android.intent.action.DOWNLOAD_COMPLETE"/>
             </intent-filter>
 
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="tel" />
-            </intent-filter>
         </activity>
 
         <!-- Override UCrop (image crop) activity theme to fix status bar overlap -->

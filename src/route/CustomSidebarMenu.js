@@ -23,6 +23,7 @@ import PrivacyPolicy from '../components/PrivacyPolicy';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {environment} from '../utils/constant';
+import {clearPushOnLogout} from '../utils/push/pushNotificationService';
 
 const CustomSidebarMenu = props => {
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +64,9 @@ const CustomSidebarMenu = props => {
   const logoutApiHandle = async () => {
     try {
       setIsLoading(true);
+      try {
+        await clearPushOnLogout();
+      } catch (_) {}
       postAuth(API.LOGOUT)
         .then(data => {
           console.log('Logout successful from server');

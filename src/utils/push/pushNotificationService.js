@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Platform, PermissionsAndroid, DeviceEventEmitter } from 'react-native';
 
-import { registerFcmDeviceToken } from '../apicalls/socialHandler';
+import { registerFcmDeviceToken, unregisterFcmDeviceToken } from '../apicalls/socialHandler';
 
 import {
 
@@ -27,6 +27,20 @@ export { NOTIFICATION_BELL_REFRESH } from './notificationEvents';
 
 
 const CHANNEL_ID = 'social';
+
+
+
+/** Call on logout: unregister token with backend (best-effort). */
+export async function clearPushOnLogout() {
+  try {
+    const token = await messaging().getToken();
+    if (token) {
+      await unregisterFcmDeviceToken(token);
+    }
+  } catch (e) {
+    console.warn('[FCM] clearPushOnLogout', e?.message || e);
+  }
+}
 
 
 
@@ -184,6 +198,10 @@ export function initPushNotifications(userId) {
 
       const token = await messaging().getToken();
 
+      if (token) {
+        console.log('[FCM] FULL TOKEN', token);
+      }
+
       if (token && userId) {
 
         await registerFcmDeviceToken(userId, token);
@@ -226,6 +244,12 @@ export function initPushNotifications(userId) {
 
       const { title, body } = extractTitleBody(remoteMessage);
 
+      const data = {};
+      const raw = remoteMessage?.data || {};
+      Object.keys(raw).forEach((k) => {
+        data[k] = raw[k] == null ? '' : String(raw[k]);
+      });
+
       try {
 
         await notifee.displayNotification({
@@ -234,13 +258,19 @@ export function initPushNotifications(userId) {
 
           body,
 
-          data: remoteMessage.data ? { ...remoteMessage.data } : {},
+          data,
 
           android: {
 
             channelId: CHANNEL_ID,
 
             pressAction: { id: 'default' },
+
+            importance: AndroidImportance.HIGH,
+
+            sound: 'default',
+
+            smallIcon: 'ic_launcher',
 
           },
 

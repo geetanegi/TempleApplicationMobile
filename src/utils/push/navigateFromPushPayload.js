@@ -1,4 +1,5 @@
 import { InteractionManager } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import { navigationRef } from '../../route';
 import { store } from '../../redux/store';
 
@@ -18,19 +19,47 @@ function parseId(value) {
   return Number.isFinite(n) ? n : value;
 }
 
+function goHomeNested(screen, params) {
+  if (!navigationRef.isReady()) return false;
+  try {
+    navigationRef.dispatch(
+      CommonActions.navigate({
+        name: 'Dashboard',
+        params: {
+          screen: 'Home',
+          params: params != null ? { screen, params } : { screen },
+        },
+      }),
+    );
+    return true;
+  } catch (e) {
+    if (__DEV__) {
+      console.warn('[FCM] navigate failed', screen, e?.message || e);
+    }
+    return false;
+  }
+}
+
 /**
- * Open the right in-app screen from FCM / Notifee data (push tap only — not external links).
+ * Open the right in-app screen from FCM / Notifee data (push tap).
  *
- * @param {Record<string, string>|null|undefined} data
- * @param {{ waitForSplash?: boolean }} opts
+ * FOLLOW  → Profiles (actor)
+ * MESSAGE → ChatScreen (thread) or Chat list
+ * LIKE / COMMENT → PostPreview (post) or Notifications (reel / missing id)
  */
 export function navigateFromPushPayload(data, opts = {}) {
   const { waitForSplash = false } = opts;
   const payload = data && typeof data === 'object' ? data : {};
   const type = String(payload.notificationType || '').toUpperCase();
+  const targetKind = String(payload.targetKind || '').toLowerCase();
   const targetId = parseId(payload.targetId);
   const actorUserId = parseId(payload.actorUserId);
-  const actorUsername = payload.actorUsername || 'User';
+  const actorUsername =
+    payload.actorFullName || payload.actorUsername || payload.actorName || 'User';
+
+  if (__DEV__) {
+    console.log('[FCM] open navigate', { type, targetKind, targetId, actorUserId });
+  }
 
   let attempts = 0;
   let finished = false;
@@ -49,67 +78,46 @@ export function navigateFromPushPayload(data, opts = {}) {
       return;
     }
 
-    try {
-      switch (type) {
-        case TYPE_FOLLOW:
-          if (actorUserId) {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: { screen: 'Profiles', params: { userId: actorUserId } },
-            });
-          } else {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: { screen: 'Notifications' },
-            });
-          }
-          break;
-        case TYPE_MESSAGE:
-          if (targetId && actorUserId) {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: {
-                screen: 'ChatScreen',
-                params: {
-                  threadId: targetId,
-                  otherUserId: actorUserId,
-                  otherUsername: actorUsername,
-                  otherName: actorUsername,
-                  otherUserHandle: actorUsername,
-                },
-              },
-            });
-          } else {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: { screen: 'Chat' },
-            });
-          }
-          break;
-        case TYPE_LIKE:
-        case TYPE_COMMENT:
-        default:
-          if (targetId) {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: {
-                screen: 'PostPreview',
-                params: { postId: targetId },
-              },
-            });
-          } else {
-            navigationRef.navigate('Dashboard', {
-              screen: 'Home',
-              params: { screen: 'Notifications' },
-            });
-          }
-          break;
-      }
+    let ok = false;
+    switch (type) {
+      case TYPE_FOLLOW:
+        ok = actorUserId
+          ? goHomeNested('Profiles', { userId: actorUserId })
+          : goHomeNested('Notifications');
+        break;
+      case TYPE_MESSAGE:
+        if (targetId && actorUserId) {
+          ok = goHomeNested('ChatScreen', {
+            threadId: targetId,
+            otherUserId: actorUserId,
+            otherUsername: actorUsername,
+            otherName: actorUsername,
+            otherUserHandle: actorUsername,
+          });
+        } else {
+          ok = goHomeNested('Chat');
+        }
+        break;
+      case TYPE_LIKE:
+      case TYPE_COMMENT:
+        if (targetKind === 'reel') {
+          // No dedicated reel-preview route from push yet — open bell list
+          ok = goHomeNested('Notifications');
+        } else if (targetId) {
+          ok = goHomeNested('PostPreview', { postId: targetId });
+        } else {
+          ok = goHomeNested('Notifications');
+        }
+        break;
+      default:
+        ok = goHomeNested('Notifications');
+        break;
+    }
+
+    if (ok) {
       finished = true;
-    } catch {
-      if (attempts < MAX_ATTEMPTS) {
-        setTimeout(tryNavigate, RETRY_MS);
-      }
+    } else if (attempts < MAX_ATTEMPTS) {
+      setTimeout(tryNavigate, RETRY_MS);
     }
   };
 
