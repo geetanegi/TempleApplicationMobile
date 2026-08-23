@@ -1,9 +1,9 @@
 buildscript {
     ext {
-        buildToolsVersion = "34.0.0"           // Latest build tools for Android 14
+        buildToolsVersion = "36.0.0"           // Build tools for Android 16 (API level 36)
         minSdkVersion = 24                     // React Native 0.77 requires at least 24
-        compileSdkVersion = 35                 // Compile with Android 15 (API level 35)
-        targetSdkVersion = 35                  // Target Android 15 (required by Google Play)
+        compileSdkVersion = 36                 // Compile with Android 16 (API level 36)
+        targetSdkVersion = 36                  // Target Android 16 - Play requires API 36 for updates
         ndkVersion = "27.1.12297006"           // Matches react-native 0.77.3's own pin (node_modules/react-native/gradle/libs.versions.toml)
         kotlinVersion = "2.0.21"               // Match React Native 0.77
         googlePlayServicesAuthVersion = "17.0.0" // Google Play Services Auth version
@@ -15,8 +15,12 @@ buildscript {
     }
 
     dependencies {
-        // Android Gradle Plugin for API 34 (Android 14)
-        classpath 'com.android.tools.build:gradle:8.7.2'
+        // Android Gradle Plugin. 8.9.x is the first release that officially supports
+        // compileSdk 36; on 8.7.2 the build only warns/fails with
+        // "This Android Gradle plugin (8.7.2) was tested up to compileSdk = 35".
+        // 8.9.x's minimum Gradle is 8.11.1, which is exactly what the wrapper pins,
+        // so the wrapper does not need to change.
+        classpath 'com.android.tools.build:gradle:8.9.3'
 
         // React Native Gradle plugin
         classpath "com.facebook.react:react-native-gradle-plugin"

@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- UCrop theme for Android 15+ — also opt out of edge-to-edge enforcement -->
+    <!--
+      UCrop theme for Android 15+ — also opt out of edge-to-edge enforcement.
+      NOTE: with targetSdk 36, `windowOptOutEdgeToEdgeEnforcement` is IGNORED on Android 16
+      devices (it still works on Android 15). What keeps the ✓ / X tappable there is
+      `windowIsFloating` + `fitsSystemWindows` below: floating windows are exempt from
+      edge-to-edge enforcement and insets are still applied to the content view.
+    -->
     <style name="UCropTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">false</item>

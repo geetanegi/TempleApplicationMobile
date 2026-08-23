@@ -18,6 +18,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 
+    <!--
+      enableOnBackInvokedCallback=false: with targetSdk 36 predictive back is on by default,
+      and Android 16 then stops calling Activity.onBackPressed() / dispatching KEYCODE_BACK.
+      React Native 0.77.3 has no OnBackInvokedCallback support (ReactActivity.onBackPressed is
+      the only path), so BackHandler and react-navigation's hardware-back handling would go
+      dead. Opting out keeps the legacy back dispatch. Remove this once RN supports predictive
+      back - Google will drop the opt-out in a future release.
+    -->
     <application
         android:largeHeap="true"
         android:requestLegacyExternalStorage="true"
@@ -27,7 +35,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
         android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="false"
         android:theme="@style/AppTheme">
+
+        <!--
+          targetSdk 36 (Android 16) ignores android:screenOrientation and
+          setRequestedOrientation() on screens whose smallest width is >= 600dp (tablets,
+          unfolded foldables, desktop windowing). The app is portrait-only by design -
+          src/App.js calls Orientation.lockToPortrait() and PostCard toggles it for video -
+          so opt back into the restriction. Temporary: Google will stop honouring this
+          property once we target API 37, at which point the layouts need to handle
+          landscape/resizing on large screens for real.
+        -->
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
         <!-- Google Maps API Key - replace with your key from Google Cloud Console -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
