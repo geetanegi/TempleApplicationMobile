@@ -116,6 +116,7 @@ const InstaGallery = () => {
     compressImageMaxWidth: 2048,
     compressImageMaxHeight: 2048,
     compressImageQuality: 0.92,
+    forceJpg: true,
   };
 
   const cropOptions = {

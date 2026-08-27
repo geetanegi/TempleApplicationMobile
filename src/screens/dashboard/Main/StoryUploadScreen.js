@@ -46,6 +46,7 @@ const STORY_EDIT_OPTIONS = {
   compressImageMaxWidth: 1080,
   compressImageMaxHeight: 1920,
   compressImageQuality: 0.9,
+  forceJpg: true,
 };
 
 

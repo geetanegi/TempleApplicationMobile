@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Search, X, TrendingUp, MapPin, Flame, Bell, MessageCircle, History } from 'lucide-react-native';
+import { Search, X, TrendingUp, MapPin, Flame, Bell, MessageCircle, History, User } from 'lucide-react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import st from '../../../global/styles';
 import { colors, APP_TEXT } from '../../../global/theme';
@@ -39,6 +39,35 @@ const CATEGORIES = [
 ];
 
 const DEBOUNCE_MS = 400;
+
+function SearchUserAvatar({ user }) {
+  const [failed, setFailed] = useState(false);
+  const hasPhoto = Boolean(user?.imageUrl);
+  const uri = hasPhoto
+    ? (getProfilePictureUrlByUserId(user.id) || resolveProfilePictureUrl(user.imageUrl))
+    : null;
+  const showPhoto = Boolean(uri) && !failed;
+
+  useEffect(() => {
+    setFailed(false);
+  }, [user?.id, uri]);
+
+  if (!showPhoto) {
+    return (
+      <View style={[styles.userAvatar, styles.userAvatarPlaceholder]}>
+        <User size={22} color={colors.grey || '#9ca3af'} strokeWidth={2} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.userAvatar}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 const TEMPLE_IMG_FALLBACK = 'https://images.unsplash.com/photo-1548013146-72479768bada?w=200&auto=format&fit=crop&q=60';
 
@@ -174,11 +203,6 @@ const SearchScreen = () => {
     return name || user.username || 'User';
   };
 
-  const avatarUrl = (user) => {
-    if (user.imageUrl) return resolveProfilePictureUrl(user.imageUrl);
-    return getProfilePictureUrlByUserId(user.id);
-  };
-
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <HeaderDashboard
@@ -244,14 +268,7 @@ const SearchScreen = () => {
                           openUserProfile(navigation, user.id);
                         }}
                       >
-                        {avatarUrl(user) ? (
-                          <Image
-                            source={{ uri: avatarUrl(user) }}
-                            style={styles.userAvatar}
-                          />
-                        ) : (
-                          <View style={[styles.userAvatar, styles.userAvatarPlaceholder]} />
-                        )}
+                        <SearchUserAvatar user={user} />
                         <View style={styles.userInfo}>
                           <Text style={styles.userName}>{displayName(user)}</Text>
                           {user.username ? (
@@ -514,7 +531,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.BACKGROUD_ICON_COLOR || '#e5e7eb',
   },
   userAvatarPlaceholder: {
-    backgroundColor: colors.grey || '#9ca3af',
+    backgroundColor: colors.BACKGROUD_ICON_COLOR || '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   userInfo: {
     marginLeft: 14,

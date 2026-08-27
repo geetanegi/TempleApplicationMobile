@@ -201,6 +201,7 @@ const EditProfileScreen = () => {
       cropperCircleOverlay: true,
       mediaType: 'photo',
       compressImageQuality: 0.85,
+      forceJpg: true,
     })
       .then(asset => {
         let uri = asset?.path || asset?.sourceURL;
